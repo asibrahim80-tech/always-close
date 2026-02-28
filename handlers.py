@@ -90,81 +90,83 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==============================
 
 async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    telegram_id = user.id
+    username = user.username
+    lat = update.message.location.latitude
+    lon = update.message.location.longitude
 
-user = update.effective_user
-telegram_id = user.id
-username = user.username
-lat = update.message.location.latitude
-lon = update.message.location.longitude
+    detected_lang = detect_language(user.language_code)
 
-detected_lang = detect_language(user.language_code)
-
-# 🔎 Check if user exists
-existing = supabase.table("users_v1") \
-    .select("id") \
-    .eq("telegram_id", telegram_id) \
-    .execute()
-
-# 📷 Get Telegram profile photo
-photos = await context.bot.get_user_profile_photos(telegram_id, limit=1)
-
-photo_url = None
-
-if photos.total_count > 0:
-    file = await context.bot.get_file(photos.photos[0][0].file_id)
-    photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
-
-# 👤 Insert or Update user
-if existing.data:
-    user_db_id = existing.data[0]["id"]
-
-    supabase.table("users_v1") \
-        .update({
-            "username": username,
-            "language": detected_lang,
-            "updated_at": datetime.utcnow().isoformat()
-        }) \
-        .eq("id", user_db_id) \
+    # 🔎 Check if user exists
+    existing = supabase.table("users_v1") \
+        .select("id") \
+        .eq("telegram_id", telegram_id) \
         .execute()
 
-else:
-    insert = supabase.table("users_v1") \
+    # 📷 Get Telegram profile photo
+    photos = await context.bot.get_user_profile_photos(telegram_id, limit=1)
+
+    photo_url = None
+
+    if photos.total_count > 0:
+        file = await context.bot.get_file(photos.photos[0][0].file_id)
+        # Note: BOT_TOKEN should be imported or available. Assuming it's in config or context.
+        # For now, let's fix indentation.
+        from config import BOT_TOKEN
+        photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+
+    # 👤 Insert or Update user
+    if existing.data:
+        user_db_id = existing.data[0]["id"]
+
+        supabase.table("users_v1") \
+            .update({
+                "username": username,
+                "language": detected_lang,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }) \
+            .eq("id", user_db_id) \
+            .execute()
+
+    else:
+        insert = supabase.table("users_v1") \
+            .insert({
+                "telegram_id": telegram_id,
+                "username": username,
+                "language": detected_lang,
+                "photo_url": photo_url
+            }) \
+            .execute()
+
+        user_db_id = insert.data[0]["id"]
+
+    # 📍 Save location
+    supabase.table("user_locations_v1") \
         .insert({
-            "telegram_id": telegram_id,
-            "username": username,
-            "language": detected_lang,
-            "photo_url": photo_url
+            "user_id": user_db_id,
+            "latitude": lat,
+            "longitude": lon,
+            "source": "GPS"
         }) \
         .execute()
 
-    user_db_id = insert.data[0]["id"]
+    keyboard = [
+        [InlineKeyboardButton("✅ Confirm Account", callback_data="confirm")],
+        [InlineKeyboardButton("❌ Cancel Registration", callback_data="cancel")]
+    ]
 
-# 📍 Save location
-supabase.table("user_locations_v1") \
-    .insert({
-        "user_id": user_db_id,
-        "latitude": lat,
-        "longitude": lon,
-        "source": "GPS"
-    }) \
-    .execute()
-
-keyboard = [
-    [InlineKeyboardButton("✅ Confirm Account", callback_data="confirm")],
-    [InlineKeyboardButton("❌ Cancel Registration", callback_data="cancel")]
-]
-
-if photo_url:
-    await update.message.reply_photo(
-        photo=photo_url,
-        caption="Account created 👇\n\nDo you want to activate your profile?",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-else:
-    await update.message.reply_text(
-        "Account created 👇\n\nDo you want to activate your profile?",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
+    if photo_url:
+        await update.message.reply_photo(
+            photo=photo_url,
+            caption="Account created 👇\n\nDo you want to activate your profile?",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    else:
+        await update.message.reply_text(
+            "Account created 👇\n\nDo you want to activate your profile?",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
     
 # ==============================
 # Handle Buttons
@@ -324,11 +326,10 @@ async def send_user_card(chat_id, context, user_data):
     last_seen = time_ago(user_data.get("last_update"))
 
     caption_text = f"""
-    <b>{user['username']}</b> | {user.get('age','?')} سنة
-    📍 {user['distance']} كم
+    <b>{user_data.get('username', 'مستخدم')}</b> | {user_data.get('age','?')} سنة
+    📍 {user_data.get('distance', '?')} كم
     🟢 نشط الآن
     """
-
 
     keyboard = [
         [
@@ -343,31 +344,23 @@ async def send_user_card(chat_id, context, user_data):
     ]
 
     keyboard = [[btn for btn in row if btn] for row in keyboard]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
     if user_data.get("photo_url"):
         await context.bot.send_photo(
             chat_id=chat_id,
             photo=user_data["photo_url"],
-            caption=caption,
+            caption=caption_text,
             parse_mode="HTML",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            reply_markup=reply_markup
         )
     else:
-        if user.get("photo_url"):
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=user["photo_url"],
-                caption=caption_text,
-                reply_markup=keyboard,
-                parse_mode="HTML"
-            )
-        else:
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=caption_text,
-                reply_markup=keyboard,
-                parse_mode="HTML"
-            )
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=caption_text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
 
 
 # ==============================
@@ -379,9 +372,9 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id
     phone = update.message.contact.phone_number
 
-supabase.table("users_v1") \
-    .update({"phone": phone}) \
-    .eq("telegram_id", telegram_id) \
-    .execute()
+    supabase.table("users_v1") \
+        .update({"phone": phone}) \
+        .eq("telegram_id", telegram_id) \
+        .execute()
 
-await update.message.reply_text("تم حفظ رقم الهاتف بنجاح ✅")
+    await update.message.reply_text("تم حفظ رقم الهاتف بنجاح ✅")

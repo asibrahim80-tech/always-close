@@ -57,13 +57,13 @@ def main():
     app.add_handler(MessageHandler(filters.LOCATION, handle_location))
 
     # -------- Buttons (Inline) --------
-app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+    app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
 
-app.add_handler(CallbackQueryHandler(handle_buttons))
+    app.add_handler(CallbackQueryHandler(handle_buttons))
 
     # -------- Show Nearby --------
 
-app.add_handler(
+    app.add_handler(
         MessageHandler(
             filters.TEXT & filters.Regex("^👥 عرض الأقرب$"),
             show_nearby
@@ -71,11 +71,11 @@ app.add_handler(
     )
 
     # -------- Error Handler --------
-app.add_error_handler(error_handler)
+    app.add_error_handler(error_handler)
 
-logger.info("🚀 Always Close Bot Started...")
+    logger.info("🚀 Always Close Bot Started...")
 
-app.run_polling()
+    app.run_polling()
 
 
 # ==============================
