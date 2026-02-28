@@ -71,8 +71,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     await update.message.reply_text(
-        "🤍 Welcome to Always Close\n\nيرجى مشاركة الموقع ورقم الهاتف لإكمال التسجيل: 📍",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+        "🤍 Welcome to Always Close\n\nيرجى مشاركة الموقع ورقم الهاتف لإكمال التسجيل:",
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard,
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
     )
 
 # ==============================
