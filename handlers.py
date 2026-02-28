@@ -65,23 +65,13 @@ def time_ago(timestamp):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    location_button= KeyboardButton("📍 Share Location", request_location=True)
-    keyboard = [[location_button]]
-
-    await update.message.reply_text(
-        "🤍 Welcome to Always Close\n\nPlease share your location to begin 📍",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    )
-    
-    from telegram import ReplyKeyboardMarkup, KeyboardButton
-
     keyboard = [
         [KeyboardButton("📍 مشاركة الموقع", request_location=True)],
         [KeyboardButton("📱 مشاركة رقم الهاتف", request_contact=True)]
     ]
 
     await update.message.reply_text(
-        "يرجى مشاركة الموقع ورقم الهاتف لإكمال التسجيل:",
+        "🤍 Welcome to Always Close\n\nيرجى مشاركة الموقع ورقم الهاتف لإكمال التسجيل: 📍",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
     )
 
