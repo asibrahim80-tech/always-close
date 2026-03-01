@@ -19,7 +19,11 @@ from handlers import (
     handle_location,
     handle_buttons,
     show_nearby,
-    handle_contact
+    handle_contact,
+    show_matches,
+    show_requests,
+    toggle_visibility,
+    toggle_phone_visibility
 )
 
 # ==============================
@@ -56,19 +60,18 @@ def main():
     # -------- Location --------
     app.add_handler(MessageHandler(filters.LOCATION, handle_location))
 
-    # -------- Buttons (Inline) --------
+    # -------- Contact --------
     app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
 
+    # -------- Buttons (Inline) --------
     app.add_handler(CallbackQueryHandler(handle_buttons))
 
-    # -------- Show Nearby --------
-
-    app.add_handler(
-        MessageHandler(
-            filters.TEXT & filters.Regex("^👥 عرض الأقرب$"),
-            show_nearby
-        )
-    )
+    # -------- Menu Handlers --------
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^👥 عرض الأقرب$"), show_nearby))
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^🔥 التطابقات$"), show_matches))
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^📥 طلباتي$"), show_requests))
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^👻 إخفاء حسابي$"), toggle_visibility))
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^📞 إظهار/إخفاء رقمي$"), toggle_phone_visibility))
 
     # -------- Error Handler --------
     app.add_error_handler(error_handler)
