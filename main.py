@@ -78,8 +78,11 @@ def main():
 
     logger.info("🚀 Always Close Bot Started...")
 
-    app.run_polling()
+app.run_polling()
 
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_age))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_gender))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_bio))
 
 # ==============================
 # Run Application
