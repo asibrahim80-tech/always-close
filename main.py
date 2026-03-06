@@ -25,6 +25,8 @@ from handlers import (
     toggle_visibility,
     toggle_phone_visibility
 )
+from keep_alive import keep_alive
+keep_alive()
 
 # ==============================
 # Logging System (Production)

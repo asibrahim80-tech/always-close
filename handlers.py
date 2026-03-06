@@ -319,24 +319,29 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ حدث خطأ أثناء التسجيل.")
             return
 
-    supabase.table("user_locations_v1") \
-        .insert({
-            "user_id": user_id,
-            "latitude": lat,
-            "longitude": lon,
-            "source": "GPS"
-        }) \
-        .execute()
+supabase.table("user_locations_v1") \
+      .insert({
+          "user_id": user_id,
+          "latitude": lat,
+          "longitude": lon,
+          "source": "GPS"
+      }) \
+      .execute()
 
-    await update.message.reply_text("🚀 تم تحديث موقعك بنجاح!")
+            await update.message.reply_text("🚀 تم تحديث موقعك بنجاح!")
 
+
+  # فحص اكتمال البروفايل
 user = supabase.table("users_v1") \
-        .select("profile_completed") \
-        .eq("telegram_id", telegram_id) \
-        .execute()
+      .select("profile_completed") \
+      .eq("telegram_id", telegram_id) \
+      .execute()
 
-    if user.data and not user.data[0]["profile_completed"]:
-        await start_profile_setup(update, context)
+        if user.data and not user.data[0]["profile_completed"]:
+            await start_profile_setup(update, context)
+            return
+
+        await update.message.reply_text("Welcome back!")
 
 # =========================================================
 # SHOW NEARBY (Optimized)
@@ -409,12 +414,11 @@ async def show_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
 context.user_data["viewer_id"] = telegram_id
-    context.user_data["nearby_users"] = results
-    context.user_data["index"] = 0
-
+context.user_data["nearby_users"] = results
+context.user_data["index"] = 0
 context.bot_data["current_viewer"] = telegram_id
 
-    await send_user_card(update.effective_chat.id, context)
+await send_user_card(update.effective_chat.id, context)
 
 
 #=====================================
@@ -509,8 +513,6 @@ if relation.data and relation.data[0]["status"] == "accepted":
 
 async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    if not query:
-        return
     await query.answer()
 
     telegram_id = query.from_user.id
@@ -525,109 +527,61 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     my_id = me.data[0]["id"]
 
-    # LIKE SYSTEM
+
+    # ❤️ LIKE
     if query.data.startswith("like_"):
+
         target_id = int(query.data.split("_")[1])
 
-        supabase.table("likes_v1") \
-            .insert({
-                "from_user_id": my_id,
-                "to_user_id": target_id
-            }) \
-            .execute()
+        result = await process_like(my_id, target_id)
 
-        # Check mutual
-        mutual = supabase.table("likes_v1") \
-            .select("*") \
-            .eq("from_user_id", target_id) \
-            .eq("to_user_id", my_id) \
-            .execute()
+        if result == "matched":
+            await query.message.reply_text("🎉 Match!")
 
-        if mutual.data:
-            match_exists = supabase.table("matches_v1") \
-                .select("*") \
-                .or_(f"and(user1_id.eq.{my_id},user2_id.eq.{target_id}),and(user1_id.eq.{target_id},user2_id.eq.{my_id})") \
-                .execute()
-
-            if not match_exists.data:
-                supabase.table("matches_v1") \
-                    .insert({
-                        "user1_id": my_id,
-                        "user2_id": target_id
-                    }) \
-                    .execute()
-
-                await query.edit_message_caption(caption=query.message.caption + "\n\n🎉 تم التطابق! يمكنكما التواصل الآن.")
-            else:
-                 await query.answer("أنتما متطابقان بالفعل! 🎉")
-
-if query.data.startswith("skip_"):
-
-context.user_data["index"] += 1
-await send_user_card(query.message.chat.id, context)
-return
-
-if query.data.startswith("like_"):
-
-target_id = int(query.data.split("_")[1])
-
-result = await process_like(my_id, target_id)
-
-if result == "matched":
-
-    await query.message.reply_text("🎉 Match!")
-
-context.user_data["index"] += 1
-await send_user_card(query.message.chat.id, context)
-
-return
-
-if query.data.startswith("super_"):
-
-target_id = int(query.data.split("_")[1])
-
-relation = supabase.table("friendships_v1") \
-    .insert({
-        "requester_id": my_id,
-        "receiver_id": target_id,
-        "status": "pending_request",
-        "is_super": True
-    }) \
-    .execute()
-
-await query.answer("⭐ Super Like sent!")
-
-context.user_data["index"] += 1
-await send_user_card(query.message.chat.id, context)
-
-return
-
-target = supabase.table("users_v1") \
-    .select("telegram_id") \
-    .eq("id", target_id) \
-    .execute()
-
-if target.data:
-
-    await context.bot.send_message(
-        chat_id=target.data[0]["telegram_id"],
-        text="⭐ Someone sent you a Super Like!"
-    )
-
-
-    elif query.data == "next":
         context.user_data["index"] = context.user_data.get("index", 0) + 1
         await send_user_card(query.message.chat.id, context)
 
-# Menu Handlers
-async def show_matches(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("قريباً: عرض التطابقات 🔥")
+        return
 
-async def show_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("قريباً: عرض الطلبات 📥")
 
-async def toggle_visibility(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("قريباً: إخفاء الحساب 👻")
+    # ⭐ SUPER LIKE
+    elif query.data.startswith("super_"):
 
-async def toggle_phone_visibility(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("قريباً: إظهار/إخفاء الرقم 📞")
+        target_id = int(query.data.split("_")[1])
+
+        supabase.table("friendships_v1") \
+            .insert({
+                "requester_id": my_id,
+                "receiver_id": target_id,
+                "status": "pending_request",
+                "is_super": True
+            }) \
+            .execute()
+
+        await query.answer("⭐ Super Like sent!")
+
+        # ارسال إشعار للطرف الآخر
+        target = supabase.table("users_v1") \
+            .select("telegram_id") \
+            .eq("id", target_id) \
+            .execute()
+
+        if target.data:
+            await context.bot.send_message(
+                chat_id=target.data[0]["telegram_id"],
+                text="⭐ Someone sent you a Super Like!"
+            )
+
+        context.user_data["index"] = context.user_data.get("index", 0) + 1
+        await send_user_card(query.message.chat.id, context)
+
+        return
+
+
+    # ⏭ NEXT
+    elif query.data == "next":
+
+        context.user_data["index"] = context.user_data.get("index", 0) + 1
+        await send_user_card(query.message.chat.id, context)
+
+        return
