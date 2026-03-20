@@ -1,4 +1,5 @@
 import logging
+from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -7,7 +8,6 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
-from telegram import Update
 
 from config import BOT_TOKEN
 from keep_alive import keep_alive
