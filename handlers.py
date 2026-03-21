@@ -74,12 +74,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id
     phone = update.message.contact.phone_number
-
-    supabase.table("users_v1") \
-        .update({"phone": phone}) \
-        .eq("telegram_id", telegram_id) \
-        .execute()
-
+    supabase.table("users_v1").update({"phone": phone}).eq("telegram_id", telegram_id).execute()
     await update.message.reply_text("📱 تم حفظ رقم الهاتف بنجاح ✅")
 
 
@@ -96,15 +91,11 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     geo = geohash2.encode(lat, lon, precision=7)
     lang = detect_language(user.language_code)
 
-    existing = supabase.table("users_v1") \
-        .select("*") \
-        .eq("telegram_id", telegram_id) \
-        .execute()
+    existing = supabase.table("users_v1").select("*").eq("telegram_id", telegram_id).execute()
 
-    photos = await context.bot.get_user_profile_photos(telegram_id, limit=1)
     photo_url = None
-
     try:
+        photos = await context.bot.get_user_profile_photos(telegram_id, limit=1)
         if photos.total_count > 0:
             file = await context.bot.get_file(photos.photos[0][0].file_id)
             photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
@@ -113,25 +104,19 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if existing.data:
         user_id = existing.data[0]["id"]
-        supabase.table("users_v1") \
-            .update({
-                "username": username,
-                "photo_url": photo_url,
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }) \
-            .eq("id", user_id) \
-            .execute()
+        supabase.table("users_v1").update({
+            "username": username,
+            "photo_url": photo_url
+        }).eq("id", user_id).execute()
     else:
-        insert = supabase.table("users_v1") \
-            .insert({
-                "telegram_id": telegram_id,
-                "username": username,
-                "language": lang,
-                "photo_url": photo_url,
-                "is_active": True,
-                "is_visible": True
-            }) \
-            .execute()
+        insert = supabase.table("users_v1").insert({
+            "telegram_id": telegram_id,
+            "username": username,
+            "language": lang,
+            "photo_url": photo_url,
+            "is_active": True,
+            "is_visible": True
+        }).execute()
 
         if not insert.data:
             await update.message.reply_text("❌ خطأ في التسجيل.")
@@ -139,15 +124,13 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user_id = insert.data[0]["id"]
 
-    supabase.table("user_locations_v1") \
-        .insert({
-            "user_id": user_id,
-            "latitude": lat,
-            "longitude": lon,
-            "geohash": geo,
-            "source": "GPS"
-        }) \
-        .execute()
+    supabase.table("user_locations_v1").insert({
+        "user_id": user_id,
+        "latitude": lat,
+        "longitude": lon,
+        "geohash": geo,
+        "source": "GPS"
+    }).execute()
 
     await update.message.reply_text("🚀 تم تحديث موقعك بنجاح!")
 
@@ -159,18 +142,14 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def show_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         tg_id = update.effective_user.id
+        chat_id = update.effective_chat.id
 
-        user_res = supabase.table("users_v1") \
-            .select("*") \
-            .eq("telegram_id", tg_id) \
-            .execute()
-
+        user_res = supabase.table("users_v1").select("*").eq("telegram_id", tg_id).execute()
         if not user_res.data:
             await update.message.reply_text("❌ يجب التسجيل أولاً.")
             return
 
-        my_user = user_res.data[0]
-        my_id = my_user["id"]
+        my_id = user_res.data[0]["id"]
 
         loc_res = supabase.table("user_locations_v1") \
             .select("*") \
@@ -180,22 +159,20 @@ async def show_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE):
             .execute()
 
         if not loc_res.data:
-            await update.message.reply_text("❌ يجب مشاركة موقعك أولاً.")
+            await update.message.reply_text("❌ شارك موقعك أولاً.")
             return
 
-        my_loc = loc_res.data[0]
-        my_lat = my_loc["latitude"]
-        my_lon = my_loc["longitude"]
+        my_lat = loc_res.data[0]["latitude"]
+        my_lon = loc_res.data[0]["longitude"]
 
         all_users = supabase.table("users_v1") \
-            .select("id, username, age, gender, bio, photo_url, updated_at") \
+            .select("id, username, age, gender, bio, photo_url, created_at") \
             .eq("is_active", True) \
             .eq("is_visible", True) \
             .neq("id", my_id) \
             .execute()
 
         result = []
-
         for u in all_users.data:
             loc = supabase.table("user_locations_v1") \
                 .select("latitude, longitude") \
@@ -207,67 +184,59 @@ async def show_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not loc.data:
                 continue
 
-            dist = calculate_distance(
-                my_lat, my_lon,
-                loc.data[0]["latitude"],
-                loc.data[0]["longitude"]
-            )
+            dist = calculate_distance(my_lat, my_lon, loc.data[0]["latitude"], loc.data[0]["longitude"])
             u["distance"] = round(dist, 2)
             result.append(u)
-
-        result.sort(key=lambda x: x["distance"])
 
         if not result:
             await update.message.reply_text("❌ لا يوجد أشخاص قريبين حالياً.")
             return
 
+        result.sort(key=lambda x: x["distance"])
+
         context.user_data["nearby_list"] = result
         context.user_data["current_index"] = 0
 
-        await send_profile_card(update.effective_chat.id, context)
+        await send_profile_card(context, chat_id, result[0])
 
     except Exception as e:
-        print("ERROR IN SHOW_NEARBY:", e)
-        await update.message.reply_text("❌ حدث خطأ، حاول مرة أخرى.")
+        import traceback
+        traceback.print_exc()
+        await update.message.reply_text(f"❌ حدث خطأ: {e}")
 
 
 # =========================================================
 # SEND PROFILE CARD
 # =========================================================
 
-async def send_profile_card(chat_id, context):
-    data = context.user_data.get("nearby_list", [])
-    idx = context.user_data.get("current_index", 0)
-
-    if not data or idx >= len(data):
-        await context.bot.send_message(chat_id, "انتهت قائمة المستخدمين القريبين.")
-        return
-
-    user = data[idx]
-
+async def send_profile_card(context, chat_id, user):
     name = user.get("username") or "مستخدم"
-    dist = user.get("distance", 0)
     age = user.get("age") or "?"
     gender = user.get("gender") or "غير محدد"
-    last_seen = time_ago(user.get("updated_at"))
+    distance = user.get("distance", 0)
+    distance_text = f"{distance} كم" if distance else "غير معروف"
+    last_seen = time_ago(user.get("created_at"))
     status = "🟢 نشط الآن" if last_seen == "الآن" else f"🕒 منذ {last_seen}"
+    photo_url = user.get("photo_url")
 
     caption = (
-        f"<b>{name}</b> | {age} سنة\n"
-        f"⚥ {gender}\n"
-        f"📍 {dist} كم\n"
+        f"<b>👤 {name}</b>\n"
+        f"━━━━━━━━━━━━━━\n"
+        f"🎂 {age} سنة\n"
+        f"🚻 {gender}\n"
+        f"📍 {distance_text}\n"
         f"{status}"
     )
 
     keyboard = [
         [
-            InlineKeyboardButton("⏮️ السابق", callback_data="prev"),
-            InlineKeyboardButton("⏭️ التالي", callback_data="next"),
+            InlineKeyboardButton("⬅️ السابق", callback_data="prev"),
+            InlineKeyboardButton("التالي ➡️", callback_data="next")
         ],
         [
-            InlineKeyboardButton("❤️ إعجاب", callback_data=f"like_{user['id']}"),
-            InlineKeyboardButton("⭐ سوبر", callback_data=f"superlike_{user['id']}"),
-            InlineKeyboardButton("❌ تخطي", callback_data="skip"),
+            InlineKeyboardButton("❤️ إعجاب", callback_data=f"like_{user.get('id')}"),
+            InlineKeyboardButton("⭐ سوبر", callback_data=f"superlike_{user.get('id')}"),
+            InlineKeyboardButton("❌ تخطي", callback_data="skip")
         ]
     ]
 
@@ -277,31 +246,26 @@ async def send_profile_card(chat_id, context):
         ])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    photo = user.get("photo_url")
 
-    if photo:
+    if photo_url:
         try:
             await context.bot.send_photo(
                 chat_id=chat_id,
-                photo=photo,
+                photo=photo_url,
                 caption=caption,
                 parse_mode="HTML",
                 reply_markup=reply_markup
             )
+            return
         except Exception:
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=caption,
-                parse_mode="HTML",
-                reply_markup=reply_markup
-            )
-    else:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=caption,
-            parse_mode="HTML",
-            reply_markup=reply_markup
-        )
+            pass
+
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=caption,
+        parse_mode="HTML",
+        reply_markup=reply_markup
+    )
 
 
 # =========================================================
@@ -317,19 +281,29 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = query.from_user.id
     data = query.data
     chat_id = query.message.chat.id
+    users = context.user_data.get("nearby_list", [])
     idx = context.user_data.get("current_index", 0)
 
     if data == "next":
-        context.user_data["current_index"] = idx + 1
-        await send_profile_card(chat_id, context)
+        if not users:
+            return
+        new_idx = (idx + 1) % len(users)
+        context.user_data["current_index"] = new_idx
+        await send_profile_card(context, chat_id, users[new_idx])
 
     elif data == "prev":
-        context.user_data["current_index"] = max(0, idx - 1)
-        await send_profile_card(chat_id, context)
+        if not users:
+            return
+        new_idx = (idx - 1) % len(users)
+        context.user_data["current_index"] = new_idx
+        await send_profile_card(context, chat_id, users[new_idx])
 
     elif data == "skip":
-        context.user_data["current_index"] = idx + 1
-        await send_profile_card(chat_id, context)
+        if not users:
+            return
+        new_idx = (idx + 1) % len(users)
+        context.user_data["current_index"] = new_idx
+        await send_profile_card(context, chat_id, users[new_idx])
 
     elif data.startswith("like_"):
         target_id = int(data.split("_")[1])
@@ -369,13 +343,17 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("تم الإعجاب ❤️", show_alert=False)
 
-        context.user_data["current_index"] = idx + 1
-        await send_profile_card(chat_id, context)
+        if users:
+            new_idx = (idx + 1) % len(users)
+            context.user_data["current_index"] = new_idx
+            await send_profile_card(context, chat_id, users[new_idx])
 
     elif data.startswith("superlike_"):
         await query.answer("⭐ سوبر لايك!", show_alert=True)
-        context.user_data["current_index"] = idx + 1
-        await send_profile_card(chat_id, context)
+        if users:
+            new_idx = (idx + 1) % len(users)
+            context.user_data["current_index"] = new_idx
+            await send_profile_card(context, chat_id, users[new_idx])
 
 
 # =========================================================
@@ -459,7 +437,6 @@ async def toggle_visibility(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = me.data[0]["id"]
     new_val = not me.data[0].get("is_visible", True)
-
     supabase.table("users_v1").update({"is_visible": new_val}).eq("id", user_id).execute()
 
     msg = "✅ حسابك مرئي الآن." if new_val else "👻 تم إخفاء حسابك."
@@ -480,7 +457,6 @@ async def toggle_phone_visibility(update: Update, context: ContextTypes.DEFAULT_
 
     user_id = me.data[0]["id"]
     new_val = not me.data[0].get("show_phone", False)
-
     supabase.table("users_v1").update({"show_phone": new_val}).eq("id", user_id).execute()
 
     msg = "📞 رقمك مرئي الآن." if new_val else "🔒 تم إخفاء رقمك."
