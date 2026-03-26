@@ -20,7 +20,10 @@ from handlers import (
     show_matches,
     show_requests,
     toggle_visibility,
-    toggle_phone_visibility
+    toggle_phone_visibility,
+    handle_profile_steps,
+    edit_profile,
+    handle_edit_choice
 )
 
 logging.basicConfig(
@@ -39,19 +42,38 @@ def main():
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
+    # Commands
     app.add_handler(CommandHandler("start", start))
 
+    # Contact & Location
     app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app.add_handler(MessageHandler(filters.LOCATION, handle_location))
 
+    # Inline Buttons
     app.add_handler(CallbackQueryHandler(handle_buttons))
 
+    # Main Menu Buttons
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^👥 عرض الأقرب$"), show_nearby))
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^🔥 التطابقات$"), show_matches))
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^📥 طلباتي$"), show_requests))
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^👻 إخفاء حسابي$"), toggle_visibility))
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^📞 إظهار/إخفاء رقمي$"), toggle_phone_visibility))
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^✏️ تعديل بياناتي$"), edit_profile))
 
+    # Edit Profile Choices
+    app.add_handler(MessageHandler(
+        filters.TEXT & (
+            filters.Regex("^👤 تعديل النوع$") |
+            filters.Regex("^🎂 تعديل تاريخ الميلاد$") |
+            filters.Regex("^📝 تعديل النبذة$")
+        ),
+        handle_edit_choice
+    ))
+
+    # Profile Setup Steps (catches remaining text when step is active)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_steps))
+
+    # Error Handler
     app.add_error_handler(error_handler)
 
     logger.info("🚀 Always Close Bot Started...")

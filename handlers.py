@@ -50,21 +50,161 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 
 
 # =========================================================
-# START
+# MENUS
 # =========================================================
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
+def main_keyboard():
+    return ReplyKeyboardMarkup([
         [KeyboardButton("📱 تسجيل الهاتف", request_contact=True)],
         [KeyboardButton("📍 مشاركة الموقع", request_location=True)],
         [KeyboardButton("👥 عرض الأقرب")],
         [KeyboardButton("🔥 التطابقات"), KeyboardButton("📥 طلباتي")],
-        [KeyboardButton("👻 إخفاء حسابي"), KeyboardButton("📞 إظهار/إخفاء رقمي")]
+        [KeyboardButton("👻 إخفاء حسابي"), KeyboardButton("📞 إظهار/إخفاء رقمي")],
+        [KeyboardButton("✏️ تعديل بياناتي")]
+    ], resize_keyboard=True)
+
+
+# =========================================================
+# START
+# =========================================================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tg_id = update.effective_user.id
+
+    user = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+
+    if not user.data:
+        context.user_data["step"] = "gender"
+        await update.message.reply_text(
+            "🤍 أهلاً بك في Always Close\n\nاختر نوعك:",
+            reply_markup=ReplyKeyboardMarkup(
+                [["👨 ذكر", "👩 أنثى"]],
+                resize_keyboard=True
+            )
+        )
+    else:
+        await update.message.reply_text(
+            "🤍 Welcome Back!",
+            reply_markup=main_keyboard()
+        )
+
+
+# =========================================================
+# PROFILE SETUP (STEPS)
+# =========================================================
+
+async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    step = context.user_data.get("step")
+    text = update.message.text
+
+    if step == "gender":
+        context.user_data["gender"] = "ذكر" if "ذكر" in text else "أنثى"
+        context.user_data["step"] = "birthdate"
+        await update.message.reply_text("🎂 اكتب تاريخ ميلادك بالشكل:\n1998-05-10")
+        return
+
+    elif step == "birthdate":
+        try:
+            year, month, day = map(int, text.split("-"))
+            today = datetime.today()
+            age = today.year - year - ((today.month, today.day) < (month, day))
+            context.user_data["birthdate"] = text
+            context.user_data["age"] = age
+            context.user_data["step"] = "bio"
+            await update.message.reply_text("📝 اكتب نبذة عن نفسك:")
+        except Exception:
+            await update.message.reply_text("❌ التاريخ غير صحيح. اكتبه بالشكل:\n1998-05-10")
+        return
+
+    elif step == "bio":
+        tg_id = update.effective_user.id
+        username = update.effective_user.username
+
+        user_check = supabase.table("users_v1").select("*").eq("telegram_id", tg_id).execute()
+
+        data = {
+            "telegram_id": tg_id,
+            "username": username,
+            "gender": context.user_data.get("gender"),
+            "birthdate": context.user_data.get("birthdate"),
+            "age": context.user_data.get("age"),
+            "bio": text,
+            "is_active": True,
+            "is_visible": True
+        }
+
+        if user_check.data:
+            supabase.table("users_v1").update(data).eq("telegram_id", tg_id).execute()
+        else:
+            supabase.table("users_v1").insert(data).execute()
+
+        context.user_data.clear()
+        await update.message.reply_text("✅ تم حفظ بياناتك 🎉", reply_markup=main_keyboard())
+        return
+
+    elif step == "edit_gender":
+        supabase.table("users_v1").update({
+            "gender": "ذكر" if "ذكر" in text else "أنثى"
+        }).eq("telegram_id", update.effective_user.id).execute()
+        context.user_data.clear()
+        await update.message.reply_text("✅ تم التحديث", reply_markup=main_keyboard())
+        return
+
+    elif step == "edit_birthdate":
+        try:
+            year, month, day = map(int, text.split("-"))
+            today = datetime.today()
+            age = today.year - year - ((today.month, today.day) < (month, day))
+            supabase.table("users_v1").update({
+                "birthdate": text,
+                "age": age
+            }).eq("telegram_id", update.effective_user.id).execute()
+            context.user_data.clear()
+            await update.message.reply_text("✅ تم التحديث", reply_markup=main_keyboard())
+        except Exception:
+            await update.message.reply_text("❌ تنسيق خاطئ. مثال: 1998-05-10")
+        return
+
+    elif step == "edit_bio":
+        supabase.table("users_v1").update({
+            "bio": text
+        }).eq("telegram_id", update.effective_user.id).execute()
+        context.user_data.clear()
+        await update.message.reply_text("✅ تم التحديث", reply_markup=main_keyboard())
+        return
+
+
+# =========================================================
+# EDIT PROFILE
+# =========================================================
+
+async def edit_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        ["👤 تعديل النوع"],
+        ["🎂 تعديل تاريخ الميلاد"],
+        ["📝 تعديل النبذة"]
     ]
     await update.message.reply_text(
-        "🤍 Welcome to Always Close\n\nيرجى التسجيل للبدء:",
+        "✏️ ماذا تريد تعديله؟",
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
+
+
+async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    if "تعديل النوع" in text:
+        context.user_data["step"] = "edit_gender"
+        await update.message.reply_text(
+            "👤 اختر النوع:",
+            reply_markup=ReplyKeyboardMarkup([["👨 ذكر", "👩 أنثى"]], resize_keyboard=True)
+        )
+    elif "تعديل تاريخ الميلاد" in text:
+        context.user_data["step"] = "edit_birthdate"
+        await update.message.reply_text("🎂 اكتب التاريخ:\n1998-05-10")
+    elif "تعديل النبذة" in text:
+        context.user_data["step"] = "edit_bio"
+        await update.message.reply_text("📝 اكتب النبذة الجديدة:")
 
 
 # =========================================================
@@ -72,10 +212,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================================================
 
 async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    telegram_id = update.effective_user.id
     phone = update.message.contact.phone_number
-    supabase.table("users_v1").update({"phone": phone}).eq("telegram_id", telegram_id).execute()
-    await update.message.reply_text("📱 تم حفظ رقم الهاتف بنجاح ✅")
+    supabase.table("users_v1").update({"phone": phone}).eq(
+        "telegram_id", update.effective_user.id
+    ).execute()
+    await update.message.reply_text("📱 تم حفظ رقم الهاتف ✅")
 
 
 # =========================================================
@@ -84,44 +225,38 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    telegram_id = user.id
-    username = user.username
     lat = update.message.location.latitude
     lon = update.message.location.longitude
     geo = geohash2.encode(lat, lon, precision=7)
-    lang = detect_language(user.language_code)
-
-    existing = supabase.table("users_v1").select("*").eq("telegram_id", telegram_id).execute()
 
     photo_url = None
     try:
-        photos = await context.bot.get_user_profile_photos(telegram_id, limit=1)
+        photos = await context.bot.get_user_profile_photos(user.id, limit=1)
         if photos.total_count > 0:
             file = await context.bot.get_file(photos.photos[0][0].file_id)
             photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
     except Exception:
         photo_url = None
 
+    existing = supabase.table("users_v1").select("*").eq("telegram_id", user.id).execute()
+
     if existing.data:
         user_id = existing.data[0]["id"]
         supabase.table("users_v1").update({
-            "username": username,
+            "username": user.username,
             "photo_url": photo_url
         }).eq("id", user_id).execute()
     else:
         insert = supabase.table("users_v1").insert({
-            "telegram_id": telegram_id,
-            "username": username,
-            "language": lang,
+            "telegram_id": user.id,
+            "username": user.username,
             "photo_url": photo_url,
             "is_active": True,
             "is_visible": True
         }).execute()
-
         if not insert.data:
             await update.message.reply_text("❌ خطأ في التسجيل.")
             return
-
         user_id = insert.data[0]["id"]
 
     supabase.table("user_locations_v1").insert({
@@ -144,12 +279,12 @@ async def show_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tg_id = update.effective_user.id
         chat_id = update.effective_chat.id
 
-        user_res = supabase.table("users_v1").select("*").eq("telegram_id", tg_id).execute()
-        if not user_res.data:
+        me = supabase.table("users_v1").select("*").eq("telegram_id", tg_id).execute()
+        if not me.data:
             await update.message.reply_text("❌ يجب التسجيل أولاً.")
             return
 
-        my_id = user_res.data[0]["id"]
+        my_id = me.data[0]["id"]
 
         loc_res = supabase.table("user_locations_v1") \
             .select("*") \
@@ -184,7 +319,11 @@ async def show_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not loc.data:
                 continue
 
-            dist = calculate_distance(my_lat, my_lon, loc.data[0]["latitude"], loc.data[0]["longitude"])
+            dist = calculate_distance(
+                my_lat, my_lon,
+                loc.data[0]["latitude"],
+                loc.data[0]["longitude"]
+            )
             u["distance"] = round(dist, 2)
             result.append(u)
 
@@ -213,6 +352,7 @@ async def send_profile_card(context, chat_id, user):
     name = user.get("username") or "مستخدم"
     age = user.get("age") or "?"
     gender = user.get("gender") or "غير محدد"
+    bio = user.get("bio") or ""
     distance = user.get("distance", 0)
     distance_text = f"{distance} كم" if distance else "غير معروف"
     last_seen = time_ago(user.get("created_at"))
@@ -227,6 +367,8 @@ async def send_profile_card(context, chat_id, user):
         f"📍 {distance_text}\n"
         f"{status}"
     )
+    if bio:
+        caption += f"\n📝 {bio}"
 
     keyboard = [
         [

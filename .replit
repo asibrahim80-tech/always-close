@@ -31,6 +31,19 @@ task = "workflow.run"
 args = "Flask App"
 
 [[workflows.workflow]]
+name = ""
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow]]
 name = "Flask App"
 author = "agent"
 
@@ -45,10 +58,6 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 5904
-externalPort = 3000
 
 [[ports]]
 localPort = 8080
