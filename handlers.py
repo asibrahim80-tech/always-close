@@ -233,8 +233,8 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         photos = await context.bot.get_user_profile_photos(user.id, limit=1)
         if photos.total_count > 0:
-            file = await context.bot.get_file(photos.photos[0][0].file_id)
-            photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+            # Store file_id directly - never expires and Telegram accepts it in send_photo
+            photo_url = photos.photos[0][0].file_id
     except Exception:
         photo_url = None
 
@@ -324,7 +324,7 @@ async def show_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 loc.data[0]["latitude"],
                 loc.data[0]["longitude"]
             )
-            u["distance"] = round(dist, 2)
+            u["distance"] = round(dist,2)
             result.append(u)
 
         if not result:
@@ -418,7 +418,6 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     if not query:
         return
-    await query.answer()
 
     telegram_id = query.from_user.id
     data = query.data
@@ -426,76 +425,102 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     users = context.user_data.get("nearby_list", [])
     idx = context.user_data.get("current_index", 0)
 
-    if data == "next":
-        if not users:
-            return
-        new_idx = (idx + 1) % len(users)
-        context.user_data["current_index"] = new_idx
-        await send_profile_card(context, chat_id, users[new_idx])
+    try:
+        if data == "next":
+            await query.answer()
+            if not users:
+                return
+            new_idx = (idx + 1) % len(users)
+            context.user_data["current_index"] = new_idx
+            await send_profile_card(context, chat_id, users[new_idx])
 
-    elif data == "prev":
-        if not users:
-            return
-        new_idx = (idx - 1) % len(users)
-        context.user_data["current_index"] = new_idx
-        await send_profile_card(context, chat_id, users[new_idx])
+        elif data == "prev":
+            await query.answer()
+            if not users:
+                return
+            new_idx = (idx - 1) % len(users)
+            context.user_data["current_index"] = new_idx
+            await send_profile_card(context, chat_id, users[new_idx])
 
-    elif data == "skip":
-        if not users:
-            return
-        new_idx = (idx + 1) % len(users)
-        context.user_data["current_index"] = new_idx
-        await send_profile_card(context, chat_id, users[new_idx])
+        elif data == "skip":
+            await query.answer()
+            if not users:
+                return
+            new_idx = (idx + 1) % len(users)
+            context.user_data["current_index"] = new_idx
+            await send_profile_card(context, chat_id, users[new_idx])
 
-    elif data.startswith("like_"):
-        target_id = int(data.split("_")[1])
+        elif data.startswith("like_"):
+            target_id = int(data.split("_")[1])
 
-        me = supabase.table("users_v1").select("id").eq("telegram_id", telegram_id).execute()
-        if not me.data:
-            return
+            me = supabase.table("users_v1").select("id").eq("telegram_id", telegram_id).execute()
+            if not me.data:
+                await query.answer("❌ سجّل أولاً")
+                return
 
-        my_id = me.data[0]["id"]
+            my_id = me.data[0]["id"]
 
-        supabase.table("likes_v1").insert({
-            "from_user_id": my_id,
-            "to_user_id": target_id
-        }).execute()
-
-        mutual = supabase.table("likes_v1") \
-            .select("*") \
-            .eq("from_user_id", target_id) \
-            .eq("to_user_id", my_id) \
-            .execute()
-
-        if mutual.data:
-            match_exists = supabase.table("matches_v1") \
-                .select("*") \
-                .or_(
-                    f"and(user1_id.eq.{my_id},user2_id.eq.{target_id}),"
-                    f"and(user1_id.eq.{target_id},user2_id.eq.{my_id})"
-                ).execute()
-
-            if not match_exists.data:
-                supabase.table("matches_v1").insert({
-                    "user1_id": my_id,
-                    "user2_id": target_id
+            # Insert like (ignore if already liked)
+            try:
+                supabase.table("likes_v1").insert({
+                    "from_user_id": my_id,
+                    "to_user_id": target_id
                 }).execute()
+            except Exception:
+                pass  # Already liked - continue
 
-            await context.bot.send_message(chat_id, "🎉 تم التطابق! يمكنكما التواصل الآن.")
+            # Check mutual like
+            mutual = supabase.table("likes_v1") \
+                .select("*") \
+                .eq("from_user_id", target_id) \
+                .eq("to_user_id", my_id) \
+                .execute()
+
+            if mutual.data:
+                # Check match doesn't already exist
+                match_exists = supabase.table("matches_v1") \
+                    .select("*") \
+                    .or_(
+                        f"and(user1_id.eq.{my_id},user2_id.eq.{target_id}),"
+                        f"and(user1_id.eq.{target_id},user2_id.eq.{my_id})"
+                    ).execute()
+
+                if not match_exists.data:
+                    try:
+                        supabase.table("matches_v1").insert({
+                            "user1_id": my_id,
+                            "user2_id": target_id
+                        }).execute()
+                    except Exception:
+                        pass
+
+                await query.answer("🎉 تطابق!")
+                await context.bot.send_message(chat_id, "🎉 تم التطابق! يمكنكما التواصل الآن.")
+            else:
+                await query.answer("تم الإعجاب ❤️")
+
+            if users:
+                new_idx = (idx + 1) % len(users)
+                context.user_data["current_index"] = new_idx
+                await send_profile_card(context, chat_id, users[new_idx])
+
+        elif data.startswith("superlike_"):
+            await query.answer("⭐ سوبر لايك!")
+            if users:
+                new_idx = (idx + 1) % len(users)
+                context.user_data["current_index"] = new_idx
+                await send_profile_card(context, chat_id, users[new_idx])
+
         else:
-            await query.answer("تم الإعجاب ❤️", show_alert=False)
+            await query.answer()
 
-        if users:
-            new_idx = (idx + 1) % len(users)
-            context.user_data["current_index"] = new_idx
-            await send_profile_card(context, chat_id, users[new_idx])
-
-    elif data.startswith("superlike_"):
-        await query.answer("⭐ سوبر لايك!", show_alert=True)
-        if users:
-            new_idx = (idx + 1) % len(users)
-            context.user_data["current_index"] = new_idx
-            await send_profile_card(context, chat_id, users[new_idx])
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        try:
+            await query.answer("❌ حدث خطأ")
+        except Exception:
+            pass
 
 
 # =========================================================
