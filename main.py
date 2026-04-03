@@ -11,6 +11,7 @@ from telegram.ext import (
 
 from config import BOT_TOKEN
 from keep_alive import keep_alive
+from lang import btn_regex
 from handlers import (
     start,
     handle_contact,
@@ -23,7 +24,7 @@ from handlers import (
     toggle_phone_visibility,
     handle_profile_steps,
     edit_profile,
-    handle_edit_choice
+    handle_edit_choice,
 )
 
 logging.basicConfig(
@@ -52,25 +53,31 @@ def main():
     # Inline Buttons
     app.add_handler(CallbackQueryHandler(handle_buttons))
 
-    # Main Menu Buttons
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^👥 عرض الأقرب$"), show_nearby))
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^🔥 التطابقات$"), show_matches))
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^📥 طلباتي$"), show_requests))
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^👻 إخفاء حسابي$"), toggle_visibility))
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^📞 إظهار/إخفاء رقمي$"), toggle_phone_visibility))
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("^✏️ تعديل بياناتي$"), edit_profile))
+    # Main Menu Buttons (Arabic & English)
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("view_nearby")), show_nearby))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("matches")), show_matches))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("requests")), show_requests))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("hide")), toggle_visibility))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("phone_toggle")), toggle_phone_visibility))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("edit_profile")), edit_profile))
 
-    # Edit Profile Choices
+    # Edit Profile Choices (Arabic & English)
     app.add_handler(MessageHandler(
         filters.TEXT & (
-            filters.Regex("^👤 تعديل النوع$") |
-            filters.Regex("^🎂 تعديل تاريخ الميلاد$") |
-            filters.Regex("^📝 تعديل النبذة$")
+            filters.Regex(btn_regex("edit_gender")) |
+            filters.Regex(btn_regex("edit_birthdate")) |
+            filters.Regex(btn_regex("edit_bio"))
         ),
         handle_edit_choice
     ))
 
-    # Profile Setup Steps (catches remaining text when step is active)
+    # Profile Setup Steps (catch-all for text when a step is active)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_steps))
 
     # Error Handler
