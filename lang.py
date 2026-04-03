@@ -79,6 +79,12 @@ TEXTS = {
         "btn_edit_gender": "👤 تعديل النوع",
         "btn_edit_birthdate": "🎂 تعديل تاريخ الميلاد",
         "btn_edit_bio": "📝 تعديل النبذة",
+        # Map
+        "btn_map": "🗺️ الخريطة",
+        "map_tap": "🗺️ اضغط لفتح الخريطة التفاعلية\n\n📍 موقعك بدبوس أحمر\n🔵 المستخدمون القريبون بدبابيس زرقاء\nاضغط على أي دبوس لعرض الملف الشخصي",
+        "map_btn_open": "🗺️ فتح الخريطة",
+        "map_no_location": "❌ شارك موقعك أولاً ثم افتح الخريطة.",
+        "map_not_registered": "❌ يجب التسجيل أولاً.",
     },
     "en": {
         # Welcome
@@ -160,6 +166,12 @@ TEXTS = {
         "btn_edit_gender": "👤 Edit Gender",
         "btn_edit_birthdate": "🎂 Edit Birthdate",
         "btn_edit_bio": "📝 Edit Bio",
+        # Map
+        "btn_map": "🗺️ Map",
+        "map_tap": "🗺️ Tap to open the interactive map\n\n📍 Your location = red pin\n🔵 Nearby users = blue pins\nTap any blue pin to view their profile",
+        "map_btn_open": "🗺️ Open Map",
+        "map_no_location": "❌ Please share your location first, then open the map.",
+        "map_not_registered": "❌ Please register first.",
     },
 }
 
@@ -189,6 +201,7 @@ ALL_BTN = {
     "edit_gender":    ["👤 تعديل النوع",             "👤 Edit Gender"],
     "edit_birthdate": ["🎂 تعديل تاريخ الميلاد",    "🎂 Edit Birthdate"],
     "edit_bio":       ["📝 تعديل النبذة",            "📝 Edit Bio"],
+    "map":            ["🗺️ الخريطة",                 "🗺️ Map"],
 }
 
 

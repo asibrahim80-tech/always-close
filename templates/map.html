@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Always Close – Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, sans-serif;
+      background: #0d0d1a;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #map { height: 100vh; width: 100%; }
+
+    /* Loading overlay */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: #0d0d1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: #fff;
+      gap: 14px;
+      transition: opacity 0.4s;
+    }
+    #overlay .icon { font-size: 52px; }
+    #overlay .label { font-size: 16px; opacity: 0.7; }
+    #overlay.hidden { opacity: 0; pointer-events: none; }
+
+    /* Leaflet popup card */
+    .leaflet-popup-content-wrapper {
+      border-radius: 16px !important;
+      padding: 0 !important;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
+      min-width: 220px;
+    }
+    .leaflet-popup-content { margin: 0 !important; }
+    .leaflet-popup-tip-container { display: none; }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      font-size: 13px;
+    }
+    .card-photo {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      display: block;
+      background: #e8e8e8;
+    }
+    .card-body {
+      padding: 12px 14px 14px;
+    }
+    .card-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 4px;
+    }
+    .card-row {
+      color: #555;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .card-bio {
+      color: #666;
+      font-style: italic;
+      margin-top: 6px;
+      border-top: 1px solid #f0f0f0;
+      padding-top: 6px;
+    }
+    .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      color: #fff;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    /* Legend */
+    #legend {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(13,13,26,0.85);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      border-radius: 24px;
+      padding: 8px 20px;
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      font-size: 12px;
+      z-index: 1000;
+      white-space: nowrap;
+    }
+    .dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.6);
+      display: inline-block;
+      margin-right: 5px;
+    }
+    .dot.red  { background: #e74c3c; }
+    .dot.blue { background: #3498db; }
+  </style>
+</head>
+<body>
+
+<div id="overlay">
+  <div class="icon">🗺️</div>
+  <div class="label" id="overlay-text">Loading map…</div>
+</div>
+
+<div id="map"></div>
+
+<div id="legend">
+  <span><span class="dot red"></span> You</span>
+  <span><span class="dot blue"></span> Nearby users</span>
+</div>
+
+<script>
+  // ─── Helpers ───────────────────────────────────────────
+  const uid  = new URLSearchParams(location.search).get('uid');
+  const lang = new URLSearchParams(location.search).get('lang') || 'en';
+
+  const LABELS = {
+    ar: { loading: 'جارٍ تحميل الخريطة…', error: '❌ حدث خطأ في تحميل البيانات',
+          you: 'موقعك', nearby: 'المستخدمون القريبون', you_dot: 'أنت', nearby_dot: 'مستخدمون قريبون',
+          km: 'كم', years: 'سنة' },
+    en: { loading: 'Loading map…', error: '❌ Error loading map data',
+          you: 'Your location', nearby: 'Nearby users', you_dot: 'You', nearby_dot: 'Nearby users',
+          km: 'km', years: 'yo' },
+  };
+  const L_ = LABELS[lang] || LABELS.en;
+
+  document.getElementById('overlay-text').textContent = L_.loading;
+  document.querySelector('#legend span:nth-child(1)').innerHTML =
+    `<span class="dot red"></span> ${L_.you_dot}`;
+  document.querySelector('#legend span:nth-child(2)').innerHTML =
+    `<span class="dot blue"></span> ${L_.nearby_dot}`;
+
+  // ─── Map setup ─────────────────────────────────────────
+  const map = L.map('map', { zoomControl: true });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 18,
+  }).addTo(map);
+
+  // ─── Custom markers ────────────────────────────────────
+  function makeMarker(color, size, pulse) {
+    const p = pulse
+      ? `<div style="position:absolute;inset:-6px;border-radius:50%;border:3px solid ${color};animation:ping 1.5s infinite;opacity:.6"></div>`
+      : '';
+    return L.divIcon({
+      html: `<div style="position:relative;width:${size}px;height:${size}px">
+               ${p}
+               <div style="width:${size}px;height:${size}px;border-radius:50%;
+                            background:${color};border:3px solid #fff;
+                            box-shadow:0 3px 10px rgba(0,0,0,.4)"></div>
+             </div>`,
+      className: '',
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2],
+      popupAnchor: [0, -size/2 - 4],
+    });
+  }
+
+  const redIcon  = makeMarker('#e74c3c', 22, true);
+  const blueIcon = makeMarker('#3498db', 16, false);
+
+  // ─── Fetch data & render ───────────────────────────────
+  fetch(`/api/nearby/${uid}`)
+    .then(r => r.json())
+    .then(data => {
+      const overlay = document.getElementById('overlay');
+
+      if (data.error) {
+        document.getElementById('overlay-text').textContent = data.error;
+        return;
+      }
+
+      overlay.classList.add('hidden');
+      setTimeout(() => overlay.remove(), 500);
+
+      const me = data.me;
+      map.setView([me.lat, me.lng], 14);
+
+      // Red pin – current user
+      L.marker([me.lat, me.lng], { icon: redIcon })
+        .addTo(map)
+        .bindPopup(`<div style="padding:10px;font-weight:700;font-size:14px">📍 ${L_.you}</div>`)
+        .openPopup();
+
+      // Blue pins – nearby users
+      data.nearby.forEach(u => {
+        const marker = L.marker([u.lat, u.lng], { icon: blueIcon }).addTo(map);
+
+        let html = '<div class="card">';
+
+        if (u.photo_url) {
+          html += `<img class="card-photo" src="${u.photo_url}" alt="photo"
+                        onerror="this.style.display='none'">`;
+        }
+
+        html += '<div class="card-body">';
+        html += `<div class="card-name">👤 ${u.username || 'User'}</div>`;
+
+        if (u.age)    html += `<div class="card-row">🎂 ${u.age} ${L_.years} &nbsp;•&nbsp; 🚻 ${u.gender || ''}</div>`;
+        if (u.distance != null) {
+          html += `<span class="badge">📍 ${u.distance} ${L_.km}</span>`;
+        }
+        if (u.bio)    html += `<div class="card-bio">📝 ${u.bio}</div>`;
+
+        html += '</div></div>';
+
+        marker.bindPopup(html, { maxWidth: 260, minWidth: 200 });
+      });
+    })
+    .catch(() => {
+      document.getElementById('overlay-text').textContent = L_.error;
+    });
+</script>
+
+<style>
+  @keyframes ping {
+    0%   { transform: scale(1); opacity: .6; }
+    100% { transform: scale(2); opacity: 0; }
+  }
+</style>
+
+</body>
+</html>

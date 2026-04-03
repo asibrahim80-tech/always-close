@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Always Close Map</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <style>
+    body { margin: 0; }
+    #map { height: 100vh; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+// إنشاء الخريطة
+const map = L.map('map').setView([30.0444, 31.2357], 13);
+
+// تحميل الخريطة (OpenStreetMap)
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+// تجربة Marker ثابت
+  // 👇 جلب المستخدمين من Supabase
+  fetch('https://vxpqdsoojdrtfsmosofm.supabase.co/rest/v1/users_with_location', {
+    headers: {
+      apikey: 'sb_publishable_HGDcN0gSK1sI3q7UNN5BnA_6c07PTTX',
+      Authorization: 'sb_publishable_HGDcN0gSK1sI3q7UNN5BnA_6c07PTTX'
+    }
+  })
+  .then(res => res.json())
+  .then(users => {
+    users.forEach(user => {
+
+      // إنشاء marker لكل مستخدم
+      L.marker([user.latitude, user.longitude])
+        .addTo(map)
+        .bindPopup(`
+          <b>${user.username}</b><br>
+          Age: ${user.age}
+        `);
+
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,9 +1,11 @@
+import os
 from telegram import (
     Update,
     ReplyKeyboardMarkup,
     KeyboardButton,
     InlineKeyboardButton,
-    InlineKeyboardMarkup
+    InlineKeyboardMarkup,
+    WebAppInfo,
 )
 from telegram.ext import ContextTypes
 from database import supabase
@@ -11,6 +13,8 @@ from datetime import datetime, timezone
 from math import radians, sin, cos, sqrt, atan2
 import geohash2
 from lang import T, detect_lang, ALL_BTN
+
+DOMAIN = os.environ.get("REPLIT_DEV_DOMAIN", "")
 
 
 # =========================================================
@@ -78,7 +82,7 @@ def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup([
         [KeyboardButton(T(lang, "btn_share_phone"), request_contact=True)],
         [KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
-        [KeyboardButton(T(lang, "btn_view_nearby"))],
+        [KeyboardButton(T(lang, "btn_view_nearby")), KeyboardButton(T(lang, "btn_map"))],
         [KeyboardButton(T(lang, "btn_matches")), KeyboardButton(T(lang, "btn_requests"))],
         [KeyboardButton(T(lang, "btn_hide")), KeyboardButton(T(lang, "btn_phone_toggle"))],
         [KeyboardButton(T(lang, "btn_edit"))],
@@ -664,6 +668,46 @@ async def show_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text += f"• @{uname}\n"
 
     await update.message.reply_text(text)
+
+
+# =========================================================
+# SHOW MAP
+# =========================================================
+
+async def show_map(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_lang(update, context)
+    tg_id = update.effective_user.id
+
+    # Verify user exists
+    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+    if not me.data:
+        await update.message.reply_text(T(lang, "map_not_registered"))
+        return
+
+    my_id = me.data[0]["id"]
+
+    # Verify location exists
+    loc = supabase.table("user_locations_v1") \
+        .select("id") \
+        .eq("user_id", my_id) \
+        .limit(1) \
+        .execute()
+
+    if not loc.data:
+        await update.message.reply_text(T(lang, "map_no_location"))
+        return
+
+    map_url = f"https://{DOMAIN}/map?uid={tg_id}&lang={lang}"
+
+    await update.message.reply_text(
+        T(lang, "map_tap"),
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                T(lang, "map_btn_open"),
+                web_app=WebAppInfo(url=map_url),
+            )
+        ]])
+    )
 
 
 # =========================================================

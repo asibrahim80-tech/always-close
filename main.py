@@ -17,6 +17,7 @@ from handlers import (
     handle_contact,
     handle_location,
     show_nearby,
+    show_map,
     handle_buttons,
     show_matches,
     show_requests,
@@ -54,6 +55,8 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_buttons))
 
     # Main Menu Buttons (Arabic & English)
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("map")), show_map))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("view_nearby")), show_nearby))
     app.add_handler(MessageHandler(
