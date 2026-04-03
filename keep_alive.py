@@ -1,9 +1,54 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify
 from threading import Thread
 from math import radians, sin, cos, sqrt, atan2
+from datetime import datetime, timezone
 import httpx
 
 app = Flask(__name__)
+
+# Simple in-memory photo URL cache  {file_id: photo_url}
+_photo_cache = {}
+
+
+def _resolve_photo(file_id: str, bot_token: str) -> str | None:
+    """Convert Telegram file_id → HTTPS URL (cached)."""
+    if not file_id:
+        return None
+    if file_id in _photo_cache:
+        return _photo_cache[file_id]
+    try:
+        r = httpx.get(
+            f"https://api.telegram.org/bot{bot_token}/getFile",
+            params={"file_id": file_id},
+            timeout=5,
+        )
+        if r.status_code == 200:
+            fp  = r.json()["result"]["file_path"]
+            url = f"https://api.telegram.org/file/bot{bot_token}/{fp}"
+            _photo_cache[file_id] = url
+            return url
+    except Exception:
+        pass
+    return None
+
+
+def _haversine(lat1, lng1, lat2, lng2) -> float:
+    dlat = radians(lat2 - lat1)
+    dlng = radians(lng2 - lng1)
+    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng/2)**2
+    return round(6371 * 2 * atan2(sqrt(a), sqrt(1 - a)), 2)
+
+
+def _is_active(recorded_at_str: str | None) -> bool:
+    """True if last location update was within 5 minutes."""
+    if not recorded_at_str:
+        return False
+    try:
+        dt   = datetime.fromisoformat(recorded_at_str.replace("Z", "+00:00"))
+        diff = (datetime.now(timezone.utc) - dt).total_seconds()
+        return diff < 300
+    except Exception:
+        return False
 
 
 @app.route('/')
@@ -22,7 +67,7 @@ def api_nearby(telegram_id):
         from database import supabase
         from config import BOT_TOKEN
 
-        # Get current user
+        # ── Current user ────────────────────────────────────────
         me_res = supabase.table("users_v1") \
             .select("id, username") \
             .eq("telegram_id", telegram_id) \
@@ -34,22 +79,22 @@ def api_nearby(telegram_id):
         my_id   = me_res.data[0]["id"]
         my_name = me_res.data[0].get("username") or "You"
 
-        # Get my location
-        loc_res = supabase.table("user_locations_v1") \
-            .select("latitude, longitude") \
+        my_loc = supabase.table("user_locations_v1") \
+            .select("latitude, longitude, recorded_at") \
             .eq("user_id", my_id) \
             .limit(1) \
             .execute()
 
-        if not loc_res.data:
+        if not my_loc.data:
             return jsonify({"error": "Share your location first."})
 
-        my_lat = float(loc_res.data[0]["latitude"])
-        my_lng = float(loc_res.data[0]["longitude"])
+        my_lat = float(my_loc.data[0]["latitude"])
+        my_lng = float(my_loc.data[0]["longitude"])
+        my_rec = my_loc.data[0].get("recorded_at")
 
-        # Get all other visible users
+        # ── Other users ─────────────────────────────────────────
         all_users = supabase.table("users_v1") \
-            .select("id, username, age, gender, bio, photo_url") \
+            .select("id, telegram_id, username, age, gender, bio, photo_url") \
             .eq("is_active", True) \
             .eq("is_visible", True) \
             .neq("id", my_id) \
@@ -58,7 +103,7 @@ def api_nearby(telegram_id):
         nearby = []
         for u in all_users.data:
             loc = supabase.table("user_locations_v1") \
-                .select("latitude, longitude") \
+                .select("latitude, longitude, recorded_at") \
                 .eq("user_id", u["id"]) \
                 .limit(1) \
                 .execute()
@@ -68,50 +113,43 @@ def api_nearby(telegram_id):
 
             ulat = float(loc.data[0]["latitude"])
             ulng = float(loc.data[0]["longitude"])
+            rec  = loc.data[0].get("recorded_at")
 
-            # Haversine distance
-            dlat = radians(ulat - my_lat)
-            dlng = radians(ulng - my_lng)
-            a = (sin(dlat / 2) ** 2
-                 + cos(radians(my_lat)) * cos(radians(ulat)) * sin(dlng / 2) ** 2)
-            dist = round(6371 * 2 * atan2(sqrt(a), sqrt(1 - a)), 2)
-
-            # Resolve file_id → real photo URL for browser display
-            photo_url = None
-            file_id = u.get("photo_url")
-            if file_id:
-                try:
-                    r = httpx.get(
-                        f"https://api.telegram.org/bot{BOT_TOKEN}/getFile",
-                        params={"file_id": file_id},
-                        timeout=5,
-                    )
-                    if r.status_code == 200:
-                        fp = r.json()["result"]["file_path"]
-                        photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{fp}"
-                except Exception:
-                    pass
+            dist      = _haversine(my_lat, my_lng, ulat, ulng)
+            active    = _is_active(rec)
+            photo_url = _resolve_photo(u.get("photo_url"), BOT_TOKEN)
 
             nearby.append({
-                "id":        u["id"],
-                "username":  u.get("username"),
-                "age":       u.get("age"),
-                "gender":    u.get("gender"),
-                "bio":       u.get("bio"),
-                "photo_url": photo_url,
-                "lat":       ulat,
-                "lng":       ulng,
-                "distance":  dist,
+                "id":          u["id"],
+                "telegram_id": u.get("telegram_id"),
+                "username":    u.get("username"),
+                "age":         u.get("age"),
+                "gender":      u.get("gender"),
+                "bio":         u.get("bio"),
+                "photo_url":   photo_url,
+                "lat":         ulat,
+                "lng":         ulng,
+                "distance":    dist,
+                "last_seen":   rec,
+                "is_active":   active,
             })
 
         nearby.sort(key=lambda x: x["distance"])
 
         return jsonify({
-            "me":     {"lat": my_lat, "lng": my_lng, "name": my_name},
+            "me": {
+                "lat":       my_lat,
+                "lng":       my_lng,
+                "name":      my_name,
+                "last_seen": my_rec,
+                "is_active": _is_active(my_rec),
+            },
             "nearby": nearby,
         })
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)})
 
 

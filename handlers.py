@@ -329,11 +329,13 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
         .limit(1) \
         .execute()
 
+    now_iso = datetime.now(timezone.utc).isoformat()
     loc_data = {
-        "latitude": lat,
-        "longitude": lon,
-        "geohash": geo,
-        "source": "GPS",
+        "latitude":    lat,
+        "longitude":   lon,
+        "geohash":     geo,
+        "source":      "GPS",
+        "recorded_at": now_iso,
     }
 
     if existing_loc.data:
@@ -386,7 +388,7 @@ async def show_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = []
         for u in all_users.data:
             loc = supabase.table("user_locations_v1") \
-                .select("latitude, longitude") \
+                .select("latitude, longitude, recorded_at") \
                 .eq("user_id", u["id"]) \
                 .limit(1) \
                 .execute()
@@ -399,7 +401,8 @@ async def show_nearby(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 loc.data[0]["latitude"],
                 loc.data[0]["longitude"]
             )
-            u["distance"] = round(dist, 2)
+            u["distance"]  = round(dist, 2)
+            u["last_seen"] = loc.data[0].get("recorded_at")
             result.append(u)
 
         if not result:
@@ -438,12 +441,13 @@ async def send_profile_card(context, chat_id: int, user: dict, lang: str):
     else:
         distance_text = T(lang, "unknown_distance")
 
-    # Last seen / status
-    raw_time = time_ago(user.get("created_at"), lang)
+    # Last seen — use location timestamp when available, fall back to created_at
+    last_ts  = user.get("last_seen") or user.get("created_at")
+    raw_time = time_ago(last_ts, lang)
     if raw_time == T(lang, "now_unit"):
         status = T(lang, "active_now")
     else:
-        status = f"🕒 {raw_time}"
+        status = f"🕒 {T(lang, 'last_seen_label')} {raw_time}"
 
     caption = (
         f"<b>👤 {name}</b>\n"

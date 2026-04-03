@@ -79,6 +79,8 @@ TEXTS = {
         "btn_edit_gender": "👤 تعديل النوع",
         "btn_edit_birthdate": "🎂 تعديل تاريخ الميلاد",
         "btn_edit_bio": "📝 تعديل النبذة",
+        # Last seen label
+        "last_seen_label": "آخر ظهور:",
         # Map
         "btn_map": "🗺️ الخريطة",
         "map_tap": "🗺️ اضغط لفتح الخريطة التفاعلية\n\n📍 موقعك بدبوس أحمر\n🔵 المستخدمون القريبون بدبابيس زرقاء\nاضغط على أي دبوس لعرض الملف الشخصي",
@@ -166,6 +168,8 @@ TEXTS = {
         "btn_edit_gender": "👤 Edit Gender",
         "btn_edit_birthdate": "🎂 Edit Birthdate",
         "btn_edit_bio": "📝 Edit Bio",
+        # Last seen label
+        "last_seen_label": "Last seen:",
         # Map
         "btn_map": "🗺️ Map",
         "map_tap": "🗺️ Tap to open the interactive map\n\n📍 Your location = red pin\n🔵 Nearby users = blue pins\nTap any blue pin to view their profile",
