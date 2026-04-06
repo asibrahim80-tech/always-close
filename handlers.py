@@ -82,7 +82,7 @@ def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup([
         [KeyboardButton(T(lang, "btn_share_phone"), request_contact=True)],
         [KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
-        [KeyboardButton(T(lang, "btn_view_nearby")), KeyboardButton(T(lang, "btn_map"))],
+        [KeyboardButton(T(lang, "btn_view_nearby")), KeyboardButton("📍 Rooms Nearby")],
         [KeyboardButton(T(lang, "btn_matches")), KeyboardButton(T(lang, "btn_requests"))],
         [KeyboardButton(T(lang, "btn_hide")), KeyboardButton(T(lang, "btn_phone_toggle"))],
         [KeyboardButton(T(lang, "btn_edit"))],
@@ -754,3 +754,69 @@ async def toggle_phone_visibility(update: Update, context: ContextTypes.DEFAULT_
 
     msg = T(lang, "phone_visible") if new_val else T(lang, "phone_hidden")
     await update.message.reply_text(msg)
+
+# =========================================================
+# SHOW NEARBY ROOMS
+# =========================================================
+
+async def show_nearby_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_lang(update, context)
+    tg_id = update.effective_user.id
+
+    # get user id
+    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+    if not me.data:
+        await update.message.reply_text("❌ Register first")
+        return
+
+    my_id = me.data[0]["id"]
+
+    # get location
+    loc = supabase.table("user_locations_v1") \
+        .select("latitude, longitude") \
+        .eq("user_id", my_id) \
+        .limit(1) \
+        .execute()
+
+    if not loc.data:
+        await update.message.reply_text("📍 Share location first")
+        return
+
+    lat = loc.data[0]["latitude"]
+    lng = loc.data[0]["longitude"]
+
+    # call RPC function
+    try:
+        res = supabase.rpc("get_nearby_rooms", {
+            "user_lat": lat,
+            "user_lng": lng
+        }).execute()
+
+        rooms = res.data
+
+    except Exception as e:
+        print(e)
+        await update.message.reply_text("❌ Error loading rooms")
+        return
+
+    if not rooms:
+        await update.message.reply_text("❌ No rooms nearby")
+        return
+
+    text = "📍 Nearby Rooms:\n\n"
+
+    for r in rooms:
+        text += f"💬 {r['name']} ({r['members']} people)\n"
+
+    await update.message.reply_text(text)
+
+# =========================================================
+# HANDLE MESSAGES
+# =========================================================
+
+async def handle_text_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    if text == "📍 Rooms Nearby":
+        await show_nearby_rooms(update, context)
+        return

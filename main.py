@@ -26,6 +26,7 @@ from handlers import (
     handle_profile_steps,
     edit_profile,
     handle_edit_choice,
+    handle_text_buttons,
 )
 
 logging.basicConfig(
@@ -69,6 +70,8 @@ def main():
         filters.TEXT & filters.Regex(btn_regex("phone_toggle")), toggle_phone_visibility))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("edit_profile")), edit_profile))
+    app.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND,handle_text_buttons))
 
     # Edit Profile Choices (Arabic & English)
     app.add_handler(MessageHandler(
