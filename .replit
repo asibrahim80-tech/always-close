@@ -1,8 +1,9 @@
 entrypoint = "main.py"
-modules = ["python-3.11"]
+modules = ["python-3.11", "web"]
 
 [nix]
 channel = "stable-25_05"
+packages = ["openssl", "postgresql"]
 
 [unitTest]
 language = "python3"
@@ -11,8 +12,8 @@ language = "python3"
 requiredFiles = [".replit", "replit.nix"]
 
 [deployment]
-run = ["python3", "main.py"]
-deploymentTarget = "cloudrun"
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+deploymentTarget = "autoscale"
 
 [agent]
 expertMode = true
