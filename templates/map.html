@@ -44,36 +44,47 @@
     @keyframes pulse-green{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
     #countdown{font-variant-numeric:tabular-nums;min-width:28px}
 
-    /* ── Legend ── */
-    #legend{
-      position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
-      background:var(--ui-bg);backdrop-filter:var(--ui-blur);
-      border:var(--ui-bd);
-      color:#fff;border-radius:24px;padding:7px 18px;
-      display:flex;gap:16px;align-items:center;font-size:11.5px;z-index:1000;white-space:nowrap
+    /* ══════════════════════════════════════
+       BOTTOM BAR — recenter | legend | zoom
+    ══════════════════════════════════════ */
+    #bottom-bar{
+      position:fixed;bottom:16px;left:12px;right:12px;z-index:1000;
+      display:flex;align-items:center;justify-content:space-between;gap:8px;
     }
-    .leg-dot{width:11px;height:11px;border-radius:50%;border:2px solid rgba(255,255,255,.5);display:inline-block;margin-right:4px}
-    .leg-dot.red{background:#e74c3c}
-    .leg-dot.green{background:#2ecc71}
-    .leg-dot.blue{background:#3498db}
 
-    /* ── Recenter ── */
+    /* recenter */
     #recenter{
-      position:fixed;bottom:22px;left:12px;z-index:1000;
-      width:40px;height:40px;border-radius:50%;
+      flex-shrink:0;width:42px;height:42px;border-radius:50%;
       background:var(--ui-bg);backdrop-filter:var(--ui-blur);border:var(--ui-bd);
-      color:#fff;font-size:19px;cursor:pointer;
+      color:#fff;font-size:20px;cursor:pointer;
       display:flex;align-items:center;justify-content:center;
     }
     #recenter:active{background:rgba(231,76,60,.4)}
 
-    /* ── Horizontal zoom controls ── */
+    /* legend */
+    #legend{
+      flex:1;
+      background:var(--ui-bg);backdrop-filter:var(--ui-blur);border:var(--ui-bd);
+      color:#fff;border-radius:24px;padding:9px 14px;
+      display:flex;gap:12px;align-items:center;justify-content:center;
+      font-size:11.5px;white-space:nowrap;overflow:hidden;
+    }
+    .leg-item{display:flex;align-items:center;gap:5px;flex-shrink:0}
+    .leg-dot{
+      width:10px;height:10px;border-radius:50%;
+      border:1.5px solid rgba(255,255,255,.45);flex-shrink:0;
+    }
+    .leg-dot.red   {background:#e74c3c}
+    .leg-dot.green {background:#2ecc71}
+    .leg-dot.blue  {background:#3498db}
+    .leg-dot.yellow{background:#f1c40f}
+
+    /* zoom */
     #zoom-ctrl{
-      position:fixed;bottom:22px;right:12px;z-index:1000;
-      display:flex;flex-direction:row;gap:6px;
+      flex-shrink:0;display:flex;flex-direction:row;gap:6px;
     }
     .z-btn{
-      width:40px;height:40px;border-radius:50%;
+      width:42px;height:42px;border-radius:50%;
       background:var(--ui-bg);backdrop-filter:var(--ui-blur);border:var(--ui-bd);
       color:#fff;font-size:20px;font-weight:300;cursor:pointer;
       display:flex;align-items:center;justify-content:center;
@@ -85,49 +96,52 @@
     ══════════════════════════════════════ */
     #joystick{
       position:fixed;right:12px;bottom:76px;z-index:1000;
-      width:88px;height:88px;
+      width:90px;height:90px;
       touch-action:none;
     }
     .jpad{
-      width:88px;height:88px;border-radius:50%;
+      width:90px;height:90px;border-radius:50%;
       background:var(--ui-bg);
       backdrop-filter:var(--ui-blur);
       border:var(--ui-bd);
       position:relative;cursor:grab;
     }
-    /* inner ring (decorative) */
     .jpad::after{
       content:'';position:absolute;
-      inset:20px;border-radius:50%;
-      border:1px solid rgba(255,255,255,.12);
+      inset:22px;border-radius:50%;
+      border:1px solid rgba(255,255,255,.10);
     }
-    /* Central ball / knob */
     .jknob{
       position:absolute;
       top:50%;left:50%;
       transform:translate(-50%,-50%);
-      width:32px;height:32px;border-radius:50%;
-      background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.65),rgba(255,255,255,.18));
+      width:34px;height:34px;border-radius:50%;
+      background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.70),rgba(255,255,255,.20));
       border:1.5px solid rgba(255,255,255,.45);
       box-shadow:0 2px 8px rgba(0,0,0,.30);
       pointer-events:none;
-      transition:transform .08s ease;
       will-change:transform;
     }
 
-    /* ── Pin animations ── */
-    @keyframes ring-green{
-      0%{box-shadow:0 0 0 0 rgba(46,204,113,.6),0 3px 12px rgba(0,0,0,.35)}
-      70%{box-shadow:0 0 0 10px rgba(46,204,113,0),0 3px 12px rgba(0,0,0,.35)}
-      100%{box-shadow:0 0 0 0 rgba(46,204,113,0),0 3px 12px rgba(0,0,0,.35)}
-    }
+    /* ── Pin ring animations ── */
     @keyframes ring-red{
-      0%{box-shadow:0 0 0 0 rgba(231,76,60,.6),0 3px 12px rgba(0,0,0,.35)}
-      70%{box-shadow:0 0 0 10px rgba(231,76,60,0),0 3px 12px rgba(0,0,0,.35)}
-      100%{box-shadow:0 0 0 0 rgba(231,76,60,0),0 3px 12px rgba(0,0,0,.35)}
+      0%  {box-shadow:0 0 0 0   rgba(231,76,60,.70),0 3px 12px rgba(0,0,0,.35)}
+      70% {box-shadow:0 0 0 10px rgba(231,76,60,0), 0 3px 12px rgba(0,0,0,.35)}
+      100%{box-shadow:0 0 0 0   rgba(231,76,60,0), 0 3px 12px rgba(0,0,0,.35)}
     }
-    .pa{animation:ring-green 1.8s ease-out infinite}
-    .pme{animation:ring-red 1.8s ease-out infinite}
+    @keyframes ring-green{
+      0%  {box-shadow:0 0 0 0   rgba(46,204,113,.70),0 3px 12px rgba(0,0,0,.35)}
+      70% {box-shadow:0 0 0 10px rgba(46,204,113,0), 0 3px 12px rgba(0,0,0,.35)}
+      100%{box-shadow:0 0 0 0   rgba(46,204,113,0), 0 3px 12px rgba(0,0,0,.35)}
+    }
+    @keyframes ring-yellow{
+      0%  {box-shadow:0 0 0 0   rgba(241,196,15,.80),0 3px 12px rgba(0,0,0,.35)}
+      70% {box-shadow:0 0 0 12px rgba(241,196,15,0), 0 3px 12px rgba(0,0,0,.35)}
+      100%{box-shadow:0 0 0 0   rgba(241,196,15,0), 0 3px 12px rgba(0,0,0,.35)}
+    }
+    .pme {animation:ring-red    1.8s ease-out infinite}
+    .pa  {animation:ring-green  1.8s ease-out infinite}
+    .prm {animation:ring-yellow 1.4s ease-out infinite}
 
     /* ── Leaflet popup card ── */
     .leaflet-popup-content-wrapper{
@@ -153,7 +167,6 @@
       border:none;border-radius:10px;padding:9px;font-size:13px;font-weight:600;
       cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px
     }
-    .btn-msg:active{opacity:.85}
     .last-seen{font-size:11px;color:#999;margin-top:5px}
   </style>
 </head>
@@ -166,18 +179,11 @@
 
 <div id="map"></div>
 
+<!-- ── Live badge ── -->
 <div id="live-badge">
   <span class="pulse-dot"></span>
   <span id="live-lbl">LIVE</span>
   <span id="countdown"> 5s </span>
-</div>
-
-<button id="recenter" title="Re-center">📍</button>
-
-<!-- ── Horizontal Zoom Controls ── -->
-<div id="zoom-ctrl">
-  <button class="z-btn" id="zoom-out">−</button>
-  <button class="z-btn" id="zoom-in">+</button>
 </div>
 
 <!-- ── Drag Joystick ── -->
@@ -187,74 +193,106 @@
   </div>
 </div>
 
-<div id="legend">
-  <span><span class="leg-dot red"></span><span id="leg-me">You</span></span>
-  <span><span class="leg-dot green"></span><span id="leg-active">Active</span></span>
-  <span><span class="leg-dot blue"></span><span id="leg-away">Away</span></span>
+<!-- ── Bottom Bar: recenter | legend | zoom ── -->
+<div id="bottom-bar">
+  <button id="recenter" title="Re-center">📍</button>
+
+  <div id="legend">
+    <span class="leg-item">
+      <span class="leg-dot red"></span>
+      <span id="leg-me">You</span>
+    </span>
+    <span class="leg-item">
+      <span class="leg-dot green"></span>
+      <span id="leg-active">Active</span>
+    </span>
+    <span class="leg-item" id="leg-roam-item" style="display:none">
+      <span class="leg-dot yellow"></span>
+      <span id="leg-roam">Roaming</span>
+    </span>
+    <span class="leg-item">
+      <span class="leg-dot blue"></span>
+      <span id="leg-away">Away</span>
+    </span>
+  </div>
+
+  <div id="zoom-ctrl">
+    <button class="z-btn" id="zoom-out">−</button>
+    <button class="z-btn" id="zoom-in">+</button>
+  </div>
 </div>
 
 <script>
-  // ── Params ──────────────────────────────────────────────────────────────
+  // ── Params ─────────────────────────────────────────────────────────────
   const uid  = new URLSearchParams(location.search).get('uid');
   const lang = new URLSearchParams(location.search).get('lang') || 'en';
 
   const L_ = {
     ar:{
       loading:'جارٍ التحميل…', you:'موقعك',
-      me_leg:'أنت', active_leg:'نشط', away_leg:'غير نشط',
+      me_leg:'أنت', active_leg:'نشط', roam_leg:'متجول', away_leg:'غير نشط',
       km:'كم', yo:'سنة', msg:'💬 مراسلة',
-      active:'🟢 نشط الآن', away:'🔵 غير نشط',
+      active:'🟢 نشط الآن', away:'🔵 غير نشط', roam:'🟡 متجول',
       last:'آخر ظهور:', now:'الآن', min:'د', hr:'س', day:'ي',
-      no_photo_alt:'صورة', err:'❌ خطأ في التحميل',
+      no_photo:'صورة', err:'❌ خطأ في التحميل',
     },
     en:{
       loading:'Loading map…', you:'Your location',
-      me_leg:'You', active_leg:'Active', away_leg:'Away',
+      me_leg:'You', active_leg:'Active', roam_leg:'Roaming', away_leg:'Away',
       km:'km', yo:'yo', msg:'💬 Message',
-      active:'🟢 Active now', away:'🔵 Away',
+      active:'🟢 Active now', away:'🔵 Away', roam:'🟡 Roaming',
       last:'Last seen:', now:'now', min:'m', hr:'h', day:'d',
-      no_photo_alt:'photo', err:'❌ Error loading map',
+      no_photo:'photo', err:'❌ Error loading map',
     }
   }[lang] || {};
 
-  // Apply labels
+  // ── Apply static labels ─────────────────────────────────────────────────
   document.getElementById('overlay-lbl').textContent = L_.loading;
-  document.getElementById('leg-me').textContent       = L_.me_leg;
-  document.getElementById('leg-active').textContent   = L_.active_leg;
-  document.getElementById('leg-away').textContent     = L_.away_leg;
+  document.getElementById('leg-me').textContent      = L_.me_leg;
+  document.getElementById('leg-active').textContent  = L_.active_leg;
+  document.getElementById('leg-roam').textContent    = L_.roam_leg;
+  document.getElementById('leg-away').textContent    = L_.away_leg;
 
-  // ── Map setup (no default zoom control) ─────────────────────────────────
+  // ── Map (no default zoom control) ──────────────────────────────────────
   const map = L.map('map', { zoomControl: false });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap', maxZoom: 19,
+    attribution:'© OpenStreetMap', maxZoom:19
   }).addTo(map);
 
-  // Custom zoom buttons
   document.getElementById('zoom-in').addEventListener('click',  () => map.zoomIn());
   document.getElementById('zoom-out').addEventListener('click', () => map.zoomOut());
 
-  // ── Position state ───────────────────────────────────────────────────────
-  let gpsLatLng = null;   // real GPS from server (never moved by joystick)
-  let myLatLng  = null;   // displayed pin position
+  // ── Position state ──────────────────────────────────────────────────────
+  let gpsLatLng  = null;   // real GPS from server
+  let myLatLng   = null;   // displayed pin position (moves with joystick)
+  let myPhoto    = null;   // me profile photo URL
+  let myInitial  = '?';
 
-  // ── Recenter ─────────────────────────────────────────────────────────────
+  const ROAM_THRESH = 0.0001;  // ~11 metres
+  function isRoaming() {
+    if (!gpsLatLng || !myLatLng) return false;
+    return Math.abs(gpsLatLng[0]-myLatLng[0]) > ROAM_THRESH ||
+           Math.abs(gpsLatLng[1]-myLatLng[1]) > ROAM_THRESH;
+  }
+
+  // ── Recenter ────────────────────────────────────────────────────────────
   document.getElementById('recenter').addEventListener('click', () => {
     if (!gpsLatLng) return;
     myLatLng = [...gpsLatLng];
     if (meMarker) meMarker.setLatLng(myLatLng);
     map.setView(myLatLng, 16, { animate: true });
+    refreshMeMarker();
   });
 
   // ── Helpers ─────────────────────────────────────────────────────────────
-  function timeAgo(isoStr) {
-    if (!isoStr) return '';
-    const diff = Math.floor((Date.now() - new Date(isoStr)) / 1000);
-    if (diff < 60)   return L_.now;
-    if (diff < 3600) return `${Math.floor(diff/60)}${L_.min}`;
-    if (diff < 86400)return `${Math.floor(diff/3600)}${L_.hr}`;
+  function timeAgo(iso) {
+    if (!iso) return '';
+    const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (diff < 60)    return L_.now;
+    if (diff < 3600)  return `${Math.floor(diff/60)}${L_.min}`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}${L_.hr}`;
     return `${Math.floor(diff/86400)}${L_.day}`;
   }
-
   function openChat(username, telegramId) {
     const url = username ? `https://t.me/${username}` : `tg://user?id=${telegramId}`;
     if (window.Telegram?.WebApp?.openTelegramLink) Telegram.WebApp.openTelegramLink(url);
@@ -262,98 +300,82 @@
   }
   window.openChat = openChat;
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // DRAG JOYSTICK
-  // ══════════════════════════════════════════════════════════════════════════
-  const jpad  = document.getElementById('jpad');
-  const jknob = document.getElementById('jknob');
-  const KNOB_R = 24;   // max drag distance (px)
+  // ══════════════════════════════════════════════════════════════════════
+  // PIN FACTORY
+  // ══════════════════════════════════════════════════════════════════════
+  /*
+    Design:
+      Outer div  = ring colour (padding acts as border)
+      Inner div  = white bg clipped circle (overflow:hidden)
+      Content    = <img> or letter fallback
+  */
+  function makePin(isActive, isMe, photoUrl, initial, roaming) {
+    const sz   = isMe ? 44 : 48;
+    const pad  = 3;          // ring thickness
+    const iSz  = sz - pad*2; // inner content size
 
-  let joystickActive = false;
-  let joyCenterX = 0, joyCenterY = 0;
-  let joyDir = { lat: 0, lng: 0 };
-  let moveInterval = null;
-  let speedMult = 3;   // default speed (will be read from settings if available)
+    const ring =
+      isMe && roaming ? '#f1c40f' :
+      isMe            ? '#e74c3c' :
+      isActive        ? '#2ecc71' : '#3498db';
 
-  function joyStep() {
-    const z = map.getZoom();
-    return 0.00018 * speedMult * Math.pow(2, Math.max(0, 16 - z));
-  }
+    const animClass =
+      isMe && roaming ? 'prm' :
+      isMe            ? 'pme' :
+      isActive        ? 'pa'  : '';
 
-  function startJoyMove() {
-    if (moveInterval) return;
-    moveInterval = setInterval(() => {
-      if (!myLatLng || (joyDir.lat === 0 && joyDir.lng === 0)) return;
-      const s = joyStep();
-      myLatLng = [myLatLng[0] + joyDir.lat * s, myLatLng[1] + joyDir.lng * s];
-      if (meMarker) meMarker.setLatLng(myLatLng);
-      map.panTo(myLatLng, { animate: true, duration: 0.1 });
-    }, 80);
-  }
+    const fbBg = isMe ? '#e74c3c' : isActive ? '#2ecc71' : '#3498db';
+    const fz   = Math.max(10, Math.round(iSz * 0.40));
 
-  function stopJoyMove() {
-    clearInterval(moveInterval);
-    moveInterval = null;
-    joyDir = { lat: 0, lng: 0 };
-    jknob.style.transform = 'translate(-50%, -50%)';
-  }
-
-  function updateJoy(clientX, clientY) {
-    let dx = clientX - joyCenterX;
-    let dy = clientY - joyCenterY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist > KNOB_R) { dx = dx / dist * KNOB_R; dy = dy / dist * KNOB_R; }
-    jknob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-    const norm = dist > 1 ? Math.sqrt(dx * dx + dy * dy) : 1;
-    joyDir = { lat: -dy / KNOB_R, lng: dx / KNOB_R };
-  }
-
-  jpad.addEventListener('pointerdown', e => {
-    e.preventDefault();
-    jpad.setPointerCapture(e.pointerId);
-    joystickActive = true;
-    const rect = jpad.getBoundingClientRect();
-    joyCenterX = rect.left + rect.width  / 2;
-    joyCenterY = rect.top  + rect.height / 2;
-    updateJoy(e.clientX, e.clientY);
-    startJoyMove();
-  });
-  jpad.addEventListener('pointermove', e => {
-    if (!joystickActive) return;
-    updateJoy(e.clientX, e.clientY);
-  });
-  jpad.addEventListener('pointerup',     () => { joystickActive = false; stopJoyMove(); });
-  jpad.addEventListener('pointercancel', () => { joystickActive = false; stopJoyMove(); });
-  jpad.addEventListener('pointerleave',  () => { if (joystickActive) { joystickActive = false; stopJoyMove(); } });
-
-  // ── Pin factory ───────────────────────────────────────────────────────────
-  function makePin(isActive, isMe, photoUrl, initial) {
-    const sz   = isMe ? 28 : 44;
-    const half = sz / 2;
-    const borderColor = isMe ? '#e74c3c' : isActive ? '#2ecc71' : '#3498db';
-    const animClass   = isMe ? 'pme' : isActive ? 'pa' : '';
-    let inner;
+    let content;
     if (photoUrl) {
-      inner = `
-        <div style="width:${sz}px;height:${sz}px;border-radius:50%;overflow:hidden;">
-          <img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;display:block"
-            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-          <div style="display:none;width:100%;height:100%;border-radius:50%;
-            background:${isActive?'#2ecc71':'#3498db'};color:#fff;
-            font-size:${sz/2.5}px;font-weight:700;align-items:center;justify-content:center">
-            ${initial}</div>
+      content = `
+        <img src="${photoUrl}"
+          style="width:${iSz}px;height:${iSz}px;object-fit:cover;display:block;border-radius:50%;flex-shrink:0"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div style="display:none;width:${iSz}px;height:${iSz}px;border-radius:50%;
+          background:${fbBg};color:#fff;font-size:${fz}px;font-weight:700;
+          align-items:center;justify-content:center;flex-shrink:0">
+          ${initial}
         </div>`;
     } else {
-      inner = `<div style="width:${sz}px;height:${sz}px;border-radius:50%;
-               background:${isMe?'#e74c3c':isActive?'#2ecc71':'#3498db'};
-               color:#fff;font-size:${sz/2.5}px;font-weight:700;
-               display:flex;align-items:center;justify-content:center">${initial}</div>`;
+      content = `
+        <div style="width:${iSz}px;height:${iSz}px;border-radius:50%;
+          background:${fbBg};color:#fff;font-size:${fz}px;font-weight:700;
+          display:flex;align-items:center;justify-content:center">
+          ${initial}
+        </div>`;
     }
+
+    const html = `
+      <div class="${animClass}" style="
+        width:${sz}px;height:${sz}px;border-radius:50%;
+        padding:${pad}px;background:${ring};
+        display:flex;align-items:center;justify-content:center;
+      ">
+        <div style="
+          width:${iSz}px;height:${iSz}px;border-radius:50%;
+          overflow:hidden;background:#ddd;
+          display:flex;align-items:center;justify-content:center;
+          flex-shrink:0;
+        ">
+          ${content}
+        </div>
+      </div>`;
+
+    const half = sz / 2;
     return L.divIcon({
-      html: `<div class="${animClass}" style="width:${sz}px;height:${sz}px;border-radius:50%;
-        border:3px solid ${borderColor};overflow:hidden;background:#ccc">${inner}</div>`,
-      className:'', iconSize:[sz,sz], iconAnchor:[half,half], popupAnchor:[0,-half-8],
+      html, className:'', iconSize:[sz,sz], iconAnchor:[half,half], popupAnchor:[0,-half-8]
     });
+  }
+
+  // ── Refresh me marker (after joystick move or recenter) ─────────────────
+  function refreshMeMarker() {
+    if (!meMarker) return;
+    const roam = isRoaming();
+    meMarker.setIcon(makePin(true, true, myPhoto, myInitial, roam));
+    const ri = document.getElementById('leg-roam-item');
+    if (ri) ri.style.display = roam ? 'flex' : 'none';
   }
 
   // ── Popup card ───────────────────────────────────────────────────────────
@@ -361,10 +383,9 @@
     const ago    = timeAgo(u.last_seen);
     const status = u.is_active ? L_.active : L_.away;
     let html = '<div class="card">';
-    if (u.photo_url) {
+    if (u.photo_url)
       html += `<img class="card-img" src="${u.photo_url}"
-        onerror="this.style.display='none'" alt="${L_.no_photo_alt}">`;
-    }
+        onerror="this.style.display='none'" alt="${L_.no_photo}">`;
     html += '<div class="card-body">';
     html += `<div class="card-name">👤 ${u.username || 'User'}</div>`;
     const parts = [];
@@ -375,17 +396,16 @@
     if (u.distance != null) html += `<span class="badge-dist">📍 ${u.distance} ${L_.km}</span>`;
     if (ago) html += `<div class="last-seen">🕒 ${L_.last} ${ago}</div>`;
     if (u.bio) html += `<div class="card-bio">📝 ${u.bio}</div>`;
-    if (u.username || u.telegram_id) {
+    if (u.username || u.telegram_id)
       html += `<div class="card-actions">
         <button class="btn-msg" onclick="openChat('${u.username||''}','${u.telegram_id||''}')">
           ${L_.msg}</button></div>`;
-    }
     html += '</div></div>';
     return html;
   }
 
-  // ── State ─────────────────────────────────────────────────────────────────
-  let meMarker   = null;
+  // ── State ────────────────────────────────────────────────────────────────
+  let meMarker    = null;
   const markerMap = {};
   let refreshTimer = 5;
 
@@ -399,13 +419,17 @@
           ov.classList.add('gone');
           setTimeout(() => ov.remove(), 500);
         }
-        if (data.error) { return; }
+        if (data.error) return;
 
         const me = data.me;
         gpsLatLng = [me.lat, me.lng];
-        if (!myLatLng) myLatLng = [...gpsLatLng];
+        if (!myLatLng)  myLatLng  = [...gpsLatLng];
+        if (!myPhoto)   myPhoto   = me.photo_url || null;
+        myInitial = (me.name || '?')[0].toUpperCase();
 
-        const meIcon = makePin(true, true, null, (me.name||'?')[0].toUpperCase());
+        const roam = isRoaming();
+        const meIcon = makePin(true, true, myPhoto, myInitial, roam);
+
         if (!meMarker) {
           meMarker = L.marker(myLatLng, { icon: meIcon, zIndexOffset: 1000 })
             .addTo(map)
@@ -413,13 +437,18 @@
           if (firstLoad) map.setView(myLatLng, 16);
         } else {
           meMarker.setIcon(meIcon);
+          // Don't move meMarker back to gpsLatLng — joystick position is kept
         }
 
+        const ri = document.getElementById('leg-roam-item');
+        if (ri) ri.style.display = roam ? 'flex' : 'none';
+
+        // ── Nearby users ──────────────────────────────────────
         const seenIds = new Set();
         data.nearby.forEach(u => {
           seenIds.add(u.id);
           const initial   = (u.username || '?')[0].toUpperCase();
-          const icon      = makePin(u.is_active, false, u.photo_url, initial);
+          const icon      = makePin(u.is_active, false, u.photo_url, initial, false);
           const latlng    = [u.lat, u.lng];
           const popupHtml = makePopup(u);
 
@@ -441,12 +470,13 @@
             delete markerMap[id];
           }
         });
+
         refreshTimer = 5;
       })
       .catch(() => {});
   }
 
-  // ── Countdown ──────────────────────────────────────────────────────────────
+  // ── Countdown ─────────────────────────────────────────────────────────────
   function startCountdown() {
     refreshTimer = 5;
     const el = document.getElementById('countdown');
@@ -458,11 +488,76 @@
   }
 
   // ── Speed from settings (localStorage) ──────────────────────────────────
+  let speedMult = 3;
   try {
-    const saved = JSON.parse(localStorage.getItem('ac_settings') || '{}');
-    if (saved.speed) speedMult = saved.speed;
+    const sv = JSON.parse(localStorage.getItem('ac_settings') || '{}');
+    if (sv.speed) speedMult = sv.speed;
   } catch(e) {}
 
+  // ══════════════════════════════════════════════════════════════════════
+  // DRAG JOYSTICK
+  // ══════════════════════════════════════════════════════════════════════
+  const jpad  = document.getElementById('jpad');
+  const jknob = document.getElementById('jknob');
+  const KNOB_R = 22;
+
+  let joyActive = false;
+  let joyCX = 0, joyCY = 0;
+  let joyDir = { lat:0, lng:0 };
+  let moveInterval = null;
+
+  function joyStep() {
+    const z = map.getZoom();
+    return 0.00018 * speedMult * Math.pow(2, Math.max(0, 16 - z));
+  }
+
+  function startJoyMove() {
+    if (moveInterval) return;
+    moveInterval = setInterval(() => {
+      if (!myLatLng || (joyDir.lat === 0 && joyDir.lng === 0)) return;
+      const s = joyStep();
+      myLatLng = [myLatLng[0] + joyDir.lat * s, myLatLng[1] + joyDir.lng * s];
+      if (meMarker) meMarker.setLatLng(myLatLng);
+      map.panTo(myLatLng, { animate: true, duration: 0.1 });
+      refreshMeMarker();
+    }, 80);
+  }
+
+  function stopJoyMove() {
+    clearInterval(moveInterval);
+    moveInterval = null;
+    joyDir = { lat:0, lng:0 };
+    jknob.style.transform = 'translate(-50%,-50%)';
+  }
+
+  function updateJoy(cx, cy) {
+    let dx = cx - joyCX;
+    let dy = cy - joyCY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist > KNOB_R) { dx = dx/dist*KNOB_R; dy = dy/dist*KNOB_R; }
+    jknob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    joyDir = { lat: -dy/KNOB_R, lng: dx/KNOB_R };
+  }
+
+  jpad.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    jpad.setPointerCapture(e.pointerId);
+    joyActive = true;
+    const r = jpad.getBoundingClientRect();
+    joyCX = r.left + r.width/2;
+    joyCY = r.top  + r.height/2;
+    updateJoy(e.clientX, e.clientY);
+    startJoyMove();
+  });
+  jpad.addEventListener('pointermove', e => {
+    if (!joyActive) return;
+    updateJoy(e.clientX, e.clientY);
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(ev =>
+    jpad.addEventListener(ev, () => { joyActive = false; stopJoyMove(); })
+  );
+
+  // ── Boot ──────────────────────────────────────────────────────────────
   loadData(true);
   startCountdown();
 </script>

@@ -79,15 +79,16 @@ def api_nearby(telegram_id):
 
         # ── Current user ────────────────────────────────────────
         me_res = supabase.table("users_v1") \
-            .select("id, username") \
+            .select("id, username, photo_url") \
             .eq("telegram_id", telegram_id) \
             .execute()
 
         if not me_res.data:
             return jsonify({"error": "User not found. Please register first."})
 
-        my_id   = me_res.data[0]["id"]
-        my_name = me_res.data[0].get("username") or "You"
+        my_id       = me_res.data[0]["id"]
+        my_name     = me_res.data[0].get("username") or "You"
+        my_photo    = _resolve_photo(me_res.data[0].get("photo_url"), BOT_TOKEN)
 
         my_loc = supabase.table("user_locations_v1") \
             .select("latitude, longitude, recorded_at") \
@@ -151,6 +152,7 @@ def api_nearby(telegram_id):
                 "lat":       my_lat,
                 "lng":       my_lng,
                 "name":      my_name,
+                "photo_url": my_photo,
                 "last_seen": my_rec,
                 "is_active": _is_active(my_rec),
             },
