@@ -24,7 +24,6 @@ from handlers import (
     show_requests,
     toggle_visibility,
     toggle_phone_visibility,
-    handle_profile_steps,
     edit_profile,
     handle_edit_choice,
     handle_text_buttons,
@@ -73,10 +72,8 @@ def main():
         filters.TEXT & filters.Regex(btn_regex("phone_toggle")), toggle_phone_visibility))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("edit_profile")), edit_profile))
-    app.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND,handle_text_buttons))
 
-    # Edit Profile Choices (Arabic & English)
+    # Edit Profile Choices (Arabic & English) — must come before the catch-all
     app.add_handler(MessageHandler(
         filters.TEXT & (
             filters.Regex(btn_regex("edit_gender")) |
@@ -86,8 +83,8 @@ def main():
         handle_edit_choice
     ))
 
-    # Profile Setup Steps (catch-all for text when a step is active)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_profile_steps))
+    # Catch-all: handles profile setup steps AND Rooms Nearby
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_buttons))
 
     # Error Handler
     app.add_error_handler(error_handler)

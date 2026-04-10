@@ -854,8 +854,12 @@ async def show_nearby_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================================================
 
 async def handle_text_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    step = context.user_data.get("step")
+    if step:
+        await handle_profile_steps(update, context)
+        return
 
+    text = update.message.text
     if text == "📍 Rooms Nearby":
         await show_nearby_rooms(update, context)
         return
