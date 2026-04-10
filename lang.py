@@ -87,6 +87,10 @@ TEXTS = {
         "map_btn_open": "🗺️ فتح الخريطة",
         "map_no_location": "❌ شارك موقعك أولاً ثم افتح الخريطة.",
         "map_not_registered": "❌ يجب التسجيل أولاً.",
+        # Settings
+        "btn_settings": "⚙️ الإعدادات",
+        "settings_tap": "⚙️ اضغط لفتح صفحة الإعدادات",
+        "settings_btn_open": "⚙️ فتح الإعدادات",
         # Rooms nearby & create
         "btn_rooms_nearby": "📍 الغرف القريبة",
         "btn_create_room": "🏠 إنشاء غرفة",
@@ -198,6 +202,10 @@ TEXTS = {
         "map_btn_open": "🗺️ Open Map",
         "map_no_location": "❌ Please share your location first, then open the map.",
         "map_not_registered": "❌ Please register first.",
+        # Settings
+        "btn_settings": "⚙️ Settings",
+        "settings_tap": "⚙️ Tap to open the settings page",
+        "settings_btn_open": "⚙️ Open Settings",
         # Rooms nearby & create
         "btn_rooms_nearby": "📍 Rooms Nearby",
         "btn_create_room": "🏠 Create Room",
@@ -254,6 +262,7 @@ ALL_BTN = {
     "rooms_nearby":   ["📍 الغرف القريبة",             "📍 Rooms Nearby"],
     "create_room":    ["🏠 إنشاء غرفة",               "🏠 Create Room"],
     "cancel_action":  ["❌ إلغاء",                     "❌ Cancel"],
+    "settings":       ["⚙️ الإعدادات",                 "⚙️ Settings"],
 }
 
 

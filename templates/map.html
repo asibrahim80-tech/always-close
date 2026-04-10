@@ -11,6 +11,13 @@
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d0d1a;overflow:hidden;height:100vh}
     #map{height:100vh;width:100%}
 
+    /* ── Shared UI style ── */
+    :root{
+      --ui-bg:   rgba(13,13,26,.55);
+      --ui-bd:   1.5px solid rgba(255,255,255,.18);
+      --ui-blur: blur(6px);
+    }
+
     /* ── Loading overlay ── */
     #overlay{
       position:fixed;inset:0;background:#0d0d1a;z-index:9999;
@@ -25,8 +32,9 @@
     /* ── Live badge ── */
     #live-badge{
       position:fixed;top:12px;left:12px;z-index:1000;
-      background:rgba(13,13,26,.78);backdrop-filter:blur(8px);
+      background:var(--ui-bg);backdrop-filter:var(--ui-blur);
       color:#fff;border-radius:20px;padding:6px 14px;font-size:12px;
+      border:var(--ui-bd);
       display:flex;align-items:center;gap:7px;user-select:none
     }
     .pulse-dot{
@@ -36,33 +44,11 @@
     @keyframes pulse-green{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
     #countdown{font-variant-numeric:tabular-nums;min-width:28px}
 
-    /* ── Settings button ── */
-    #settings-btn{
-      position:fixed;top:12px;right:12px;z-index:1000;
-      width:38px;height:38px;border-radius:50%;
-      background:rgba(13,13,26,.72);backdrop-filter:blur(8px);
-      border:1.5px solid rgba(255,255,255,.18);
-      color:#fff;font-size:18px;cursor:pointer;
-      display:flex;align-items:center;justify-content:center;
-    }
-    #settings-btn:active{background:rgba(231,76,60,.5)}
-
-    /* ── Recenter button ── */
-    #recenter{
-      position:fixed;bottom:22px;left:12px;z-index:1000;
-      width:42px;height:42px;border-radius:50%;
-      background:rgba(255,255,255,.22);backdrop-filter:blur(6px);
-      border:1.5px solid rgba(255,255,255,.35);
-      box-shadow:0 2px 10px rgba(0,0,0,.3);
-      cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;
-      color:#fff;
-    }
-    #recenter:active{background:rgba(231,76,60,.45)}
-
     /* ── Legend ── */
     #legend{
       position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
-      background:rgba(13,13,26,.78);backdrop-filter:blur(8px);
+      background:var(--ui-bg);backdrop-filter:var(--ui-blur);
+      border:var(--ui-bd);
       color:#fff;border-radius:24px;padding:7px 18px;
       display:flex;gap:16px;align-items:center;font-size:11.5px;z-index:1000;white-space:nowrap
     }
@@ -70,6 +56,64 @@
     .leg-dot.red{background:#e74c3c}
     .leg-dot.green{background:#2ecc71}
     .leg-dot.blue{background:#3498db}
+
+    /* ── Recenter ── */
+    #recenter{
+      position:fixed;bottom:22px;left:12px;z-index:1000;
+      width:40px;height:40px;border-radius:50%;
+      background:var(--ui-bg);backdrop-filter:var(--ui-blur);border:var(--ui-bd);
+      color:#fff;font-size:19px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+    }
+    #recenter:active{background:rgba(231,76,60,.4)}
+
+    /* ── Horizontal zoom controls ── */
+    #zoom-ctrl{
+      position:fixed;bottom:22px;right:12px;z-index:1000;
+      display:flex;flex-direction:row;gap:6px;
+    }
+    .z-btn{
+      width:40px;height:40px;border-radius:50%;
+      background:var(--ui-bg);backdrop-filter:var(--ui-blur);border:var(--ui-bd);
+      color:#fff;font-size:20px;font-weight:300;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .z-btn:active{background:rgba(231,76,60,.4)}
+
+    /* ══════════════════════════════════════
+       DRAG JOYSTICK
+    ══════════════════════════════════════ */
+    #joystick{
+      position:fixed;right:12px;bottom:76px;z-index:1000;
+      width:88px;height:88px;
+      touch-action:none;
+    }
+    .jpad{
+      width:88px;height:88px;border-radius:50%;
+      background:var(--ui-bg);
+      backdrop-filter:var(--ui-blur);
+      border:var(--ui-bd);
+      position:relative;cursor:grab;
+    }
+    /* inner ring (decorative) */
+    .jpad::after{
+      content:'';position:absolute;
+      inset:20px;border-radius:50%;
+      border:1px solid rgba(255,255,255,.12);
+    }
+    /* Central ball / knob */
+    .jknob{
+      position:absolute;
+      top:50%;left:50%;
+      transform:translate(-50%,-50%);
+      width:32px;height:32px;border-radius:50%;
+      background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.65),rgba(255,255,255,.18));
+      border:1.5px solid rgba(255,255,255,.45);
+      box-shadow:0 2px 8px rgba(0,0,0,.30);
+      pointer-events:none;
+      transition:transform .08s ease;
+      will-change:transform;
+    }
 
     /* ── Pin animations ── */
     @keyframes ring-green{
@@ -111,118 +155,6 @@
     }
     .btn-msg:active{opacity:.85}
     .last-seen{font-size:11px;color:#999;margin-top:5px}
-
-    /* ══════════════════════════════════════
-       CIRCULAR JOYSTICK (Free Fire style)
-    ══════════════════════════════════════ */
-    #joystick{
-      position:fixed;right:10px;bottom:82px;z-index:1000;
-      width:120px;height:120px;
-    }
-    .jpad{
-      width:120px;height:120px;border-radius:50%;
-      background:rgba(0,0,0,.42);backdrop-filter:blur(5px);
-      border:2px solid rgba(255,255,255,.18);
-      position:relative;
-    }
-    /* outer ring highlight */
-    .jpad::before{
-      content:'';position:absolute;inset:5px;border-radius:50%;
-      border:1px solid rgba(255,255,255,.08);
-    }
-    /* inner ring */
-    .jpad::after{
-      content:'';position:absolute;inset:35px;border-radius:50%;
-      background:rgba(255,255,255,.10);
-      border:1.5px solid rgba(255,255,255,.22);
-    }
-    /* Central knob */
-    .jknob{
-      position:absolute;top:50%;left:50%;
-      transform:translate(-50%,-50%);
-      width:36px;height:36px;border-radius:50%;
-      background:radial-gradient(circle at 38% 38%,rgba(255,255,255,.55),rgba(255,255,255,.12));
-      border:1.5px solid rgba(255,255,255,.35);
-      z-index:2;pointer-events:none;
-    }
-    /* Direction buttons */
-    .jbtn{
-      position:absolute;
-      width:32px;height:32px;
-      background:transparent;border:none;
-      color:rgba(255,255,255,.80);
-      font-size:15px;font-weight:700;
-      display:flex;align-items:center;justify-content:center;
-      cursor:pointer;z-index:3;
-      -webkit-tap-highlight-color:transparent;
-      user-select:none;
-    }
-    .jbtn:active,.jbtn.pressed{ color:#e74c3c; text-shadow:0 0 8px rgba(231,76,60,.8); }
-    /* N */  .jbtn[data-d="N"]  {top:3px;left:44px}
-    /* NE */ .jbtn[data-d="NE"] {top:10px;right:8px}
-    /* E */  .jbtn[data-d="E"]  {top:44px;right:3px}
-    /* SE */ .jbtn[data-d="SE"] {bottom:10px;right:8px}
-    /* S */  .jbtn[data-d="S"]  {bottom:3px;left:44px}
-    /* SW */ .jbtn[data-d="SW"] {bottom:10px;left:8px}
-    /* W */  .jbtn[data-d="W"]  {top:44px;left:3px}
-    /* NW */ .jbtn[data-d="NW"] {top:10px;left:8px}
-
-    /* ══════════════════════════════════════
-       SETTINGS PANEL (slide-up drawer)
-    ══════════════════════════════════════ */
-    #settings-panel{
-      position:fixed;inset:0;z-index:2000;pointer-events:none;
-    }
-    #settings-backdrop{
-      position:absolute;inset:0;background:rgba(0,0,0,.5);
-      opacity:0;transition:opacity .25s;pointer-events:none;
-    }
-    #settings-drawer{
-      position:absolute;bottom:0;left:0;right:0;
-      background:#1a1a2e;border-radius:22px 22px 0 0;
-      padding:18px 20px 32px;
-      transform:translateY(100%);transition:transform .3s ease;
-      pointer-events:none;
-    }
-    #settings-panel.open #settings-backdrop{opacity:1;pointer-events:all}
-    #settings-panel.open #settings-drawer{transform:translateY(0);pointer-events:all}
-    #settings-panel.open{pointer-events:all}
-
-    .drawer-handle{
-      width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.25);
-      margin:0 auto 16px;
-    }
-    .drawer-title{
-      font-size:16px;font-weight:700;color:#fff;margin-bottom:16px;
-      display:flex;justify-content:space-between;align-items:center;
-    }
-    .close-btn{
-      background:rgba(255,255,255,.12);border:none;color:#fff;
-      width:28px;height:28px;border-radius:50%;font-size:14px;
-      cursor:pointer;display:flex;align-items:center;justify-content:center;
-    }
-    .drawer-section{margin-bottom:16px}
-    .drawer-label{font-size:12px;color:rgba(255,255,255,.55);margin-bottom:8px;font-weight:600;letter-spacing:.5px}
-    .chip-row{display:flex;gap:8px;flex-wrap:wrap}
-    .chip{
-      padding:6px 14px;border-radius:20px;border:1.5px solid rgba(255,255,255,.2);
-      background:rgba(255,255,255,.07);font-size:13px;color:rgba(255,255,255,.8);
-      cursor:pointer;font-weight:500;transition:all .15s;
-    }
-    .chip.active{background:#e74c3c;border-color:#e74c3c;color:#fff}
-    .chip:active{opacity:.75}
-    /* Speed slider */
-    .speed-wrap{display:flex;align-items:center;gap:12px}
-    .speed-wrap span{color:#fff;font-size:16px}
-    #speed-slider{
-      flex:1;-webkit-appearance:none;height:5px;border-radius:3px;
-      background:rgba(255,255,255,.2);outline:none;
-    }
-    #speed-slider::-webkit-slider-thumb{
-      -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
-      background:#e74c3c;cursor:pointer;border:2px solid #fff;
-    }
-    #speed-val{color:rgba(255,255,255,.7);font-size:12px;min-width:28px;text-align:center}
   </style>
 </head>
 <body>
@@ -240,21 +172,18 @@
   <span id="countdown"> 5s </span>
 </div>
 
-<button id="settings-btn" title="Settings">⚙️</button>
 <button id="recenter" title="Re-center">📍</button>
 
-<!-- ── Circular Joystick ── -->
+<!-- ── Horizontal Zoom Controls ── -->
+<div id="zoom-ctrl">
+  <button class="z-btn" id="zoom-out">−</button>
+  <button class="z-btn" id="zoom-in">+</button>
+</div>
+
+<!-- ── Drag Joystick ── -->
 <div id="joystick">
-  <div class="jpad">
-    <button class="jbtn" data-d="N"  data-dlat="1"  data-dlng="0">▲</button>
-    <button class="jbtn" data-d="NE" data-dlat="1"  data-dlng="1">▶</button>
-    <button class="jbtn" data-d="E"  data-dlat="0"  data-dlng="1">▶</button>
-    <button class="jbtn" data-d="SE" data-dlat="-1" data-dlng="1">▶</button>
-    <button class="jbtn" data-d="S"  data-dlat="-1" data-dlng="0">▼</button>
-    <button class="jbtn" data-d="SW" data-dlat="-1" data-dlng="-1">◀</button>
-    <button class="jbtn" data-d="W"  data-dlat="0"  data-dlng="-1">◀</button>
-    <button class="jbtn" data-d="NW" data-dlat="1"  data-dlng="-1">◀</button>
-    <div class="jknob"></div>
+  <div class="jpad" id="jpad">
+    <div class="jknob" id="jknob"></div>
   </div>
 </div>
 
@@ -262,59 +191,6 @@
   <span><span class="leg-dot red"></span><span id="leg-me">You</span></span>
   <span><span class="leg-dot green"></span><span id="leg-active">Active</span></span>
   <span><span class="leg-dot blue"></span><span id="leg-away">Away</span></span>
-</div>
-
-<!-- ── Settings Drawer ── -->
-<div id="settings-panel">
-  <div id="settings-backdrop"></div>
-  <div id="settings-drawer">
-    <div class="drawer-handle"></div>
-    <div class="drawer-title">
-      <span id="s-title">⚙️ Settings</span>
-      <button class="close-btn" id="s-close">✕</button>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-label" id="s-gender-lbl">GENDER</div>
-      <div class="chip-row">
-        <button class="chip active" data-gender=""       id="s-all">All</button>
-        <button class="chip"        data-gender="Male"   id="s-male">👨 Male</button>
-        <button class="chip"        data-gender="Female" id="s-female">👩 Female</button>
-      </div>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-label" id="s-dist-lbl">DISTANCE</div>
-      <div class="chip-row">
-        <button class="chip active" data-dist=""   id="sd-any">Any</button>
-        <button class="chip"        data-dist="1"  id="sd-1">≤1 km</button>
-        <button class="chip"        data-dist="5"  id="sd-5">≤5 km</button>
-        <button class="chip"        data-dist="10" id="sd-10">≤10 km</button>
-        <button class="chip"        data-dist="50" id="sd-50">≤50 km</button>
-      </div>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-label" id="s-age-lbl">AGE</div>
-      <div class="chip-row">
-        <button class="chip active" data-age=""      id="sa-any">Any</button>
-        <button class="chip"        data-age="18-25" id="sa-1">18–25</button>
-        <button class="chip"        data-age="26-35" id="sa-2">26–35</button>
-        <button class="chip"        data-age="36-50" id="sa-3">36–50</button>
-        <button class="chip"        data-age="50+"   id="sa-4">50+</button>
-      </div>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-label" id="s-speed-lbl">MOVE SPEED</div>
-      <div class="speed-wrap">
-        <span>🐢</span>
-        <input type="range" id="speed-slider" min="1" max="10" value="3">
-        <span>🐇</span>
-        <span id="speed-val">×3</span>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -330,9 +206,6 @@
       active:'🟢 نشط الآن', away:'🔵 غير نشط',
       last:'آخر ظهور:', now:'الآن', min:'د', hr:'س', day:'ي',
       no_photo_alt:'صورة', err:'❌ خطأ في التحميل',
-      settings:'⚙️ الإعدادات',
-      gender:'النوع', dist:'المسافة', age:'العمر', speed:'سرعة التحرك',
-      all:'الكل', male:'👨 ذكر', female:'👩 أنثى', any:'أي مسافة', any_age:'أي عمر',
     },
     en:{
       loading:'Loading map…', you:'Your location',
@@ -341,33 +214,36 @@
       active:'🟢 Active now', away:'🔵 Away',
       last:'Last seen:', now:'now', min:'m', hr:'h', day:'d',
       no_photo_alt:'photo', err:'❌ Error loading map',
-      settings:'⚙️ Settings',
-      gender:'GENDER', dist:'DISTANCE', age:'AGE', speed:'MOVE SPEED',
-      all:'All', male:'👨 Male', female:'👩 Female', any:'Any', any_age:'Any',
     }
   }[lang] || {};
 
   // Apply labels
-  document.getElementById('overlay-lbl').textContent   = L_.loading;
-  document.getElementById('leg-me').textContent         = L_.me_leg;
-  document.getElementById('leg-active').textContent     = L_.active_leg;
-  document.getElementById('leg-away').textContent       = L_.away_leg;
-  document.getElementById('s-title').textContent        = L_.settings;
-  document.getElementById('s-gender-lbl').textContent   = L_.gender;
-  document.getElementById('s-dist-lbl').textContent     = L_.dist;
-  document.getElementById('s-age-lbl').textContent      = L_.age;
-  document.getElementById('s-speed-lbl').textContent    = L_.speed;
-  document.getElementById('s-all').textContent          = L_.all;
-  document.getElementById('s-male').textContent         = L_.male;
-  document.getElementById('s-female').textContent       = L_.female;
-  document.getElementById('sd-any').textContent         = L_.any;
-  document.getElementById('sa-any').textContent         = L_.any_age;
-  if (L_.km) {
-    ['sd-1','sd-5','sd-10','sd-50'].forEach((id,i)=>{
-      const v = [1,5,10,50][i];
-      document.getElementById(id).textContent = `≤${v} ${L_.km}`;
-    });
-  }
+  document.getElementById('overlay-lbl').textContent = L_.loading;
+  document.getElementById('leg-me').textContent       = L_.me_leg;
+  document.getElementById('leg-active').textContent   = L_.active_leg;
+  document.getElementById('leg-away').textContent     = L_.away_leg;
+
+  // ── Map setup (no default zoom control) ─────────────────────────────────
+  const map = L.map('map', { zoomControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 19,
+  }).addTo(map);
+
+  // Custom zoom buttons
+  document.getElementById('zoom-in').addEventListener('click',  () => map.zoomIn());
+  document.getElementById('zoom-out').addEventListener('click', () => map.zoomOut());
+
+  // ── Position state ───────────────────────────────────────────────────────
+  let gpsLatLng = null;   // real GPS from server (never moved by joystick)
+  let myLatLng  = null;   // displayed pin position
+
+  // ── Recenter ─────────────────────────────────────────────────────────────
+  document.getElementById('recenter').addEventListener('click', () => {
+    if (!gpsLatLng) return;
+    myLatLng = [...gpsLatLng];
+    if (meMarker) meMarker.setLatLng(myLatLng);
+    map.setView(myLatLng, 16, { animate: true });
+  });
 
   // ── Helpers ─────────────────────────────────────────────────────────────
   function timeAgo(isoStr) {
@@ -386,144 +262,71 @@
   }
   window.openChat = openChat;
 
-  // ── Map setup ────────────────────────────────────────────────────────────
-  const map = L.map('map', { zoomControl: false });
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap', maxZoom: 19,
-  }).addTo(map);
+  // ══════════════════════════════════════════════════════════════════════════
+  // DRAG JOYSTICK
+  // ══════════════════════════════════════════════════════════════════════════
+  const jpad  = document.getElementById('jpad');
+  const jknob = document.getElementById('jknob');
+  const KNOB_R = 24;   // max drag distance (px)
 
-  // ── Position state ───────────────────────────────────────────────────────
-  let gpsLatLng = null;   // actual GPS position from server (never changed by joystick)
-  let myLatLng  = null;   // current displayed pin position (can be moved by joystick)
+  let joystickActive = false;
+  let joyCenterX = 0, joyCenterY = 0;
+  let joyDir = { lat: 0, lng: 0 };
+  let moveInterval = null;
+  let speedMult = 3;   // default speed (will be read from settings if available)
 
-  // ── Recenter ─────────────────────────────────────────────────────────────
-  document.getElementById('recenter').addEventListener('click', () => {
-    if (!gpsLatLng) return;
-    myLatLng = [...gpsLatLng];                // reset to real GPS
-    if (meMarker) meMarker.setLatLng(myLatLng);
-    map.setView(myLatLng, 16, { animate: true });
-  });
-
-  // ── Filter state ─────────────────────────────────────────────────────────
-  let filterGender = '';
-  let filterDist   = '';
-  let filterAge    = '';
-  let speedMult    = 3;
-
-  // ── Speed slider ─────────────────────────────────────────────────────────
-  const speedSlider = document.getElementById('speed-slider');
-  const speedVal    = document.getElementById('speed-val');
-  speedSlider.addEventListener('input', () => {
-    speedMult = parseInt(speedSlider.value);
-    speedVal.textContent = `×${speedMult}`;
-  });
-
-  // ── Settings panel ───────────────────────────────────────────────────────
-  const panel = document.getElementById('settings-panel');
-  document.getElementById('settings-btn').addEventListener('click', () => {
-    panel.classList.add('open');
-  });
-  document.getElementById('s-close').addEventListener('click', () => {
-    panel.classList.remove('open');
-  });
-  document.getElementById('settings-backdrop').addEventListener('click', () => {
-    panel.classList.remove('open');
-  });
-
-  // Gender chips
-  document.querySelectorAll('[data-gender]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('[data-gender]').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      filterGender = chip.dataset.gender;
-      applyFilters();
-    });
-  });
-
-  // Distance chips
-  document.querySelectorAll('[data-dist]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('[data-dist]').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      filterDist = chip.dataset.dist;
-      applyFilters();
-    });
-  });
-
-  // Age chips
-  document.querySelectorAll('[data-age]').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('[data-age]').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      filterAge = chip.dataset.age;
-      applyFilters();
-    });
-  });
-
-  function applyFilters() {
-    Object.values(markerMap).forEach(({ m, u }) => {
-      let show = true;
-      if (filterGender && u.gender !== filterGender) show = false;
-      if (filterDist) {
-        const lim = parseFloat(filterDist);
-        if (u.distance != null && u.distance > lim) show = false;
-      }
-      if (filterAge && u.age) {
-        const age = u.age;
-        if (filterAge === '18-25' && (age < 18 || age > 25)) show = false;
-        if (filterAge === '26-35' && (age < 26 || age > 35)) show = false;
-        if (filterAge === '36-50' && (age < 36 || age > 50)) show = false;
-        if (filterAge === '50+'   && age < 50)                show = false;
-      }
-      if (show) { if (!map.hasLayer(m)) m.addTo(map); }
-      else       { if (map.hasLayer(m)) map.removeLayer(m); }
-    });
-  }
-
-  // ── Joystick ─────────────────────────────────────────────────────────────
-  function stepDeg() {
+  function joyStep() {
     const z = map.getZoom();
     return 0.00018 * speedMult * Math.pow(2, Math.max(0, 16 - z));
   }
 
-  document.querySelectorAll('.jbtn').forEach(btn => {
-    const dLat = parseFloat(btn.dataset.dlat);
-    const dLng = parseFloat(btn.dataset.dlng);
-    let holdTimer = null, holdInterval = null;
-
-    function doMove() {
-      if (!myLatLng) return;
-      const step = stepDeg();
-      // Normalize diagonals
-      const norm = (Math.abs(dLat) + Math.abs(dLng) > 1) ? Math.SQRT2 : 1;
-      myLatLng = [
-        myLatLng[0] + (dLat / norm) * step,
-        myLatLng[1] + (dLng / norm) * step
-      ];
+  function startJoyMove() {
+    if (moveInterval) return;
+    moveInterval = setInterval(() => {
+      if (!myLatLng || (joyDir.lat === 0 && joyDir.lng === 0)) return;
+      const s = joyStep();
+      myLatLng = [myLatLng[0] + joyDir.lat * s, myLatLng[1] + joyDir.lng * s];
       if (meMarker) meMarker.setLatLng(myLatLng);
-      map.panTo(myLatLng, { animate: true, duration: 0.12 });
-    }
+      map.panTo(myLatLng, { animate: true, duration: 0.1 });
+    }, 80);
+  }
 
-    function stopHold() {
-      clearTimeout(holdTimer); clearInterval(holdInterval);
-      btn.classList.remove('pressed');
-    }
+  function stopJoyMove() {
+    clearInterval(moveInterval);
+    moveInterval = null;
+    joyDir = { lat: 0, lng: 0 };
+    jknob.style.transform = 'translate(-50%, -50%)';
+  }
 
-    btn.addEventListener('pointerdown', e => {
-      e.preventDefault();
-      btn.classList.add('pressed');
-      doMove();
-      holdTimer = setTimeout(() => {
-        holdInterval = setInterval(doMove, 100);
-      }, 300);
-    });
-    btn.addEventListener('pointerup',     stopHold);
-    btn.addEventListener('pointerleave',  stopHold);
-    btn.addEventListener('pointercancel', stopHold);
+  function updateJoy(clientX, clientY) {
+    let dx = clientX - joyCenterX;
+    let dy = clientY - joyCenterY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > KNOB_R) { dx = dx / dist * KNOB_R; dy = dy / dist * KNOB_R; }
+    jknob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    const norm = dist > 1 ? Math.sqrt(dx * dx + dy * dy) : 1;
+    joyDir = { lat: -dy / KNOB_R, lng: dx / KNOB_R };
+  }
+
+  jpad.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    jpad.setPointerCapture(e.pointerId);
+    joystickActive = true;
+    const rect = jpad.getBoundingClientRect();
+    joyCenterX = rect.left + rect.width  / 2;
+    joyCenterY = rect.top  + rect.height / 2;
+    updateJoy(e.clientX, e.clientY);
+    startJoyMove();
   });
+  jpad.addEventListener('pointermove', e => {
+    if (!joystickActive) return;
+    updateJoy(e.clientX, e.clientY);
+  });
+  jpad.addEventListener('pointerup',     () => { joystickActive = false; stopJoyMove(); });
+  jpad.addEventListener('pointercancel', () => { joystickActive = false; stopJoyMove(); });
+  jpad.addEventListener('pointerleave',  () => { if (joystickActive) { joystickActive = false; stopJoyMove(); } });
 
-  // ── Custom pin factory ───────────────────────────────────────────────────
+  // ── Pin factory ───────────────────────────────────────────────────────────
   function makePin(isActive, isMe, photoUrl, initial) {
     const sz   = isMe ? 28 : 44;
     const half = sz / 2;
@@ -532,8 +335,8 @@
     let inner;
     if (photoUrl) {
       inner = `
-        <div style="width:${sz}px;height:${sz}px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;">
-          <img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;display:block;"
+        <div style="width:${sz}px;height:${sz}px;border-radius:50%;overflow:hidden;">
+          <img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;display:block"
             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
           <div style="display:none;width:100%;height:100%;border-radius:50%;
             background:${isActive?'#2ecc71':'#3498db'};color:#fff;
@@ -542,7 +345,7 @@
         </div>`;
     } else {
       inner = `<div style="width:${sz}px;height:${sz}px;border-radius:50%;
-               background:${isActive?'#2ecc71':'#3498db'};
+               background:${isMe?'#e74c3c':isActive?'#2ecc71':'#3498db'};
                color:#fff;font-size:${sz/2.5}px;font-weight:700;
                display:flex;align-items:center;justify-content:center">${initial}</div>`;
     }
@@ -570,7 +373,7 @@
     if (parts.length) html += `<div class="card-row">${parts.join(' &nbsp;•&nbsp; ')}</div>`;
     html += `<div class="card-row">${status}</div>`;
     if (u.distance != null) html += `<span class="badge-dist">📍 ${u.distance} ${L_.km}</span>`;
-    if (ago)  html += `<div class="last-seen">🕒 ${L_.last} ${ago}</div>`;
+    if (ago) html += `<div class="last-seen">🕒 ${L_.last} ${ago}</div>`;
     if (u.bio) html += `<div class="card-bio">📝 ${u.bio}</div>`;
     if (u.username || u.telegram_id) {
       html += `<div class="card-actions">
@@ -581,12 +384,12 @@
     return html;
   }
 
-  // ── State ────────────────────────────────────────────────────────────────
+  // ── State ─────────────────────────────────────────────────────────────────
   let meMarker   = null;
-  const markerMap = {};   // id → { m: marker, u: userData }
+  const markerMap = {};
   let refreshTimer = 5;
 
-  // ── Load / refresh ────────────────────────────────────────────────────────
+  // ── Load data ─────────────────────────────────────────────────────────────
   function loadData(firstLoad) {
     fetch(`/api/nearby/${uid}`)
       .then(r => r.json())
@@ -596,19 +399,11 @@
           ov.classList.add('gone');
           setTimeout(() => ov.remove(), 500);
         }
-        if (data.error) {
-          if (firstLoad) {
-            const el = document.getElementById('overlay-lbl');
-            if (el) el.textContent = data.error;
-            document.getElementById('overlay')?.classList.remove('gone');
-          }
-          return;
-        }
+        if (data.error) { return; }
 
-        // ── Current user (red pin) ──────────────────────────────
         const me = data.me;
-        gpsLatLng = [me.lat, me.lng];    // Always update real GPS
-        if (!myLatLng) myLatLng = [...gpsLatLng];   // Init display position once
+        gpsLatLng = [me.lat, me.lng];
+        if (!myLatLng) myLatLng = [...gpsLatLng];
 
         const meIcon = makePin(true, true, null, (me.name||'?')[0].toUpperCase());
         if (!meMarker) {
@@ -618,10 +413,8 @@
           if (firstLoad) map.setView(myLatLng, 16);
         } else {
           meMarker.setIcon(meIcon);
-          // Do NOT move meMarker to gpsLatLng — user may have dragged it
         }
 
-        // ── Nearby users ──────────────────────────────────────────
         const seenIds = new Set();
         data.nearby.forEach(u => {
           seenIds.add(u.id);
@@ -648,29 +441,27 @@
             delete markerMap[id];
           }
         });
-
-        applyFilters();
         refreshTimer = 5;
       })
-      .catch(() => {
-        if (firstLoad) {
-          const el = document.getElementById('overlay-lbl');
-          if (el) el.textContent = L_.err;
-        }
-      });
+      .catch(() => {});
   }
 
-  // ── Live countdown ────────────────────────────────────────────────────────
+  // ── Countdown ──────────────────────────────────────────────────────────────
   function startCountdown() {
     refreshTimer = 5;
     const el = document.getElementById('countdown');
-    if (el) el.textContent = `${refreshTimer}s`;
     setInterval(() => {
       refreshTimer--;
       if (el) el.textContent = `${refreshTimer}s`;
       if (refreshTimer <= 0) { refreshTimer = 5; loadData(false); }
     }, 1000);
   }
+
+  // ── Speed from settings (localStorage) ──────────────────────────────────
+  try {
+    const saved = JSON.parse(localStorage.getItem('ac_settings') || '{}');
+    if (saved.speed) speedMult = saved.speed;
+  } catch(e) {}
 
   loadData(true);
   startCountdown();

@@ -87,7 +87,7 @@ def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
         [KeyboardButton(T(lang, "btn_view_nearby"))],
         [KeyboardButton(T(lang, "btn_matches")), KeyboardButton(T(lang, "btn_requests"))],
         [KeyboardButton(T(lang, "btn_hide")), KeyboardButton(T(lang, "btn_phone_toggle"))],
-        [KeyboardButton(T(lang, "btn_edit"))],
+        [KeyboardButton(T(lang, "btn_edit")), KeyboardButton(T(lang, "btn_settings"))],
     ], resize_keyboard=True)
 
 
@@ -255,10 +255,12 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
         room_name    = context.user_data.get("room_name", "Room")
         room_purpose = text.strip()
 
+        # Clear step FIRST so bot never gets stuck
+        context.user_data.clear()
+        context.user_data["lang"] = lang
+
         me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
         if not me.data:
-            context.user_data.clear()
-            context.user_data["lang"] = lang
             await update.message.reply_text(T(lang, "register_first"), reply_markup=main_keyboard(lang))
             return
 
@@ -270,23 +272,23 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
                 "creator_id": creator_id,
                 "is_active": True,
             }).execute()
-            room_id = result.data[0]["id"]
-            # Auto-add creator as accepted member
-            supabase.table("room_members_v1").insert({
-                "room_id": room_id,
-                "user_id": creator_id,
-                "status": "accepted",
-            }).execute()
-            context.user_data.clear()
-            context.user_data["lang"] = lang
+            rows = result.data or []
+            if rows:
+                room_id = rows[0]["id"]
+                try:
+                    supabase.table("room_members_v1").insert({
+                        "room_id": room_id,
+                        "user_id": creator_id,
+                        "status": "accepted",
+                    }).execute()
+                except Exception:
+                    pass
             await update.message.reply_text(
                 T(lang, "room_created").format(room_name, room_purpose),
                 reply_markup=main_keyboard(lang)
             )
         except Exception as e:
             logger.error(f"Room creation error: {e}")
-            context.user_data.clear()
-            context.user_data["lang"] = lang
             await update.message.reply_text(T(lang, "room_create_error"), reply_markup=main_keyboard(lang))
         return
 
@@ -912,6 +914,25 @@ async def show_nearby_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text)
 
 # =========================================================
+# SETTINGS
+# =========================================================
+
+async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_lang(update, context)
+    tg_id = update.effective_user.id
+    settings_url = f"https://{DOMAIN}/settings?uid={tg_id}&lang={lang}"
+    await update.message.reply_text(
+        T(lang, "settings_tap"),
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                T(lang, "settings_btn_open"),
+                web_app=WebAppInfo(url=settings_url)
+            )
+        ]])
+    )
+
+
+# =========================================================
 # CREATE ROOM
 # =========================================================
 
@@ -943,7 +964,15 @@ async def handle_text_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await handle_profile_steps(update, context)
         return
 
+    lang = get_lang(update, context)
     text = update.message.text
+
     if text in ALL_BTN["rooms_nearby"]:
         await show_nearby_rooms(update, context)
         return
+
+    # Catch-all: unknown message → restore main keyboard
+    await update.message.reply_text(
+        "👋",
+        reply_markup=main_keyboard(lang)
+    )

@@ -66,6 +66,11 @@ def users_page():
     return render_template("users.html")
 
 
+@app.route('/settings')
+def settings_page():
+    return render_template("settings.html")
+
+
 @app.route('/api/nearby/<int:telegram_id>')
 def api_nearby(telegram_id):
     try:

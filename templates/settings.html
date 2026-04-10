@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Always Close – Settings</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      background:#0d0d1a;color:#fff;min-height:100vh;
+      padding:0 0 32px;
+    }
+
+    /* ── Header ── */
+    .header{
+      background:linear-gradient(135deg,#1a1a2e,#16213e);
+      padding:20px 18px 16px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex;align-items:center;gap:12px;
+      position:sticky;top:0;z-index:10;
+    }
+    .header-ico{font-size:24px}
+    .header-title{font-size:18px;font-weight:700}
+    .header-sub{font-size:12px;opacity:.55;margin-top:2px}
+
+    /* ── Section ── */
+    .section{padding:20px 18px 0}
+    .section-title{
+      font-size:11px;font-weight:700;letter-spacing:.8px;
+      color:rgba(255,255,255,.45);margin-bottom:12px;
+    }
+    .card{
+      background:#1a1a2e;border-radius:16px;
+      border:1px solid rgba(255,255,255,.07);
+      overflow:hidden;margin-bottom:20px;
+    }
+
+    /* ── Row item ── */
+    .row{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.05);
+    }
+    .row:last-child{border-bottom:none}
+    .row-label{font-size:14px;display:flex;align-items:center;gap:10px}
+    .row-ico{font-size:18px;width:24px;text-align:center}
+
+    /* ── Chip row ── */
+    .chip-row{
+      padding:10px 14px 14px;
+      display:flex;gap:8px;flex-wrap:wrap;
+    }
+    .chip{
+      padding:7px 16px;border-radius:20px;
+      border:1.5px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.06);
+      font-size:13px;color:rgba(255,255,255,.8);
+      cursor:pointer;font-weight:500;transition:all .15s;
+    }
+    .chip.active{background:#e74c3c;border-color:#e74c3c;color:#fff}
+    .chip:active{opacity:.75}
+    .chip-sub{
+      font-size:11px;color:rgba(255,255,255,.4);
+      padding:0 14px 12px;
+    }
+
+    /* ── Toggle switch ── */
+    .toggle{
+      position:relative;width:46px;height:26px;
+      background:rgba(255,255,255,.15);border-radius:13px;
+      cursor:pointer;transition:background .2s;flex-shrink:0;
+    }
+    .toggle.on{background:#e74c3c}
+    .toggle::after{
+      content:'';position:absolute;top:3px;left:3px;
+      width:20px;height:20px;border-radius:50%;
+      background:#fff;transition:left .2s;
+      box-shadow:0 1px 4px rgba(0,0,0,.3);
+    }
+    .toggle.on::after{left:23px}
+
+    /* ── Slider ── */
+    .slider-wrap{padding:6px 16px 14px;display:flex;align-items:center;gap:12px}
+    .slider-wrap span{font-size:16px}
+    input[type=range]{
+      flex:1;-webkit-appearance:none;height:5px;
+      border-radius:3px;background:rgba(255,255,255,.18);outline:none;
+    }
+    input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none;width:22px;height:22px;
+      border-radius:50%;background:#e74c3c;
+      cursor:pointer;border:2px solid #fff;
+    }
+    .slider-val{
+      color:rgba(255,255,255,.7);font-size:13px;
+      min-width:32px;text-align:center;font-weight:600;
+    }
+
+    /* ── Save banner ── */
+    #save-banner{
+      position:fixed;bottom:0;left:0;right:0;
+      background:#e74c3c;color:#fff;
+      font-size:15px;font-weight:700;
+      padding:16px;text-align:center;
+      transform:translateY(100%);transition:transform .25s;
+      cursor:pointer;z-index:100;
+    }
+    #save-banner.show{transform:translateY(0)}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-ico">⚙️</div>
+  <div>
+    <div class="header-title" id="h-title">Settings</div>
+    <div class="header-sub" id="h-sub">Always Close</div>
+  </div>
+</div>
+
+<!-- DISCOVERY FILTERS -->
+<div class="section">
+  <div class="section-title" id="s-discovery">DISCOVERY</div>
+  <div class="card">
+    <div class="row">
+      <div class="row-label"><span class="row-ico">🚻</span><span id="l-gender">Show Gender</span></div>
+    </div>
+    <div class="chip-row" id="gender-chips">
+      <button class="chip active" data-val="">All</button>
+      <button class="chip" data-val="Male">👨 Male</button>
+      <button class="chip" data-val="Female">👩 Female</button>
+    </div>
+
+    <div class="row">
+      <div class="row-label"><span class="row-ico">📍</span><span id="l-dist">Max Distance</span></div>
+    </div>
+    <div class="chip-row" id="dist-chips">
+      <button class="chip active" data-val="">Any</button>
+      <button class="chip" data-val="1">≤1 km</button>
+      <button class="chip" data-val="5">≤5 km</button>
+      <button class="chip" data-val="10">≤10 km</button>
+      <button class="chip" data-val="50">≤50 km</button>
+    </div>
+
+    <div class="row">
+      <div class="row-label"><span class="row-ico">🎂</span><span id="l-age">Age Range</span></div>
+    </div>
+    <div class="chip-row" id="age-chips">
+      <button class="chip active" data-val="">Any</button>
+      <button class="chip" data-val="18-25">18–25</button>
+      <button class="chip" data-val="26-35">26–35</button>
+      <button class="chip" data-val="36-50">36–50</button>
+      <button class="chip" data-val="50+">50+</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAP SETTINGS -->
+<div class="section">
+  <div class="section-title" id="s-map">MAP</div>
+  <div class="card">
+    <div class="row">
+      <div class="row-label"><span class="row-ico">🎮</span><span id="l-speed">Move Speed</span></div>
+    </div>
+    <div class="slider-wrap">
+      <span>🐢</span>
+      <input type="range" id="speed-slider" min="1" max="10" value="3">
+      <span>🐇</span>
+      <span class="slider-val" id="speed-val">×3</span>
+    </div>
+    <div class="chip-sub" id="l-speed-hint">Controls joystick movement speed on map</div>
+  </div>
+</div>
+
+<!-- PRIVACY -->
+<div class="section">
+  <div class="section-title" id="s-privacy">PRIVACY</div>
+  <div class="card">
+    <div class="row" id="row-visible">
+      <div class="row-label"><span class="row-ico">👁️</span><span id="l-visible">Visible on Map</span></div>
+      <div class="toggle on" id="t-visible"></div>
+    </div>
+    <div class="row" id="row-phone">
+      <div class="row-label"><span class="row-ico">📞</span><span id="l-phone">Show Phone Number</span></div>
+      <div class="toggle" id="t-phone"></div>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATIONS -->
+<div class="section">
+  <div class="section-title" id="s-notif">NOTIFICATIONS</div>
+  <div class="card">
+    <div class="row">
+      <div class="row-label"><span class="row-ico">❤️</span><span id="l-likes">New Likes</span></div>
+      <div class="toggle on" id="t-likes"></div>
+    </div>
+    <div class="row">
+      <div class="row-label"><span class="row-ico">🔥</span><span id="l-matches">New Matches</span></div>
+      <div class="toggle on" id="t-matches"></div>
+    </div>
+    <div class="row">
+      <div class="row-label"><span class="row-ico">🏠</span><span id="l-rooms">Room Requests</span></div>
+      <div class="toggle on" id="t-rooms"></div>
+    </div>
+  </div>
+</div>
+
+<div id="save-banner" id="save-banner">💾 Save Settings</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const lang   = params.get('lang') || 'en';
+  const uid    = params.get('uid');
+
+  // ── Translations ──
+  const L_ = {
+    ar:{
+      title:'الإعدادات', sub:'Always Close',
+      discovery:'الاكتشاف', map:'الخريطة', privacy:'الخصوصية', notif:'الإشعارات',
+      gender:'إظهار النوع', dist:'أقصى مسافة', age:'الفئة العمرية',
+      speed:'سرعة التحرك', speedHint:'تتحكم في سرعة الجويستيك على الخريطة',
+      visible:'ظهور على الخريطة', phone:'إظهار رقم الهاتف',
+      likes:'إعجابات جديدة', matches:'تطابقات جديدة', rooms:'طلبات الغرف',
+      save:'💾 حفظ الإعدادات', any:'أي', anyAge:'أي',
+      all:'الكل', male:'👨 ذكر', female:'👩 أنثى',
+    },
+    en:{
+      title:'Settings', sub:'Always Close',
+      discovery:'DISCOVERY', map:'MAP', privacy:'PRIVACY', notif:'NOTIFICATIONS',
+      gender:'Show Gender', dist:'Max Distance', age:'Age Range',
+      speed:'Move Speed', speedHint:'Controls joystick movement speed on map',
+      visible:'Visible on Map', phone:'Show Phone Number',
+      likes:'New Likes', matches:'New Matches', rooms:'Room Requests',
+      save:'💾 Save Settings', any:'Any', anyAge:'Any',
+      all:'All', male:'👨 Male', female:'👩 Female',
+    }
+  }[lang] || {};
+
+  // Apply labels
+  document.getElementById('h-title').textContent    = L_.title;
+  document.getElementById('s-discovery').textContent= L_.discovery;
+  document.getElementById('s-map').textContent       = L_.map;
+  document.getElementById('s-privacy').textContent   = L_.privacy;
+  document.getElementById('s-notif').textContent     = L_.notif;
+  document.getElementById('l-gender').textContent    = L_.gender;
+  document.getElementById('l-dist').textContent      = L_.dist;
+  document.getElementById('l-age').textContent       = L_.age;
+  document.getElementById('l-speed').textContent     = L_.speed;
+  document.getElementById('l-speed-hint').textContent= L_.speedHint;
+  document.getElementById('l-visible').textContent   = L_.visible;
+  document.getElementById('l-phone').textContent     = L_.phone;
+  document.getElementById('l-likes').textContent     = L_.likes;
+  document.getElementById('l-matches').textContent   = L_.matches;
+  document.getElementById('l-rooms').textContent     = L_.rooms;
+  document.getElementById('save-banner').textContent = L_.save;
+
+  // Gender chips labels
+  const gc = document.querySelectorAll('#gender-chips .chip');
+  gc[0].textContent = L_.all;
+  gc[1].textContent = L_.male;
+  gc[2].textContent = L_.female;
+
+  // Distance chips
+  const dc = document.querySelectorAll('#dist-chips .chip');
+  dc[0].textContent = L_.any;
+
+  // Age chips
+  const ac = document.querySelectorAll('#age-chips .chip');
+  ac[0].textContent = L_.anyAge;
+
+  // ── Load saved settings ──
+  const KEY = `ac_settings`;
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e){}
+
+  // Helpers
+  function loadChips(groupId, savedKey) {
+    const val = saved[savedKey] || '';
+    document.querySelectorAll(`#${groupId} .chip`).forEach(c => {
+      c.classList.toggle('active', c.dataset.val === val);
+    });
+  }
+  function loadToggle(id, savedKey, def = true) {
+    const v = savedKey in saved ? saved[savedKey] : def;
+    document.getElementById(id).classList.toggle('on', !!v);
+  }
+
+  loadChips('gender-chips', 'gender');
+  loadChips('dist-chips',   'dist');
+  loadChips('age-chips',    'age');
+  loadToggle('t-visible',  'visible',   true);
+  loadToggle('t-phone',    'phone',     false);
+  loadToggle('t-likes',    'n_likes',   true);
+  loadToggle('t-matches',  'n_matches', true);
+  loadToggle('t-rooms',    'n_rooms',   true);
+
+  const spSlider = document.getElementById('speed-slider');
+  const spVal    = document.getElementById('speed-val');
+  spSlider.value = saved.speed || 3;
+  spVal.textContent = `×${spSlider.value}`;
+  spSlider.addEventListener('input', () => {
+    spVal.textContent = `×${spSlider.value}`;
+    markDirty();
+  });
+
+  // ── Chip interaction ──
+  ['gender-chips','dist-chips','age-chips'].forEach(gid => {
+    document.querySelectorAll(`#${gid} .chip`).forEach(chip => {
+      chip.addEventListener('click', () => {
+        document.querySelectorAll(`#${gid} .chip`).forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        markDirty();
+      });
+    });
+  });
+
+  // ── Toggle interaction ──
+  ['t-visible','t-phone','t-likes','t-matches','t-rooms'].forEach(id => {
+    document.getElementById(id).addEventListener('click', function() {
+      this.classList.toggle('on');
+      markDirty();
+    });
+  });
+
+  // ── Dirty state ──
+  let dirty = false;
+  function markDirty() {
+    dirty = true;
+    document.getElementById('save-banner').classList.add('show');
+  }
+
+  // ── Save ──
+  document.getElementById('save-banner').addEventListener('click', saveSettings);
+  function saveSettings() {
+    function activeVal(gid) {
+      return document.querySelector(`#${gid} .chip.active`)?.dataset.val || '';
+    }
+    function toggleOn(id) { return document.getElementById(id).classList.contains('on'); }
+
+    const data = {
+      gender:    activeVal('gender-chips'),
+      dist:      activeVal('dist-chips'),
+      age:       activeVal('age-chips'),
+      speed:     parseInt(spSlider.value),
+      visible:   toggleOn('t-visible'),
+      phone:     toggleOn('t-phone'),
+      n_likes:   toggleOn('t-likes'),
+      n_matches: toggleOn('t-matches'),
+      n_rooms:   toggleOn('t-rooms'),
+    };
+    localStorage.setItem(KEY, JSON.stringify(data));
+    dirty = false;
+    const banner = document.getElementById('save-banner');
+    banner.classList.remove('show');
+
+    // Close WebApp if open inside Telegram
+    if (window.Telegram?.WebApp) {
+      Telegram.WebApp.close();
+    }
+  }
+</script>
+</body>
+</html>
