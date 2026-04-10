@@ -87,6 +87,8 @@ TEXTS = {
         "map_btn_open": "🗺️ فتح الخريطة",
         "map_no_location": "❌ شارك موقعك أولاً ثم افتح الخريطة.",
         "map_not_registered": "❌ يجب التسجيل أولاً.",
+        # Rooms nearby
+        "btn_rooms_nearby": "📍 الغرف القريبة",
         # Users list
         "btn_users_list": "👥 قائمة المستخدمين",
         "users_tap": "👥 اضغط لعرض المستخدمين القريبين",
@@ -182,6 +184,8 @@ TEXTS = {
         "map_btn_open": "🗺️ Open Map",
         "map_no_location": "❌ Please share your location first, then open the map.",
         "map_not_registered": "❌ Please register first.",
+        # Rooms nearby
+        "btn_rooms_nearby": "📍 Rooms Nearby",
         # Users list
         "btn_users_list": "👥 Users List",
         "users_tap": "👥 Tap to browse nearby users",
@@ -219,6 +223,7 @@ ALL_BTN = {
     "edit_bio":       ["📝 تعديل النبذة",            "📝 Edit Bio"],
     "map":            ["🗺️ الخريطة",                 "🗺️ Map"],
     "users_list":     ["👥 قائمة المستخدمين",        "👥 Users List"],
+    "rooms_nearby":   ["📍 الغرف القريبة",             "📍 Rooms Nearby"],
 }
 
 
