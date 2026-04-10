@@ -87,8 +87,22 @@ TEXTS = {
         "map_btn_open": "🗺️ فتح الخريطة",
         "map_no_location": "❌ شارك موقعك أولاً ثم افتح الخريطة.",
         "map_not_registered": "❌ يجب التسجيل أولاً.",
-        # Rooms nearby
+        # Rooms nearby & create
         "btn_rooms_nearby": "📍 الغرف القريبة",
+        "btn_create_room": "🏠 إنشاء غرفة",
+        "create_room_ask_name": "🏠 اكتب اسم الغرفة:",
+        "create_room_ask_purpose": "📝 اكتب هدف أو وصف الغرفة:",
+        "room_created": "✅ تم إنشاء الغرفة بنجاح!\n🏠 الاسم: {}\n📝 الهدف: {}",
+        "room_create_error": "❌ خطأ في إنشاء الغرفة. تأكد أن قاعدة البيانات جاهزة.",
+        "room_join_request": "📩 طلب انضمام جديد لغرفتك «{}» من @{}",
+        "btn_accept": "✅ قبول",
+        "btn_reject": "❌ رفض",
+        "room_accepted": "✅ تم قبول طلب الانضمام.",
+        "room_rejected": "❌ تم رفض طلب الانضمام.",
+        "room_you_accepted": "✅ تم قبولك في غرفة «{}»!",
+        "room_you_rejected": "❌ تم رفض طلب انضمامك لغرفة «{}».",
+        "room_cancel": "❌ تم إلغاء إنشاء الغرفة.",
+        "btn_cancel_action": "❌ إلغاء",
         # Users list
         "btn_users_list": "👥 قائمة المستخدمين",
         "users_tap": "👥 اضغط لعرض المستخدمين القريبين",
@@ -184,8 +198,22 @@ TEXTS = {
         "map_btn_open": "🗺️ Open Map",
         "map_no_location": "❌ Please share your location first, then open the map.",
         "map_not_registered": "❌ Please register first.",
-        # Rooms nearby
+        # Rooms nearby & create
         "btn_rooms_nearby": "📍 Rooms Nearby",
+        "btn_create_room": "🏠 Create Room",
+        "create_room_ask_name": "🏠 Enter a name for your room:",
+        "create_room_ask_purpose": "📝 Describe the purpose of your room:",
+        "room_created": "✅ Room created!\n🏠 Name: {}\n📝 Purpose: {}",
+        "room_create_error": "❌ Error creating room. Make sure the database table exists.",
+        "room_join_request": "📩 New join request for your room «{}» from @{}",
+        "btn_accept": "✅ Accept",
+        "btn_reject": "❌ Reject",
+        "room_accepted": "✅ Join request accepted.",
+        "room_rejected": "❌ Join request rejected.",
+        "room_you_accepted": "✅ You were accepted into room «{}»!",
+        "room_you_rejected": "❌ Your request to join «{}» was rejected.",
+        "room_cancel": "❌ Room creation cancelled.",
+        "btn_cancel_action": "❌ Cancel",
         # Users list
         "btn_users_list": "👥 Users List",
         "users_tap": "👥 Tap to browse nearby users",
@@ -224,6 +252,8 @@ ALL_BTN = {
     "map":            ["🗺️ الخريطة",                 "🗺️ Map"],
     "users_list":     ["👥 قائمة المستخدمين",        "👥 Users List"],
     "rooms_nearby":   ["📍 الغرف القريبة",             "📍 Rooms Nearby"],
+    "create_room":    ["🏠 إنشاء غرفة",               "🏠 Create Room"],
+    "cancel_action":  ["❌ إلغاء",                     "❌ Cancel"],
 }
 
 

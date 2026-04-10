@@ -83,7 +83,8 @@ def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
         [KeyboardButton(T(lang, "btn_share_phone"), request_contact=True)],
         [KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
         [KeyboardButton(T(lang, "btn_map")), KeyboardButton(T(lang, "btn_users_list"))],
-        [KeyboardButton(T(lang, "btn_view_nearby")), KeyboardButton(T(lang, "btn_rooms_nearby"))],
+        [KeyboardButton(T(lang, "btn_rooms_nearby")), KeyboardButton(T(lang, "btn_create_room"))],
+        [KeyboardButton(T(lang, "btn_view_nearby"))],
         [KeyboardButton(T(lang, "btn_matches")), KeyboardButton(T(lang, "btn_requests"))],
         [KeyboardButton(T(lang, "btn_hide")), KeyboardButton(T(lang, "btn_phone_toggle"))],
         [KeyboardButton(T(lang, "btn_edit"))],
@@ -226,6 +227,67 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data.clear()
         context.user_data["lang"] = lang
         await update.message.reply_text(T(lang, "updated"), reply_markup=main_keyboard(lang))
+        return
+
+    elif step == "create_room_name":
+        if text in ALL_BTN.get("cancel_action", []):
+            context.user_data.clear()
+            context.user_data["lang"] = lang
+            await update.message.reply_text(T(lang, "room_cancel"), reply_markup=main_keyboard(lang))
+            return
+        context.user_data["room_name"] = text.strip()
+        context.user_data["step"] = "create_room_purpose"
+        await update.message.reply_text(
+            T(lang, "create_room_ask_purpose"),
+            reply_markup=ReplyKeyboardMarkup(
+                [[T(lang, "btn_cancel_action")]], resize_keyboard=True
+            )
+        )
+        return
+
+    elif step == "create_room_purpose":
+        if text in ALL_BTN.get("cancel_action", []):
+            context.user_data.clear()
+            context.user_data["lang"] = lang
+            await update.message.reply_text(T(lang, "room_cancel"), reply_markup=main_keyboard(lang))
+            return
+        tg_id = update.effective_user.id
+        room_name    = context.user_data.get("room_name", "Room")
+        room_purpose = text.strip()
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+        if not me.data:
+            context.user_data.clear()
+            context.user_data["lang"] = lang
+            await update.message.reply_text(T(lang, "register_first"), reply_markup=main_keyboard(lang))
+            return
+
+        creator_id = me.data[0]["id"]
+        try:
+            result = supabase.table("rooms_v1").insert({
+                "name": room_name,
+                "purpose": room_purpose,
+                "creator_id": creator_id,
+                "is_active": True,
+            }).execute()
+            room_id = result.data[0]["id"]
+            # Auto-add creator as accepted member
+            supabase.table("room_members_v1").insert({
+                "room_id": room_id,
+                "user_id": creator_id,
+                "status": "accepted",
+            }).execute()
+            context.user_data.clear()
+            context.user_data["lang"] = lang
+            await update.message.reply_text(
+                T(lang, "room_created").format(room_name, room_purpose),
+                reply_markup=main_keyboard(lang)
+            )
+        except Exception as e:
+            logger.error(f"Room creation error: {e}")
+            context.user_data.clear()
+            context.user_data["lang"] = lang
+            await update.message.reply_text(T(lang, "room_create_error"), reply_markup=main_keyboard(lang))
         return
 
 
@@ -848,6 +910,28 @@ async def show_nearby_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"💬 {r['name']} ({r['members']} people)\n"
 
     await update.message.reply_text(text)
+
+# =========================================================
+# CREATE ROOM
+# =========================================================
+
+async def create_room_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_lang(update, context)
+    tg_id = update.effective_user.id
+
+    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+    if not me.data:
+        await update.message.reply_text(T(lang, "register_first"))
+        return
+
+    context.user_data["step"] = "create_room_name"
+    await update.message.reply_text(
+        T(lang, "create_room_ask_name"),
+        reply_markup=ReplyKeyboardMarkup(
+            [[T(lang, "btn_cancel_action")]], resize_keyboard=True
+        )
+    )
+
 
 # =========================================================
 # HANDLE MESSAGES
