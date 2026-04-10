@@ -169,6 +169,17 @@
       <span class="slider-val" id="speed-val">×3</span>
     </div>
     <div class="chip-sub" id="l-speed-hint">Controls joystick movement speed on map</div>
+
+    <div class="row">
+      <div class="row-label"><span class="row-ico">🔭</span><span id="l-zoom">Default Zoom</span></div>
+    </div>
+    <div class="slider-wrap">
+      <span style="font-size:13px">🏘️</span>
+      <input type="range" id="zoom-slider" min="14" max="19" value="18">
+      <span style="font-size:13px">📍</span>
+      <span class="slider-val" id="zoom-val">18</span>
+    </div>
+    <div class="chip-sub" id="l-zoom-hint">Higher = more zoomed in (closer view)</div>
   </div>
 </div>
 
@@ -220,6 +231,7 @@
       discovery:'الاكتشاف', map:'الخريطة', privacy:'الخصوصية', notif:'الإشعارات',
       gender:'إظهار النوع', dist:'أقصى مسافة', age:'الفئة العمرية',
       speed:'سرعة التحرك', speedHint:'تتحكم في سرعة الجويستيك على الخريطة',
+      zoom:'مقياس الخريطة الافتراضي', zoomHint:'أكبر = تقريب أكثر (عرض أقرب)',
       visible:'ظهور على الخريطة', phone:'إظهار رقم الهاتف',
       likes:'إعجابات جديدة', matches:'تطابقات جديدة', rooms:'طلبات الغرف',
       save:'💾 حفظ الإعدادات', any:'أي', anyAge:'أي',
@@ -230,6 +242,7 @@
       discovery:'DISCOVERY', map:'MAP', privacy:'PRIVACY', notif:'NOTIFICATIONS',
       gender:'Show Gender', dist:'Max Distance', age:'Age Range',
       speed:'Move Speed', speedHint:'Controls joystick movement speed on map',
+      zoom:'Default Zoom Level', zoomHint:'Higher = more zoomed in (closer view)',
       visible:'Visible on Map', phone:'Show Phone Number',
       likes:'New Likes', matches:'New Matches', rooms:'Room Requests',
       save:'💾 Save Settings', any:'Any', anyAge:'Any',
@@ -248,6 +261,8 @@
   document.getElementById('l-age').textContent       = L_.age;
   document.getElementById('l-speed').textContent     = L_.speed;
   document.getElementById('l-speed-hint').textContent= L_.speedHint;
+  document.getElementById('l-zoom').textContent      = L_.zoom;
+  document.getElementById('l-zoom-hint').textContent = L_.zoomHint;
   document.getElementById('l-visible').textContent   = L_.visible;
   document.getElementById('l-phone').textContent     = L_.phone;
   document.getElementById('l-likes').textContent     = L_.likes;
@@ -304,6 +319,15 @@
     markDirty();
   });
 
+  const zmSlider = document.getElementById('zoom-slider');
+  const zmVal    = document.getElementById('zoom-val');
+  zmSlider.value = saved.zoom_level || 18;
+  zmVal.textContent = zmSlider.value;
+  zmSlider.addEventListener('input', () => {
+    zmVal.textContent = zmSlider.value;
+    markDirty();
+  });
+
   // ── Chip interaction ──
   ['gender-chips','dist-chips','age-chips'].forEach(gid => {
     document.querySelectorAll(`#${gid} .chip`).forEach(chip => {
@@ -339,15 +363,16 @@
     function toggleOn(id) { return document.getElementById(id).classList.contains('on'); }
 
     const data = {
-      gender:    activeVal('gender-chips'),
-      dist:      activeVal('dist-chips'),
-      age:       activeVal('age-chips'),
-      speed:     parseInt(spSlider.value),
-      visible:   toggleOn('t-visible'),
-      phone:     toggleOn('t-phone'),
-      n_likes:   toggleOn('t-likes'),
-      n_matches: toggleOn('t-matches'),
-      n_rooms:   toggleOn('t-rooms'),
+      gender:     activeVal('gender-chips'),
+      dist:       activeVal('dist-chips'),
+      age:        activeVal('age-chips'),
+      speed:      parseInt(spSlider.value),
+      zoom_level: parseInt(zmSlider.value),
+      visible:    toggleOn('t-visible'),
+      phone:      toggleOn('t-phone'),
+      n_likes:    toggleOn('t-likes'),
+      n_matches:  toggleOn('t-matches'),
+      n_rooms:    toggleOn('t-rooms'),
     };
     localStorage.setItem(KEY, JSON.stringify(data));
     dirty = false;
