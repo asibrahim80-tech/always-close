@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Always Close – Users</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;min-height:100vh}
+
+    /* ── Header ── */
+    #header{
+      position:sticky;top:0;z-index:100;
+      background:#fff;padding:14px 16px 10px;
+      box-shadow:0 1px 4px rgba(0,0,0,.1);
+    }
+    #header h1{font-size:18px;font-weight:700;color:#111;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+    #header h1 span{color:#e74c3c}
+
+    /* ── Filters ── */
+    #filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+    #filters::-webkit-scrollbar{display:none}
+    .filter-chip{
+      flex-shrink:0;padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;
+      background:#f7f7f7;font-size:12.5px;cursor:pointer;font-weight:500;color:#555;
+      transition:all .15s;white-space:nowrap;
+    }
+    .filter-chip.active{background:#e74c3c;border-color:#e74c3c;color:#fff}
+    .filter-chip:active{opacity:.75}
+
+    /* ── Filter row 2 ── */
+    #filter2{display:flex;gap:8px;margin-top:8px;align-items:center}
+    #filter2 select,#filter2 input{
+      flex:1;padding:7px 10px;border-radius:10px;border:1.5px solid #e0e0e0;
+      font-size:13px;background:#fafafa;color:#333;outline:none;
+    }
+    #filter2 select:focus,#filter2 input:focus{border-color:#e74c3c}
+
+    /* ── Loading / empty ── */
+    #loading{text-align:center;padding:50px 20px;color:#999;font-size:14px}
+    .spinner{
+      width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#e74c3c;
+      border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── User list ── */
+    #list{padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+
+    /* ── User card ── */
+    .ucard{
+      background:#fff;border-radius:16px;
+      box-shadow:0 1px 6px rgba(0,0,0,.07);
+      display:flex;align-items:stretch;overflow:hidden;
+      cursor:pointer;transition:box-shadow .15s,transform .1s;
+    }
+    .ucard:active{transform:scale(.985);box-shadow:0 2px 12px rgba(0,0,0,.12)}
+
+    .avatar-wrap{
+      width:72px;min-width:72px;position:relative;
+      background:linear-gradient(135deg,#f0f0f0,#e0e0e0);
+    }
+    .avatar-wrap img{width:72px;height:100%;object-fit:cover;display:block}
+    .avatar-initial{
+      width:72px;height:100%;min-height:72px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:26px;font-weight:700;color:#aaa;
+    }
+    .status-dot{
+      position:absolute;bottom:6px;right:6px;
+      width:12px;height:12px;border-radius:50%;border:2px solid #fff;
+    }
+    .status-dot.active{background:#2ecc71}
+    .status-dot.away{background:#3498db}
+
+    .ucard-body{flex:1;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;min-width:0}
+    .ucard-name{font-size:15px;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ucard-meta{font-size:12px;color:#888;margin-top:2px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    .meta-badge{
+      background:#f2f2f2;border-radius:10px;padding:2px 8px;font-size:11.5px;color:#555;font-weight:500;
+    }
+    .meta-badge.green{background:#e8f8f0;color:#27ae60}
+    .meta-badge.blue{background:#eaf3fb;color:#2980b9}
+    .meta-badge.red{background:#fdf0ef;color:#e74c3c}
+    .ucard-bio{font-size:12px;color:#999;margin-top:5px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.4}
+    .ucard-actions{display:flex;gap:6px;margin-top:8px}
+    .act-btn{
+      padding:5px 12px;border-radius:10px;border:none;font-size:12px;font-weight:600;cursor:pointer;
+      display:flex;align-items:center;gap:4px;transition:opacity .1s;
+    }
+    .act-btn:active{opacity:.7}
+    .act-btn.msg{background:linear-gradient(135deg,#3498db,#2980b9);color:#fff}
+    .act-btn.map{background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff}
+
+    /* ── No results ── */
+    #no-results{text-align:center;padding:40px 20px;color:#aaa;font-size:14px;display:none}
+    #no-results .ico{font-size:40px;margin-bottom:8px}
+
+    /* ── RTL support ── */
+    body.rtl{direction:rtl}
+    body.rtl .ucard-meta{flex-direction:row-reverse}
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <h1>👥 <span id="title-text">Nearby Users</span></h1>
+  <div id="filters">
+    <button class="filter-chip active" data-gender=""  id="chip-all">All</button>
+    <button class="filter-chip"        data-gender="Male"  id="chip-male">👨 Male</button>
+    <button class="filter-chip"        data-gender="Female" id="chip-female">👩 Female</button>
+  </div>
+  <div id="filter2">
+    <select id="sel-age">
+      <option value="">All Ages</option>
+      <option value="18-25">18–25</option>
+      <option value="26-35">26–35</option>
+      <option value="36-50">36–50</option>
+      <option value="50+">50+</option>
+    </select>
+    <select id="sel-dist">
+      <option value="">Any Distance</option>
+      <option value="1">≤ 1 km</option>
+      <option value="5">≤ 5 km</option>
+      <option value="10">≤ 10 km</option>
+      <option value="50">≤ 50 km</option>
+    </select>
+  </div>
+</div>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div id="loading-lbl">Loading…</div>
+</div>
+
+<div id="list" style="display:none"></div>
+<div id="no-results"><div class="ico">🔍</div><div id="no-res-lbl">No users found</div></div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  const uid  = new URLSearchParams(location.search).get('uid');
+  const lang = new URLSearchParams(location.search).get('lang') || 'en';
+  const mapBase = new URLSearchParams(location.search).get('mapBase') || '';
+
+  const isAr = lang === 'ar';
+  if (isAr) document.body.classList.add('rtl');
+
+  const T = {
+    ar:{
+      title:'المستخدمون القريبون',
+      all:'الكل', male:'👨 ذكر', female:'👩 أنثى',
+      all_ages:'كل الأعمار', age1:'18–25', age2:'26–35', age3:'36–50', age4:'50+',
+      any_dist:'أي مسافة', d1:'≤ 1 كم', d5:'≤ 5 كم', d10:'≤ 10 كم', d50:'≤ 50 كم',
+      loading:'جارٍ التحميل…',
+      no_res:'لا يوجد مستخدمون', active:'نشط الآن', away:'غير نشط',
+      last:'آخر ظهور', now:'الآن', min:'د', hr:'س', day:'ي',
+      km:'كم', yo:'سنة', msg:'💬 مراسلة', map:'🗺️ خريطة',
+      err:'❌ خطأ في التحميل'
+    },
+    en:{
+      title:'Nearby Users',
+      all:'All', male:'👨 Male', female:'👩 Female',
+      all_ages:'All Ages', age1:'18–25', age2:'26–35', age3:'36–50', age4:'50+',
+      any_dist:'Any Distance', d1:'≤ 1 km', d5:'≤ 5 km', d10:'≤ 10 km', d50:'≤ 50 km',
+      loading:'Loading…',
+      no_res:'No users found', active:'Active now', away:'Away',
+      last:'Last seen', now:'now', min:'m', hr:'h', day:'d',
+      km:'km', yo:'yo', msg:'💬 Message', map:'🗺️ Map',
+      err:'❌ Error loading users'
+    }
+  }[lang] || {};
+
+  // Apply translations
+  document.getElementById('title-text').textContent = T.title;
+  document.getElementById('chip-all').textContent    = T.all;
+  document.getElementById('chip-male').textContent   = T.male;
+  document.getElementById('chip-female').textContent = T.female;
+  document.getElementById('loading-lbl').textContent = T.loading;
+  document.getElementById('no-res-lbl').textContent  = T.no_res;
+
+  const selAge  = document.getElementById('sel-age');
+  const selDist = document.getElementById('sel-dist');
+  selAge.options[0].text  = T.all_ages;
+  selAge.options[1].text  = T.age1;
+  selAge.options[2].text  = T.age2;
+  selAge.options[3].text  = T.age3;
+  selAge.options[4].text  = T.age4;
+  selDist.options[0].text = T.any_dist;
+  selDist.options[1].text = T.d1;
+  selDist.options[2].text = T.d5;
+  selDist.options[3].text = T.d10;
+  selDist.options[4].text = T.d50;
+
+  // ── State ──
+  let allUsers = [];
+  let activeGender = '';
+
+  // ── Time helper ──
+  function timeAgo(iso) {
+    if (!iso) return '';
+    const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (diff < 60)    return T.now;
+    if (diff < 3600)  return `${Math.floor(diff/60)}${T.min}`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}${T.hr}`;
+    return `${Math.floor(diff/86400)}${T.day}`;
+  }
+
+  // ── Chat opener ──
+  function openChat(username, telegramId) {
+    const url = username ? `https://t.me/${username}` : `tg://user?id=${telegramId}`;
+    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.openTelegramLink) {
+      Telegram.WebApp.openTelegramLink(url);
+    } else { window.open(url, '_blank'); }
+  }
+
+  // ── Map opener ──
+  function openMap(telegramId) {
+    const base = mapBase || location.origin;
+    const url = `${base}/map?uid=${telegramId}&lang=${lang}`;
+    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.openLink) {
+      Telegram.WebApp.openLink(url);
+    } else { window.open(url, '_blank'); }
+  }
+
+  // ── Render ──
+  function render() {
+    const gFilter   = activeGender;
+    const ageRange  = selAge.value;
+    const distLimit = selDist.value ? parseFloat(selDist.value) : null;
+
+    const filtered = allUsers.filter(u => {
+      if (gFilter && u.gender !== gFilter) return false;
+      if (ageRange) {
+        const age = u.age || 0;
+        if (ageRange === '18-25' && (age < 18 || age > 25)) return false;
+        if (ageRange === '26-35' && (age < 26 || age > 35)) return false;
+        if (ageRange === '36-50' && (age < 36 || age > 50)) return false;
+        if (ageRange === '50+'   && age < 50)                return false;
+      }
+      if (distLimit !== null && u.distance != null && u.distance > distLimit) return false;
+      return true;
+    });
+
+    const list = document.getElementById('list');
+    const noRes = document.getElementById('no-results');
+    list.innerHTML = '';
+
+    if (!filtered.length) {
+      list.style.display = 'none';
+      noRes.style.display = 'block';
+      return;
+    }
+    noRes.style.display = 'none';
+    list.style.display  = 'flex';
+
+    filtered.forEach(u => {
+      const isActive  = u.is_active;
+      const ago       = timeAgo(u.last_seen);
+      const initial   = (u.username || '?')[0].toUpperCase();
+      const genderDisplay = u.gender === 'Male' ? (isAr ? 'ذكر' : 'Male') :
+                            u.gender === 'Female' ? (isAr ? 'أنثى' : 'Female') : '';
+
+      const card = document.createElement('div');
+      card.className = 'ucard';
+
+      // Avatar
+      const avatarWrap = document.createElement('div');
+      avatarWrap.className = 'avatar-wrap';
+      if (u.photo_url) {
+        const img = document.createElement('img');
+        img.src = u.photo_url;
+        img.alt = initial;
+        img.onerror = function() {
+          this.style.display='none';
+          fallback.style.display='flex';
+        };
+        const fallback = document.createElement('div');
+        fallback.className = 'avatar-initial';
+        fallback.style.display = 'none';
+        fallback.textContent = initial;
+        avatarWrap.appendChild(img);
+        avatarWrap.appendChild(fallback);
+      } else {
+        const av = document.createElement('div');
+        av.className = 'avatar-initial';
+        av.textContent = initial;
+        avatarWrap.appendChild(av);
+      }
+      const dot = document.createElement('div');
+      dot.className = `status-dot ${isActive ? 'active' : 'away'}`;
+      avatarWrap.appendChild(dot);
+      card.appendChild(avatarWrap);
+
+      // Body
+      const body = document.createElement('div');
+      body.className = 'ucard-body';
+
+      const name = document.createElement('div');
+      name.className = 'ucard-name';
+      name.textContent = u.username ? `@${u.username}` : `User #${u.id}`;
+      body.appendChild(name);
+
+      const meta = document.createElement('div');
+      meta.className = 'ucard-meta';
+      if (u.age) {
+        const b = document.createElement('span');
+        b.className = 'meta-badge';
+        b.textContent = `🎂 ${u.age} ${T.yo}`;
+        meta.appendChild(b);
+      }
+      if (genderDisplay) {
+        const b = document.createElement('span');
+        b.className = 'meta-badge';
+        b.textContent = u.gender === 'Male' ? `👨 ${genderDisplay}` : `👩 ${genderDisplay}`;
+        meta.appendChild(b);
+      }
+      if (u.distance != null) {
+        const b = document.createElement('span');
+        b.className = 'meta-badge red';
+        b.textContent = `📍 ${u.distance} ${T.km}`;
+        meta.appendChild(b);
+      }
+      const statusB = document.createElement('span');
+      statusB.className = `meta-badge ${isActive ? 'green' : 'blue'}`;
+      statusB.textContent = isActive ? `🟢 ${T.active}` : `🕒 ${ago}`;
+      meta.appendChild(statusB);
+      body.appendChild(meta);
+
+      if (u.bio) {
+        const bio = document.createElement('div');
+        bio.className = 'ucard-bio';
+        bio.textContent = u.bio;
+        body.appendChild(bio);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'ucard-actions';
+      if (u.username || u.telegram_id) {
+        const btnMsg = document.createElement('button');
+        btnMsg.className = 'act-btn msg';
+        btnMsg.innerHTML = T.msg;
+        btnMsg.addEventListener('click', e => {
+          e.stopPropagation();
+          openChat(u.username, u.telegram_id);
+        });
+        actions.appendChild(btnMsg);
+      }
+      const btnMap = document.createElement('button');
+      btnMap.className = 'act-btn map';
+      btnMap.innerHTML = T.map;
+      btnMap.addEventListener('click', e => {
+        e.stopPropagation();
+        openMap(uid);
+      });
+      actions.appendChild(btnMap);
+      body.appendChild(actions);
+
+      card.appendChild(body);
+      list.appendChild(card);
+    });
+  }
+
+  // ── Gender chips ──
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeGender = chip.dataset.gender;
+      render();
+    });
+  });
+  selAge.addEventListener('change',  render);
+  selDist.addEventListener('change', render);
+
+  // ── Fetch ──
+  fetch(`/api/nearby/${uid}`)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('loading').style.display = 'none';
+      if (data.error) {
+        document.getElementById('no-res-lbl').textContent = data.error;
+        document.getElementById('no-results').style.display = 'block';
+        return;
+      }
+      allUsers = data.nearby || [];
+      render();
+    })
+    .catch(() => {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('no-res-lbl').textContent = T.err;
+      document.getElementById('no-results').style.display = 'block';
+    });
+</script>
+</body>
+</html>

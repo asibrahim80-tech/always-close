@@ -18,6 +18,7 @@ from handlers import (
     handle_location,
     show_nearby,
     show_map,
+    show_users_list,
     handle_buttons,
     show_matches,
     show_requests,
@@ -58,6 +59,8 @@ def main():
     # Main Menu Buttons (Arabic & English)
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("map")), show_map))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("users_list")), show_users_list))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("view_nearby")), show_nearby))
     app.add_handler(MessageHandler(

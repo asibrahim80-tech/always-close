@@ -61,6 +61,11 @@ def map_page():
     return render_template("map.html")
 
 
+@app.route('/users')
+def users_page():
+    return render_template("users.html")
+
+
 @app.route('/api/nearby/<int:telegram_id>')
 def api_nearby(telegram_id):
     try:

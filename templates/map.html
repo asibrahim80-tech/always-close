@@ -38,7 +38,7 @@
 
     /* ── Recenter button ── */
     #recenter{
-      position:fixed;bottom: 20px;left:10px;right:14;z-index:1000;
+      position:fixed;bottom:20px;left:10px;z-index:1000;
       width:40px;height:40px;border-radius:50%;background:#fff;
       box-shadow:0 2px 8px rgba(0,0,0,.25);border:none;cursor:pointer;
       display:flex;align-items:center;justify-content:center;font-size:18px
@@ -99,6 +99,29 @@
     }
     .btn-msg:active{opacity:.85}
     .last-seen{font-size:11px;color:#999;margin-top:5px}
+
+    /* ── D-Pad Joystick ── */
+    #dpad{
+      position:fixed;right:10px;z-index:1000;
+      display:grid;
+      grid-template-columns:repeat(3,36px);
+      grid-template-rows:repeat(3,36px);
+      gap:3px;
+      bottom:220px;
+    }
+    .dp{
+      width:36px;height:36px;
+      background:rgba(255,255,255,.92);
+      border:none;border-radius:8px;
+      box-shadow:0 2px 6px rgba(0,0,0,.22);
+      cursor:pointer;font-size:16px;
+      display:flex;align-items:center;justify-content:center;
+      user-select:none;-webkit-tap-highlight-color:transparent;
+      transition:background .12s,transform .1s;
+    }
+    .dp:active{background:rgba(231,76,60,.18);transform:scale(.91)}
+    .dp.center{background:rgba(231,76,60,.13);font-size:12px}
+    .dp.empty{visibility:hidden;pointer-events:none}
   </style>
 </head>
 <body>
@@ -117,6 +140,19 @@
 </div>
 
 <button id="recenter" title="Re-center">📍</button>
+
+<!-- D-Pad: 3×3 grid, positions: NW N NE / W · E / SW S SE -->
+<div id="dpad">
+  <button class="dp" data-dlat="1"  data-dlng="-1" title="NW">↖</button>
+  <button class="dp" data-dlat="1"  data-dlng="0"  title="N">↑</button>
+  <button class="dp" data-dlat="1"  data-dlng="1"  title="NE">↗</button>
+  <button class="dp" data-dlat="0"  data-dlng="-1" title="W">←</button>
+  <button class="dp center" data-dlat="0" data-dlng="0" title="center">📍</button>
+  <button class="dp" data-dlat="0"  data-dlng="1"  title="E">→</button>
+  <button class="dp" data-dlat="-1" data-dlng="-1" title="SW">↙</button>
+  <button class="dp" data-dlat="-1" data-dlng="0"  title="S">↓</button>
+  <button class="dp" data-dlat="-1" data-dlng="1"  title="SE">↘</button>
+</div>
 
 <div id="legend">
   <span><span class="leg-dot red"></span><span id="leg-me">You</span></span>
@@ -152,7 +188,6 @@
     last:'Last:', now:'now', min:'m', hr:'h', day:'d', no_photo_alt:'photo', err:'❌ Error'
   };
 
-  // Apply legend labels
   document.getElementById('overlay-lbl').textContent = L_.loading;
   document.getElementById('leg-me').textContent    = L_.me_leg;
   document.getElementById('leg-active').textContent = L_.active_leg;
@@ -179,8 +214,6 @@
       window.open(url, '_blank');
     }
   }
-
-  // Expose globally for onclick in popup HTML
   window.openChat = openChat;
 
   // ── Map setup ────────────────────────────────────────────────────────────
@@ -197,6 +230,52 @@
     if (myLatLng) map.setView(myLatLng, 16);
   });
 
+  // ── D-Pad logic ──────────────────────────────────────────────────────────
+  // Step size in degrees per press; adjusts with zoom level
+  function stepDeg() {
+    const z = map.getZoom();
+    // roughly ~50m step: 0.0005° at z≥16, larger at lower zoom
+    return 0.0005 * Math.pow(2, Math.max(0, 16 - z));
+  }
+
+  document.querySelectorAll('.dp').forEach(btn => {
+    const dLat = parseFloat(btn.dataset.dlat);
+    const dLng = parseFloat(btn.dataset.dlng);
+
+    // center button = recenter
+    if (dLat === 0 && dLng === 0) {
+      btn.addEventListener('click', () => { if (myLatLng) map.setView(myLatLng, 16); });
+      return;
+    }
+
+    let holdTimer = null;
+    let holdInterval = null;
+
+    function doMove() {
+      if (!myLatLng) return;
+      const step = stepDeg();
+      myLatLng = [myLatLng[0] + dLat * step, myLatLng[1] + dLng * step];
+      if (meMarker) meMarker.setLatLng(myLatLng);
+      map.panTo(myLatLng, { animate: true, duration: 0.15 });
+    }
+
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      doMove();
+      holdTimer = setTimeout(() => {
+        holdInterval = setInterval(doMove, 120);
+      }, 350);
+    });
+
+    function stopHold() {
+      clearTimeout(holdTimer);
+      clearInterval(holdInterval);
+    }
+    btn.addEventListener('pointerup',     stopHold);
+    btn.addEventListener('pointerleave',  stopHold);
+    btn.addEventListener('pointercancel', stopHold);
+  });
+
   // ── Custom pin factory ───────────────────────────────────────────────────
   function makePin(isActive, isMe, photoUrl, initial) {
     const sz   = isMe ? 28 : 44;
@@ -206,40 +285,17 @@
 
     let inner;
     if (photoUrl) {
-        inner = `
-          <div style="
-            width:${sz}px;
-            height:${sz}px;
-            border-radius:50%;
-            overflow:hidden;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-          ">
-            <img src="${photoUrl}"
-              style="
-                width:100%;
-                height:100%;
-                object-fit:cover;
-                display:block;
-              "
-              onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-
-            <div style="
-              display:none;
-              width:100%;
-              height:100%;
-              border-radius:50%;
-              background:${isActive?'#2ecc71':'#3498db'};
-              color:#fff;
-              font-size:${sz/2.5}px;
-              font-weight:700;
-              align-items:center;
-              justify-content:center">
-              ${initial}
-            </div>
+      inner = `
+        <div style="width:${sz}px;height:${sz}px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;">
+          <img src="${photoUrl}"
+            style="width:100%;height:100%;object-fit:cover;display:block;"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div style="display:none;width:100%;height:100%;border-radius:50%;
+            background:${isActive?'#2ecc71':'#3498db'};color:#fff;
+            font-size:${sz/2.5}px;font-weight:700;align-items:center;justify-content:center">
+            ${initial}
           </div>
-        `;
+        </div>`;
     } else {
       inner = `<div style="width:${sz}px;height:${sz}px;border-radius:50%;
                background:${isActive?'#2ecc71':'#3498db'};
@@ -306,7 +362,7 @@
 
   // ── State ────────────────────────────────────────────────────────────────
   let meMarker   = null;
-  const markerMap = {};   // userId → L.Marker
+  const markerMap = {};
   let refreshTimer = 5;
   let countdownInt = null;
 
@@ -330,9 +386,8 @@
           return;
         }
 
-        // ── Current user (red pin) ───────────────────────────
         const me = data.me;
-        myLatLng = [me.lat, me.lng];
+        if (!myLatLng) myLatLng = [me.lat, me.lng];
 
         const meIcon = makePin(true, true, null, (me.name||'?')[0].toUpperCase());
 
@@ -342,26 +397,22 @@
             .bindPopup(`<div style="padding:10px;font-weight:700;font-size:14px">📍 ${L_.you}</div>`);
           if (firstLoad) map.setView(myLatLng, 16);
         } else {
-          meMarker.setLatLng(myLatLng).setIcon(meIcon);
+          meMarker.setIcon(meIcon);
         }
 
-        // ── Nearby users (photo pins) ────────────────────────
         const seenIds = new Set();
 
         data.nearby.forEach(u => {
           seenIds.add(u.id);
-          const initial  = (u.username || '?')[0].toUpperCase();
-          const icon     = makePin(u.is_active, false, u.photo_url, initial);
-          const latlng   = [u.lat, u.lng];
+          const initial   = (u.username || '?')[0].toUpperCase();
+          const icon      = makePin(u.is_active, false, u.photo_url, initial);
+          const latlng    = [u.lat, u.lng];
           const popupHtml = makePopup(u);
 
           if (markerMap[u.id]) {
-            // Update existing marker
             markerMap[u.id].setLatLng(latlng).setIcon(icon);
-            // Update popup content
             markerMap[u.id].getPopup().setContent(popupHtml);
           } else {
-            // Add new marker
             const m = L.marker(latlng, { icon })
               .addTo(map)
               .bindPopup(popupHtml, { maxWidth: 280, minWidth: 230 });
@@ -369,7 +420,6 @@
           }
         });
 
-        // Remove markers for users who left
         Object.keys(markerMap).forEach(id => {
           if (!seenIds.has(parseInt(id))) {
             map.removeLayer(markerMap[id]);
@@ -377,7 +427,6 @@
           }
         });
 
-        // Reset countdown
         refreshTimer = 5;
       })
       .catch(() => {
@@ -390,16 +439,13 @@
 
   // ── Live countdown ────────────────────────────────────────────────────────
   function startCountdown() {
-    refreshTimer = 5; // 👈 يبدأ من 5 صح
-
+    refreshTimer = 5;
     const el = document.getElementById('countdown');
     if (el) el.textContent = `${refreshTimer}s`;
 
     countdownInt = setInterval(() => {
       refreshTimer--;
-
       if (el) el.textContent = `${refreshTimer}s`;
-
       if (refreshTimer <= 0) {
         refreshTimer = 5;
         loadData(false);

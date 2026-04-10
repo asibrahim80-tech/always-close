@@ -87,6 +87,12 @@ TEXTS = {
         "map_btn_open": "🗺️ فتح الخريطة",
         "map_no_location": "❌ شارك موقعك أولاً ثم افتح الخريطة.",
         "map_not_registered": "❌ يجب التسجيل أولاً.",
+        # Users list
+        "btn_users_list": "👥 قائمة المستخدمين",
+        "users_tap": "👥 اضغط لعرض المستخدمين القريبين",
+        "users_btn_open": "👥 فتح القائمة",
+        "users_no_location": "❌ شارك موقعك أولاً ثم افتح القائمة.",
+        "users_not_registered": "❌ يجب التسجيل أولاً.",
     },
     "en": {
         # Welcome
@@ -176,6 +182,12 @@ TEXTS = {
         "map_btn_open": "🗺️ Open Map",
         "map_no_location": "❌ Please share your location first, then open the map.",
         "map_not_registered": "❌ Please register first.",
+        # Users list
+        "btn_users_list": "👥 Users List",
+        "users_tap": "👥 Tap to browse nearby users",
+        "users_btn_open": "👥 Open List",
+        "users_no_location": "❌ Please share your location first, then open the list.",
+        "users_not_registered": "❌ Please register first.",
     },
 }
 
@@ -206,6 +218,7 @@ ALL_BTN = {
     "edit_birthdate": ["🎂 تعديل تاريخ الميلاد",    "🎂 Edit Birthdate"],
     "edit_bio":       ["📝 تعديل النبذة",            "📝 Edit Bio"],
     "map":            ["🗺️ الخريطة",                 "🗺️ Map"],
+    "users_list":     ["👥 قائمة المستخدمين",        "👥 Users List"],
 }
 
 
