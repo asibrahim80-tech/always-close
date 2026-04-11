@@ -255,9 +255,32 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text(T(lang, "room_cancel"), reply_markup=main_keyboard(lang))
             return
 
+        context.user_data["room_purpose"] = text.strip()
+        context.user_data["step"] = "create_room_nature"
+
+        nature_keys = [
+            [T(lang, "nature_social"),  T(lang, "nature_edu")],
+            [T(lang, "nature_fun"),     T(lang, "nature_work")],
+            [T(lang, "nature_sport"),   T(lang, "nature_other")],
+            [T(lang, "btn_cancel_action")],
+        ]
+        await update.message.reply_text(
+            T(lang, "create_room_ask_nature"),
+            reply_markup=ReplyKeyboardMarkup(nature_keys, resize_keyboard=True)
+        )
+        return
+
+    elif step == "create_room_nature":
+        if text in ALL_BTN.get("cancel_action", []):
+            context.user_data.clear()
+            context.user_data["lang"] = lang
+            await update.message.reply_text(T(lang, "room_cancel"), reply_markup=main_keyboard(lang))
+            return
+
         tg_id        = update.effective_user.id
         room_name    = context.user_data.get("room_name", "Room")
-        room_purpose = text.strip()
+        room_purpose = context.user_data.get("room_purpose", "")
+        room_nature  = text.strip()
 
         # Clear step FIRST — bot cannot get stuck regardless of what follows
         context.user_data.clear()
@@ -292,6 +315,11 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
             if room_lat is not None:
                 room_record["latitude"]  = room_lat
                 room_record["longitude"] = room_lng
+            try:
+                room_record["purpose"] = room_purpose
+                room_record["nature"]  = room_nature
+            except Exception:
+                pass
 
             result = supabase.table("rooms_v1").insert(room_record).execute()
             rows   = result.data or []

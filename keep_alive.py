@@ -1,8 +1,9 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from threading import Thread
 from math import radians, sin, cos, sqrt, atan2
 from datetime import datetime, timezone
 import httpx
+import os
 
 app = Flask(__name__)
 
@@ -172,30 +173,43 @@ def api_nearby(telegram_id):
 
 @app.route('/api/rooms/<int:telegram_id>')
 def api_rooms(telegram_id):
-    """Return active rooms that have a saved location."""
+    """Return all rooms with membership and ownership flags."""
     try:
         from database import supabase
 
-        # Get current user's location for distance calc
-        me_res = supabase.table("users_v1") \
-            .select("id") \
-            .eq("telegram_id", telegram_id) \
-            .execute()
-
+        my_id = None
         my_lat, my_lng = None, None
+
+        me_res = supabase.table("users_v1").select("id") \
+            .eq("telegram_id", telegram_id).execute()
         if me_res.data:
             my_id = me_res.data[0]["id"]
             loc = supabase.table("user_locations_v1") \
                 .select("latitude, longitude") \
-                .eq("user_id", my_id) \
-                .limit(1).execute()
+                .eq("user_id", my_id).limit(1).execute()
             if loc.data:
                 my_lat = float(loc.data[0]["latitude"])
                 my_lng = float(loc.data[0]["longitude"])
 
-        rooms_res = supabase.table("rooms_v1") \
-            .select("id, name, latitude, longitude, created_by, created_at") \
-            .execute()
+        # Fetch rooms — try new columns gracefully
+        try:
+            rooms_res = supabase.table("rooms_v1") \
+                .select("id, name, latitude, longitude, created_by, created_at, purpose, nature, image_url") \
+                .execute()
+        except Exception:
+            rooms_res = supabase.table("rooms_v1") \
+                .select("id, name, latitude, longitude, created_by, created_at") \
+                .execute()
+
+        # Fetch memberships for current user in one query
+        my_room_ids = set()
+        if my_id is not None:
+            try:
+                memb_res = supabase.table("room_members_v1") \
+                    .select("room_id").eq("user_id", my_id).execute()
+                my_room_ids = {m["room_id"] for m in (memb_res.data or [])}
+            except Exception:
+                pass
 
         rooms_out = []
         for r in (rooms_res.data or []):
@@ -207,12 +221,9 @@ def api_rooms(telegram_id):
             if my_lat is not None:
                 dist = round(_haversine(my_lat, my_lng, float(rlat), float(rlng)), 2)
 
-            # Count members
             try:
                 cnt = supabase.table("room_members_v1") \
-                    .select("id", count="exact") \
-                    .eq("room_id", r["id"]) \
-                    .execute()
+                    .select("id", count="exact").eq("room_id", r["id"]).execute()
                 members = cnt.count if cnt.count is not None else 0
             except Exception:
                 members = 0
@@ -225,13 +236,155 @@ def api_rooms(telegram_id):
                 "distance":   dist,
                 "members":    members,
                 "created_at": r.get("created_at"),
+                "purpose":    r.get("purpose") or "",
+                "nature":     r.get("nature") or "",
+                "image_url":  r.get("image_url") or "",
+                "is_creator": (my_id is not None and r.get("created_by") == my_id),
+                "is_member":  (r["id"] in my_room_ids),
             })
 
-        return jsonify({"rooms": rooms_out})
+        return jsonify({"rooms": rooms_out, "my_user_id": my_id})
     except Exception as e:
         import traceback
         traceback.print_exc()
         return jsonify({"rooms": [], "error": str(e)})
+
+
+@app.route('/api/room/join', methods=['POST'])
+def api_room_join():
+    try:
+        from database import supabase
+        data    = request.get_json(force=True)
+        uid     = int(data.get("uid", 0))
+        room_id = int(data.get("room_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        # Check already member
+        existing = supabase.table("room_members_v1") \
+            .select("id").eq("room_id", room_id).eq("user_id", my_id).execute()
+        if existing.data:
+            return jsonify({"ok": False, "already": True})
+
+        supabase.table("room_members_v1").insert({
+            "room_id": room_id, "user_id": my_id
+        }).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/room/delete', methods=['POST'])
+def api_room_delete():
+    try:
+        from database import supabase
+        data    = request.get_json(force=True)
+        uid     = int(data.get("uid", 0))
+        room_id = int(data.get("room_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        # Must be creator
+        room = supabase.table("rooms_v1").select("created_by").eq("id", room_id).execute()
+        if not room.data or room.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        # Must be alone (only 1 member = self)
+        cnt = supabase.table("room_members_v1").select("id", count="exact") \
+            .eq("room_id", room_id).execute()
+        member_count = cnt.count if cnt.count is not None else 0
+        if member_count > 1:
+            return jsonify({"ok": False, "error": "has_members"})
+
+        # Delete members then room
+        supabase.table("room_members_v1").delete().eq("room_id", room_id).execute()
+        supabase.table("rooms_v1").delete().eq("id", room_id).execute()
+
+        # Delete image file if exists
+        for ext in ["jpg", "jpeg", "png", "webp"]:
+            path = f"static/room_images/room_{room_id}.{ext}"
+            if os.path.exists(path):
+                os.remove(path)
+
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/room/image/upload', methods=['POST'])
+def api_room_image_upload():
+    try:
+        from database import supabase
+        uid     = int(request.form.get("uid", 0))
+        room_id = int(request.form.get("room_id", 0))
+        f       = request.files.get("image")
+        if not f:
+            return jsonify({"ok": False, "error": "no_file"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        room = supabase.table("rooms_v1").select("created_by").eq("id", room_id).execute()
+        if not room.data or room.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        os.makedirs("static/room_images", exist_ok=True)
+        ext = (f.filename.rsplit(".", 1)[-1].lower()
+               if f.filename and "." in f.filename else "jpg")
+        if ext not in ("jpg", "jpeg", "png", "webp"):
+            ext = "jpg"
+        filename  = f"static/room_images/room_{room_id}.{ext}"
+        image_url = f"/static/room_images/room_{room_id}.{ext}"
+
+        # Remove old files with other extensions
+        for old_ext in ("jpg", "jpeg", "png", "webp"):
+            old = f"static/room_images/room_{room_id}.{old_ext}"
+            if os.path.exists(old) and old != filename:
+                os.remove(old)
+
+        f.save(filename)
+        supabase.table("rooms_v1").update({"image_url": image_url}) \
+            .eq("id", room_id).execute()
+        return jsonify({"ok": True, "image_url": image_url})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/room/image/delete', methods=['POST'])
+def api_room_image_delete():
+    try:
+        from database import supabase
+        data    = request.get_json(force=True)
+        uid     = int(data.get("uid", 0))
+        room_id = int(data.get("room_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        room = supabase.table("rooms_v1").select("created_by").eq("id", room_id).execute()
+        if not room.data or room.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        for ext in ("jpg", "jpeg", "png", "webp"):
+            path = f"static/room_images/room_{room_id}.{ext}"
+            if os.path.exists(path):
+                os.remove(path)
+
+        supabase.table("rooms_v1").update({"image_url": None}) \
+            .eq("id", room_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 
 def run():

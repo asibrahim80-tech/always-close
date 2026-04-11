@@ -44,78 +44,107 @@
 
     /* ── Loading / empty ── */
     #loading{text-align:center;padding:50px 20px;color:#999;font-size:14px}
-    .spinner{
-      width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#8e44ad;
-      border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px
-    }
+    .spinner{width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#8e44ad;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
     @keyframes spin{to{transform:rotate(360deg)}}
 
     /* ── Room list ── */
-    #list{padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+    #list{padding:10px 12px;display:flex;flex-direction:column;gap:12px}
 
     /* ── Room card ── */
     .rcard{
-      background:#fff;border-radius:16px;
-      box-shadow:0 1px 6px rgba(0,0,0,.07);
+      background:#fff;border-radius:18px;
+      box-shadow:0 2px 10px rgba(0,0,0,.08);
       overflow:hidden;
-      cursor:default;transition:box-shadow .15s,transform .1s;
-    }
-    .rcard:active{transform:scale(.985);box-shadow:0 2px 12px rgba(0,0,0,.12)}
-
-    .rcard-top{
-      display:flex;align-items:center;gap:12px;padding:12px 14px 8px;
     }
 
-    .room-icon{
-      width:52px;height:52px;min-width:52px;border-radius:14px;
-      background:linear-gradient(135deg,#8e44ad,#6c3483);
-      display:flex;align-items:center;justify-content:center;
-      font-size:24px;color:#fff;flex-shrink:0;
+    /* ── Room banner (image or gradient) ── */
+    .room-banner{
+      position:relative;width:100%;height:130px;overflow:hidden;
+      background:linear-gradient(135deg,#8e44ad 0%,#6c3483 50%,#a93226 100%);
+      display:flex;align-items:center;justify-content:center;cursor:pointer;
+    }
+    .room-banner img{
+      position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    }
+    .room-banner-icon{font-size:52px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))}
+    .room-banner-overlay{
+      position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,.5));
+    }
+    .room-banner-camera{
+      position:absolute;bottom:8px;right:10px;
+      background:rgba(255,255,255,.85);border-radius:20px;padding:4px 10px;
+      font-size:12px;font-weight:600;color:#333;display:flex;align-items:center;gap:4px;
+    }
+    .room-banner-del-img{
+      position:absolute;bottom:8px;left:10px;
+      background:rgba(231,76,60,.85);border-radius:20px;padding:4px 10px;
+      font-size:12px;font-weight:600;color:#fff;cursor:pointer;
     }
 
-    .rcard-info{flex:1;min-width:0}
-    .rcard-name{font-size:15px;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .rcard-meta{font-size:12px;color:#888;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    /* ── Card body ── */
+    .rcard-body{padding:12px 14px 0}
 
-    .meta-badge{
-      background:#f2f2f2;border-radius:10px;padding:2px 8px;font-size:11.5px;color:#555;font-weight:500;
+    /* ── Name row ── */
+    .rcard-name-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+    .rcard-name{font-size:16px;font-weight:700;color:#111;flex:1;word-break:break-word}
+    .badge-new{
+      background:#27ae60;color:#fff;border-radius:10px;padding:2px 8px;
+      font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px;
     }
-    .meta-badge.purple{background:#f3e5f5;color:#7b1fa2}
-    .meta-badge.green {background:#e8f8f0;color:#27ae60}
-    .meta-badge.red   {background:#fdf0ef;color:#e74c3c}
-    .meta-badge.blue  {background:#eaf3fb;color:#2980b9}
 
-    /* ── Member avatars row ── */
-    .member-bar{
-      display:flex;align-items:center;gap:4px;padding:0 14px 10px;
+    /* ── Badges row ── */
+    .rcard-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+    .badge{
+      border-radius:10px;padding:3px 9px;font-size:12px;font-weight:500;
     }
-    .member-dot{
-      width:8px;height:8px;border-radius:50%;background:#8e44ad;opacity:.6;
-    }
+    .badge.dist {background:#fdf0ef;color:#e74c3c}
+    .badge.mem  {background:#f3e5f5;color:#7b1fa2}
+    .badge.time {background:#eaf3fb;color:#2980b9}
+    .badge.nat  {background:#e8f8f0;color:#1e8449;border:1px solid #a9dfbf}
+    .badge.purp {background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    /* ── Member dots ── */
+    .member-bar{display:flex;align-items:center;gap:4px;padding:0 0 8px}
+    .member-dot{width:8px;height:8px;border-radius:50%;background:#8e44ad;opacity:.6}
     .member-count-label{font-size:11px;color:#aaa;margin-left:4px}
 
-    /* ── Progress bar (occupancy) ── */
-    .occ-bar-wrap{padding:0 14px 4px}
+    /* ── Occupancy bar ── */
+    .occ-bar-wrap{padding:0 0 8px}
     .occ-bar-bg{height:4px;background:#eee;border-radius:4px;overflow:hidden}
     .occ-bar-fill{height:100%;background:linear-gradient(90deg,#8e44ad,#c0392b);border-radius:4px;transition:width .4s}
 
     /* ── Actions ── */
-    .rcard-actions{display:flex;gap:8px;padding:0 14px 12px}
+    .rcard-actions{display:flex;flex-wrap:wrap;gap:7px;padding:0 14px 13px}
     .act-btn{
-      flex:1;padding:8px 10px;border-radius:10px;border:none;font-size:13px;font-weight:600;cursor:pointer;
-      display:flex;align-items:center;justify-content:center;gap:5px;transition:opacity .1s;
+      flex:1;min-width:0;padding:9px 10px;border-radius:11px;border:none;
+      font-size:13px;font-weight:600;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;gap:5px;transition:opacity .1s,transform .08s;
     }
-    .act-btn:active{opacity:.7}
-    .act-btn.map{background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff}
-    .act-btn.join{background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff}
+    .act-btn:active{opacity:.7;transform:scale(.97)}
+    .act-btn.map  {background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff}
+    .act-btn.join {background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff}
+    .act-btn.joined{background:#e8f8f0;color:#27ae60;border:1.5px solid #a9dfbf;cursor:default}
+    .act-btn.del  {background:#fdf0ef;color:#e74c3c;border:1.5px solid #fadbd8}
+    .act-btn.del:active{opacity:.7}
+    .act-btn.uploading{opacity:.6;cursor:not-allowed}
 
     /* ── No results ── */
     #no-results{text-align:center;padding:40px 20px;color:#aaa;font-size:14px;display:none}
     #no-results .ico{font-size:40px;margin-bottom:8px}
 
+    /* ── Toast ── */
+    #toast{
+      position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);
+      background:#222;color:#fff;border-radius:20px;padding:9px 20px;
+      font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:999;
+      white-space:nowrap;
+    }
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
     /* ── RTL ── */
     body.rtl{direction:rtl}
-    body.rtl .rcard-meta{flex-direction:row-reverse}
+    body.rtl .room-banner-camera{right:auto;left:10px}
+    body.rtl .room-banner-del-img{left:auto;right:10px}
     body.rtl .member-count-label{margin-left:0;margin-right:4px}
   </style>
 </head>
@@ -123,13 +152,11 @@
 
 <div id="header">
   <h1>🏠 <span id="title-text">Rooms List</span></h1>
-
   <div id="sort-row">
     <button class="sort-chip active" data-sort="distance" id="chip-dist">📍 Closest</button>
     <button class="sort-chip"        data-sort="members"  id="chip-mem">👥 Most Members</button>
     <button class="sort-chip"        data-sort="newest"   id="chip-new">🕒 Newest</button>
   </div>
-
   <div id="filter-row">
     <select id="sel-dist">
       <option value="">Any Distance</option>
@@ -156,6 +183,10 @@
 
 <div id="list" style="display:none"></div>
 <div id="no-results"><div class="ico">🏠</div><div id="no-res-lbl">No rooms found</div></div>
+<div id="toast"></div>
+
+<!-- Hidden file input for image upload -->
+<input type="file" id="img-input" accept="image/*" style="display:none">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
@@ -175,10 +206,27 @@
       loading:'جارٍ التحميل…',
       no_res:'لا توجد غرف', err:'❌ خطأ في التحميل',
       km:'كم', members:'عضو',
-      btn_map:'🗺️ عرض على الخريطة', btn_join:'🚪 الانضمام',
+      btn_map:'🗺️ خريطة',
+      btn_join:'🚪 انضمام',
+      btn_joined:'✅ منضم',
+      btn_delete:'🗑️ حذف الغرفة',
+      btn_add_img:'📷 إضافة صورة',
+      btn_change_img:'📷 تغيير',
+      btn_del_img:'🗑️ حذف الصورة',
       stats:n => `عدد الغرف: ${n}`,
       ago_now:'الآن', ago_min:'د', ago_hr:'س', ago_day:'ي',
       new_badge:'جديدة',
+      join_ok:'✅ تم الانضمام بنجاح!',
+      join_already:'ℹ️ أنت بالفعل عضو في هذه الغرفة',
+      join_err:'❌ خطأ في الانضمام',
+      del_confirm:'هل تريد حذف هذه الغرفة؟',
+      del_ok:'🗑️ تم حذف الغرفة',
+      del_err_members:'❌ لا يمكن الحذف — يوجد أعضاء آخرون',
+      del_err:'❌ خطأ في الحذف',
+      img_ok:'✅ تم حفظ الصورة',
+      img_err:'❌ خطأ في رفع الصورة',
+      img_del_ok:'✅ تم حذف الصورة',
+      img_del_confirm:'هل تريد حذف صورة الغرفة؟',
     },
     en:{
       title:'Rooms List',
@@ -188,37 +236,59 @@
       loading:'Loading…',
       no_res:'No rooms found', err:'❌ Error loading rooms',
       km:'km', members:'members',
-      btn_map:'🗺️ View on Map', btn_join:'🚪 Join',
+      btn_map:'🗺️ Map',
+      btn_join:'🚪 Join',
+      btn_joined:'✅ Joined',
+      btn_delete:'🗑️ Delete Room',
+      btn_add_img:'📷 Add Photo',
+      btn_change_img:'📷 Change',
+      btn_del_img:'🗑️ Del Photo',
       stats:n => `${n} room${n===1?'':'s'} found`,
       ago_now:'now', ago_min:'m', ago_hr:'h', ago_day:'d',
       new_badge:'NEW',
+      join_ok:'✅ Joined successfully!',
+      join_already:'ℹ️ You are already a member',
+      join_err:'❌ Error joining room',
+      del_confirm:'Delete this room?',
+      del_ok:'🗑️ Room deleted',
+      del_err_members:'❌ Cannot delete — other members exist',
+      del_err:'❌ Error deleting room',
+      img_ok:'✅ Photo saved',
+      img_err:'❌ Error uploading photo',
+      img_del_ok:'✅ Photo deleted',
+      img_del_confirm:'Delete room photo?',
     }
   }[lang] || {};
 
-  // Apply translations
-  document.getElementById('title-text').textContent    = T.title;
-  document.getElementById('chip-dist').textContent     = T.sort_dist;
-  document.getElementById('chip-mem').textContent      = T.sort_mem;
-  document.getElementById('chip-new').textContent      = T.sort_new;
-  document.getElementById('loading-lbl').textContent   = T.loading;
-  document.getElementById('no-res-lbl').textContent    = T.no_res;
-
+  // Apply header translations
+  document.getElementById('title-text').textContent  = T.title;
+  document.getElementById('chip-dist').textContent   = T.sort_dist;
+  document.getElementById('chip-mem').textContent    = T.sort_mem;
+  document.getElementById('chip-new').textContent    = T.sort_new;
+  document.getElementById('loading-lbl').textContent = T.loading;
+  document.getElementById('no-res-lbl').textContent  = T.no_res;
   const selDist = document.getElementById('sel-dist');
   const selMem  = document.getElementById('sel-mem');
-  selDist.options[0].text = T.any_dist;
-  selDist.options[1].text = T.d05;
-  selDist.options[2].text = T.d1;
-  selDist.options[3].text = T.d5;
-  selDist.options[4].text = T.d10;
-  selDist.options[5].text = T.d50;
-  selMem.options[0].text  = T.any_mem;
-  selMem.options[1].text  = T.m1;
-  selMem.options[2].text  = T.m5;
-  selMem.options[3].text  = T.m10;
+  selDist.options[0].text = T.any_dist; selDist.options[1].text = T.d05;
+  selDist.options[2].text = T.d1;       selDist.options[3].text = T.d5;
+  selDist.options[4].text = T.d10;      selDist.options[5].text = T.d50;
+  selMem.options[0].text  = T.any_mem;  selMem.options[1].text  = T.m1;
+  selMem.options[2].text  = T.m5;       selMem.options[3].text  = T.m10;
 
   // ── State ──
-  let allRooms  = [];
+  let allRooms   = [];
   let activeSort = 'distance';
+  let uploadTargetRoomId = null;
+
+  // ── Toast ──
+  let toastTimer = null;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+  }
 
   // ── Time helper ──
   function timeAgo(iso) {
@@ -229,10 +299,8 @@
     if (diff < 86400) return `${Math.floor(diff/3600)}${T.ago_hr}`;
     return `${Math.floor(diff/86400)}${T.ago_day}`;
   }
-
   function isNew(iso) {
-    if (!iso) return false;
-    return (Date.now() - new Date(iso)) < 3600000; // within 1 hour
+    return iso && (Date.now() - new Date(iso)) < 3600000;
   }
 
   // ── Map opener ──
@@ -245,7 +313,161 @@
 
   // ── Room icons ──
   const ICONS = ['🏠','🏡','🏢','🌟','🎯','🎪','🎭','💫','🌍','🎵'];
-  function roomIcon(id) { return ICONS[id % ICONS.length]; }
+  function roomIcon(id) { return ICONS[(id || 0) % ICONS.length]; }
+
+  // ── Join ──
+  async function joinRoom(roomId, btnEl) {
+    btnEl.disabled = true;
+    btnEl.classList.add('uploading');
+    try {
+      const res  = await fetch('/api/room/join', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({uid: parseInt(uid), room_id: roomId})
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(T.join_ok);
+        btnEl.className = 'act-btn joined';
+        btnEl.textContent = T.btn_joined;
+        btnEl.disabled = true;
+        // Update local state
+        const room = allRooms.find(r => r.id === roomId);
+        if (room) { room.is_member = true; room.members += 1; }
+        // update member count label in card
+        const card = btnEl.closest('.rcard');
+        const memBadge = card.querySelector('.badge.mem');
+        if (memBadge) memBadge.textContent = `👥 ${(allRooms.find(r=>r.id===roomId)||{}).members} ${T.members}`;
+      } else if (data.already) {
+        showToast(T.join_already);
+        btnEl.className = 'act-btn joined';
+        btnEl.textContent = T.btn_joined;
+        btnEl.disabled = true;
+      } else {
+        showToast(T.join_err);
+        btnEl.disabled = false;
+        btnEl.classList.remove('uploading');
+      }
+    } catch(e) {
+      showToast(T.join_err);
+      btnEl.disabled = false;
+      btnEl.classList.remove('uploading');
+    }
+  }
+
+  // ── Delete room ──
+  async function deleteRoom(roomId, cardEl) {
+    if (!confirm(T.del_confirm)) return;
+    try {
+      const res  = await fetch('/api/room/delete', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({uid: parseInt(uid), room_id: roomId})
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(T.del_ok);
+        cardEl.style.transition = 'opacity .3s,transform .3s';
+        cardEl.style.opacity = '0';
+        cardEl.style.transform = 'scale(.95)';
+        setTimeout(() => {
+          cardEl.remove();
+          allRooms = allRooms.filter(r => r.id !== roomId);
+          updateStats();
+        }, 320);
+      } else if (data.error === 'has_members') {
+        showToast(T.del_err_members);
+      } else {
+        showToast(T.del_err);
+      }
+    } catch(e) {
+      showToast(T.del_err);
+    }
+  }
+
+  // ── Image upload ──
+  const imgInput = document.getElementById('img-input');
+  imgInput.addEventListener('change', async () => {
+    const file = imgInput.files[0];
+    if (!file || !uploadTargetRoomId) return;
+    const card = document.querySelector(`[data-room-id="${uploadTargetRoomId}"]`);
+    const btn  = card ? card.querySelector('.room-banner') : null;
+    if (btn) btn.style.opacity = '.6';
+
+    const formData = new FormData();
+    formData.append('uid', uid);
+    formData.append('room_id', uploadTargetRoomId);
+    formData.append('image', file);
+
+    try {
+      const res  = await fetch('/api/room/image/upload', {method:'POST', body: formData});
+      const data = await res.json();
+      if (data.ok) {
+        showToast(T.img_ok);
+        const room = allRooms.find(r => r.id === uploadTargetRoomId);
+        if (room) room.image_url = data.image_url + '?t=' + Date.now();
+        if (card) refreshCardBanner(card, room);
+      } else {
+        showToast(T.img_err);
+      }
+    } catch(e) {
+      showToast(T.img_err);
+    }
+    if (btn) btn.style.opacity = '1';
+    imgInput.value = '';
+    uploadTargetRoomId = null;
+  });
+
+  function triggerImageUpload(roomId) {
+    uploadTargetRoomId = roomId;
+    imgInput.click();
+  }
+
+  async function deleteRoomImage(roomId, card) {
+    if (!confirm(T.img_del_confirm)) return;
+    try {
+      const res  = await fetch('/api/room/image/delete', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({uid: parseInt(uid), room_id: roomId})
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(T.img_del_ok);
+        const room = allRooms.find(r => r.id === roomId);
+        if (room) { room.image_url = ''; }
+        if (card) refreshCardBanner(card, room);
+      }
+    } catch(e) {}
+  }
+
+  function refreshCardBanner(card, room) {
+    const banner = card.querySelector('.room-banner');
+    if (!banner) return;
+    const img = banner.querySelector('img');
+    const camBtn  = banner.querySelector('.room-banner-camera');
+    const delImgBtn = banner.querySelector('.room-banner-del-img');
+    if (room.image_url) {
+      if (img) { img.src = room.image_url; }
+      else {
+        const newImg = document.createElement('img');
+        newImg.src = room.image_url;
+        banner.insertBefore(newImg, banner.firstChild);
+      }
+      if (camBtn) camBtn.textContent = '📷 ' + T.btn_change_img;
+      if (delImgBtn) delImgBtn.style.display = 'flex';
+    } else {
+      if (img) img.remove();
+      if (camBtn) camBtn.textContent = '📷 ' + T.btn_add_img;
+      if (delImgBtn) delImgBtn.style.display = 'none';
+    }
+  }
+
+  // ── Stats update ──
+  function updateStats() {
+    const statsBar = document.getElementById('stats-bar');
+    const listEl   = document.getElementById('list');
+    const n = listEl.querySelectorAll('.rcard').length;
+    if (n > 0) statsBar.textContent = T.stats(n);
+    else { statsBar.style.display = 'none'; }
+  }
 
   // ── Render ──
   function render() {
@@ -258,23 +480,18 @@
       return true;
     });
 
-    // Sort
-    if (activeSort === 'distance') {
-      filtered.sort((a,b) => (a.distance ?? 9999) - (b.distance ?? 9999));
-    } else if (activeSort === 'members') {
-      filtered.sort((a,b) => b.members - a.members);
-    } else if (activeSort === 'newest') {
-      filtered.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
-    }
+    if (activeSort === 'distance') filtered.sort((a,b) => (a.distance ?? 9999) - (b.distance ?? 9999));
+    else if (activeSort === 'members') filtered.sort((a,b) => b.members - a.members);
+    else if (activeSort === 'newest')  filtered.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
 
-    const listEl  = document.getElementById('list');
-    const noRes   = document.getElementById('no-results');
+    const listEl   = document.getElementById('list');
+    const noRes    = document.getElementById('no-results');
     const statsBar = document.getElementById('stats-bar');
     listEl.innerHTML = '';
 
     if (!filtered.length) {
-      listEl.style.display  = 'none';
-      noRes.style.display   = 'block';
+      listEl.style.display   = 'none';
+      noRes.style.display    = 'block';
       statsBar.style.display = 'none';
       return;
     }
@@ -284,102 +501,174 @@
     statsBar.style.display = 'block';
     statsBar.textContent   = T.stats(filtered.length);
 
+    const maxM = Math.max(...filtered.map(x => x.members), 1);
+
     filtered.forEach(r => {
       const card = document.createElement('div');
       card.className = 'rcard';
+      card.setAttribute('data-room-id', r.id);
 
-      // ── Top row ──
-      const top = document.createElement('div');
-      top.className = 'rcard-top';
+      // ── Banner ──
+      const banner = document.createElement('div');
+      banner.className = 'room-banner';
 
-      const icon = document.createElement('div');
-      icon.className = 'room-icon';
-      icon.textContent = roomIcon(r.id || 0);
-      top.appendChild(icon);
-
-      const info = document.createElement('div');
-      info.className = 'rcard-info';
-
-      const name = document.createElement('div');
-      name.className = 'rcard-name';
-      name.textContent = r.name || 'Room';
-      info.appendChild(name);
-
-      const meta = document.createElement('div');
-      meta.className = 'rcard-meta';
-
-      // Distance badge
-      if (r.distance != null) {
-        const b = document.createElement('span');
-        b.className = 'meta-badge red';
-        b.textContent = `📍 ${r.distance} ${T.km}`;
-        meta.appendChild(b);
+      if (r.image_url) {
+        const img = document.createElement('img');
+        img.src = r.image_url;
+        img.onerror = () => img.remove();
+        banner.appendChild(img);
       }
 
-      // Members badge
-      const mb = document.createElement('span');
-      mb.className = 'meta-badge purple';
-      mb.textContent = `👥 ${r.members} ${T.members}`;
-      meta.appendChild(mb);
+      const overlay = document.createElement('div');
+      overlay.className = 'room-banner-overlay';
+      banner.appendChild(overlay);
 
-      // NEW badge
+      const iconEl = document.createElement('div');
+      iconEl.className = 'room-banner-icon';
+      iconEl.textContent = roomIcon(r.id);
+      banner.appendChild(iconEl);
+
+      if (r.is_creator) {
+        const camBtn = document.createElement('div');
+        camBtn.className = 'room-banner-camera';
+        camBtn.innerHTML = `📷 ${r.image_url ? T.btn_change_img : T.btn_add_img}`;
+        camBtn.addEventListener('click', (e) => { e.stopPropagation(); triggerImageUpload(r.id); });
+        banner.appendChild(camBtn);
+
+        if (r.image_url) {
+          const delImgBtn = document.createElement('div');
+          delImgBtn.className = 'room-banner-del-img';
+          delImgBtn.textContent = T.btn_del_img;
+          delImgBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteRoomImage(r.id, card); });
+          banner.appendChild(delImgBtn);
+        }
+      }
+      card.appendChild(banner);
+
+      // ── Body ──
+      const body = document.createElement('div');
+      body.className = 'rcard-body';
+
+      // Name row
+      const nameRow = document.createElement('div');
+      nameRow.className = 'rcard-name-row';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'rcard-name';
+      nameEl.textContent = r.name || 'Room';
+      nameRow.appendChild(nameEl);
       if (isNew(r.created_at)) {
         const nb = document.createElement('span');
-        nb.className = 'meta-badge green';
-        nb.textContent = `✨ ${T.new_badge}`;
-        meta.appendChild(nb);
-      } else if (r.created_at) {
-        const tb = document.createElement('span');
-        tb.className = 'meta-badge blue';
-        tb.textContent = `🕒 ${timeAgo(r.created_at)}`;
-        meta.appendChild(tb);
+        nb.className = 'badge-new';
+        nb.textContent = T.new_badge;
+        nameRow.appendChild(nb);
       }
+      body.appendChild(nameRow);
 
-      info.appendChild(meta);
-      top.appendChild(info);
-      card.appendChild(top);
+      // Badges row
+      const badges = document.createElement('div');
+      badges.className = 'rcard-badges';
 
-      // ── Member dots ──
+      if (r.distance != null) {
+        const b = document.createElement('span');
+        b.className = 'badge dist';
+        b.textContent = `📍 ${r.distance} ${T.km}`;
+        badges.appendChild(b);
+      }
+      const mb = document.createElement('span');
+      mb.className = 'badge mem';
+      mb.textContent = `👥 ${r.members} ${T.members}`;
+      badges.appendChild(mb);
+
+      if (!isNew(r.created_at) && r.created_at) {
+        const tb = document.createElement('span');
+        tb.className = 'badge time';
+        tb.textContent = `🕒 ${timeAgo(r.created_at)}`;
+        badges.appendChild(tb);
+      }
+      if (r.nature) {
+        const natB = document.createElement('span');
+        natB.className = 'badge nat';
+        natB.textContent = r.nature;
+        badges.appendChild(natB);
+      }
+      if (r.purpose) {
+        const purB = document.createElement('span');
+        purB.className = 'badge purp';
+        purB.title = r.purpose;
+        purB.textContent = `📝 ${r.purpose}`;
+        badges.appendChild(purB);
+      }
+      body.appendChild(badges);
+
+      // Member dots
       if (r.members > 0) {
         const bar = document.createElement('div');
         bar.className = 'member-bar';
-        const dotsCount = Math.min(r.members, 12);
+        const dotsCount = Math.min(r.members, 14);
         for (let i = 0; i < dotsCount; i++) {
           const dot = document.createElement('div');
           dot.className = 'member-dot';
           bar.appendChild(dot);
         }
-        if (r.members > 12) {
+        if (r.members > 14) {
           const lbl = document.createElement('span');
           lbl.className = 'member-count-label';
-          lbl.textContent = `+${r.members - 12}`;
+          lbl.textContent = `+${r.members - 14}`;
           bar.appendChild(lbl);
         }
-        card.appendChild(bar);
+        body.appendChild(bar);
       }
 
-      // ── Occupancy bar ──
+      // Occupancy bar
       const occWrap = document.createElement('div');
       occWrap.className = 'occ-bar-wrap';
       const occBg = document.createElement('div');
       occBg.className = 'occ-bar-bg';
       const occFill = document.createElement('div');
       occFill.className = 'occ-bar-fill';
-      const maxM = Math.max(...filtered.map(x => x.members), 1);
       occFill.style.width = `${Math.min(100, (r.members / maxM) * 100)}%`;
       occBg.appendChild(occFill);
       occWrap.appendChild(occBg);
-      card.appendChild(occWrap);
+      body.appendChild(occWrap);
+
+      card.appendChild(body);
 
       // ── Actions ──
       const actions = document.createElement('div');
       actions.className = 'rcard-actions';
 
+      // Map button
       const btnMap = document.createElement('button');
       btnMap.className = 'act-btn map';
       btnMap.textContent = T.btn_map;
       btnMap.addEventListener('click', openMap);
       actions.appendChild(btnMap);
+
+      // Join / Joined button
+      if (r.is_member) {
+        const btnJ = document.createElement('button');
+        btnJ.className = 'act-btn joined';
+        btnJ.textContent = T.btn_joined;
+        btnJ.disabled = true;
+        actions.appendChild(btnJ);
+      } else {
+        const btnJ = document.createElement('button');
+        btnJ.className = 'act-btn join';
+        btnJ.textContent = T.btn_join;
+        btnJ.addEventListener('click', () => joinRoom(r.id, btnJ));
+        actions.appendChild(btnJ);
+      }
+
+      // Delete room (creator only, when alone)
+      if (r.is_creator && r.members <= 1) {
+        const btnDel = document.createElement('button');
+        btnDel.className = 'act-btn del';
+        btnDel.style.flex = '0 0 auto';
+        btnDel.style.padding = '9px 14px';
+        btnDel.textContent = T.btn_delete;
+        btnDel.addEventListener('click', () => deleteRoom(r.id, card));
+        actions.appendChild(btnDel);
+      }
 
       card.appendChild(actions);
       listEl.appendChild(card);
