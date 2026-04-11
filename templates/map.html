@@ -271,9 +271,9 @@
   document.getElementById('leg-away').textContent    = L_.away_leg;
 
   // ── Map (no default zoom control) ──────────────────────────────────────
-  const map = L.map('map', { zoomControl: false });
+  const map = L.map('map', { zoomControl: false, maxZoom: 22 });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution:'© OpenStreetMap', maxZoom:19
+    attribution:'© OpenStreetMap', maxZoom:22, maxNativeZoom:19
   }).addTo(map);
 
   document.getElementById('zoom-in').addEventListener('click',  () => map.zoomIn());
@@ -523,7 +523,7 @@
 
   function joyStep() {
     const z = map.getZoom();
-    return 0.00018 * speedMult * Math.pow(2, Math.max(0, 16 - z));
+    return 0.000004 * speedMult * Math.pow(2, Math.max(0, 16 - z));
   }
 
   function startJoyMove() {
