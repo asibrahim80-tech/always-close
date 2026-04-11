@@ -9,96 +9,94 @@
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;min-height:100vh}
 
     /* ── Header ── */
-    #header{
-      position:sticky;top:0;z-index:100;
-      background:#fff;padding:14px 16px 10px;
-      box-shadow:0 1px 4px rgba(0,0,0,.1);
-    }
+    #header{position:sticky;top:0;z-index:100;background:#fff;padding:14px 16px 10px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
     #header h1{font-size:18px;font-weight:700;color:#111;margin-bottom:10px;display:flex;align-items:center;gap:8px}
     #header h1 span{color:#e74c3c}
 
     /* ── Filters ── */
     #filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
     #filters::-webkit-scrollbar{display:none}
-    .filter-chip{
-      flex-shrink:0;padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;
-      background:#f7f7f7;font-size:12.5px;cursor:pointer;font-weight:500;color:#555;
-      transition:all .15s;white-space:nowrap;
-    }
+    .filter-chip{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;background:#f7f7f7;font-size:12.5px;cursor:pointer;font-weight:500;color:#555;transition:all .15s;white-space:nowrap}
     .filter-chip.active{background:#e74c3c;border-color:#e74c3c;color:#fff}
     .filter-chip:active{opacity:.75}
 
-    /* ── Filter row 2 ── */
     #filter2{display:flex;gap:8px;margin-top:8px;align-items:center}
-    #filter2 select,#filter2 input{
-      flex:1;padding:7px 10px;border-radius:10px;border:1.5px solid #e0e0e0;
-      font-size:13px;background:#fafafa;color:#333;outline:none;
-    }
-    #filter2 select:focus,#filter2 input:focus{border-color:#e74c3c}
+    #filter2 select{flex:1;padding:7px 10px;border-radius:10px;border:1.5px solid #e0e0e0;font-size:13px;background:#fafafa;color:#333;outline:none}
+    #filter2 select:focus{border-color:#e74c3c}
+
+    /* ── Sort chips row ── */
+    #sort-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;margin-top:8px}
+    #sort-row::-webkit-scrollbar{display:none}
+    .sort-chip{flex-shrink:0;padding:5px 13px;border-radius:20px;border:1.5px solid #ddd;background:#f7f7f7;font-size:12px;cursor:pointer;font-weight:500;color:#555;transition:all .15s;white-space:nowrap}
+    .sort-chip.active{background:#e74c3c;border-color:#e74c3c;color:#fff}
 
     /* ── Loading / empty ── */
     #loading{text-align:center;padding:50px 20px;color:#999;font-size:14px}
-    .spinner{
-      width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#e74c3c;
-      border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px
-    }
+    .spinner{width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#e74c3c;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
     @keyframes spin{to{transform:rotate(360deg)}}
 
     /* ── User list ── */
     #list{padding:10px 12px;display:flex;flex-direction:column;gap:10px}
 
     /* ── User card ── */
-    .ucard{
-      background:#fff;border-radius:16px;
-      box-shadow:0 1px 6px rgba(0,0,0,.07);
-      display:flex;align-items:stretch;overflow:hidden;
-      cursor:pointer;transition:box-shadow .15s,transform .1s;
-    }
-    .ucard:active{transform:scale(.985);box-shadow:0 2px 12px rgba(0,0,0,.12)}
+    .ucard{background:#fff;border-radius:16px;box-shadow:0 1px 6px rgba(0,0,0,.07);overflow:hidden}
 
-    .avatar-wrap{
-      width:72px;min-width:72px;position:relative;
-      background:linear-gradient(135deg,#f0f0f0,#e0e0e0);
-    }
-    .avatar-wrap img{width:72px;height:100%;object-fit:cover;display:block}
-    .avatar-initial{
-      width:72px;height:100%;min-height:72px;
-      display:flex;align-items:center;justify-content:center;
-      font-size:26px;font-weight:700;color:#aaa;
-    }
-    .status-dot{
-      position:absolute;bottom:6px;right:6px;
-      width:12px;height:12px;border-radius:50%;border:2px solid #fff;
-    }
+    /* ── Card top row ── */
+    .ucard-top{display:flex;align-items:stretch}
+
+    .avatar-wrap{width:80px;min-width:80px;position:relative;background:linear-gradient(135deg,#f0f0f0,#e0e0e0)}
+    .avatar-wrap img{width:80px;height:100%;object-fit:cover;display:block}
+    .avatar-initial{width:80px;height:100%;min-height:80px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#aaa}
+    .status-dot{position:absolute;bottom:8px;right:8px;width:13px;height:13px;border-radius:50%;border:2px solid #fff}
     .status-dot.active{background:#2ecc71}
     .status-dot.away{background:#3498db}
 
-    .ucard-body{flex:1;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;min-width:0}
+    .ucard-body{flex:1;padding:11px 13px;display:flex;flex-direction:column;justify-content:center;min-width:0}
     .ucard-name{font-size:15px;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .ucard-meta{font-size:12px;color:#888;margin-top:2px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-    .meta-badge{
-      background:#f2f2f2;border-radius:10px;padding:2px 8px;font-size:11.5px;color:#555;font-weight:500;
-    }
+    .ucard-meta{font-size:12px;color:#888;margin-top:3px;display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+    .meta-badge{background:#f2f2f2;border-radius:10px;padding:2px 8px;font-size:11.5px;color:#555;font-weight:500}
     .meta-badge.green{background:#e8f8f0;color:#27ae60}
     .meta-badge.blue{background:#eaf3fb;color:#2980b9}
     .meta-badge.red{background:#fdf0ef;color:#e74c3c}
     .ucard-bio{font-size:12px;color:#999;margin-top:5px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.4}
-    .ucard-actions{display:flex;gap:6px;margin-top:8px}
-    .act-btn{
-      padding:5px 12px;border-radius:10px;border:none;font-size:12px;font-weight:600;cursor:pointer;
-      display:flex;align-items:center;gap:4px;transition:opacity .1s;
-    }
+
+    /* ── Action buttons ── */
+    .ucard-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
+    .act-btn{padding:6px 13px;border-radius:10px;border:none;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;transition:opacity .1s}
     .act-btn:active{opacity:.7}
     .act-btn.msg{background:linear-gradient(135deg,#3498db,#2980b9);color:#fff}
     .act-btn.map{background:linear-gradient(135deg,#2ecc71,#27ae60);color:#fff}
+
+    /* ── Star display ── */
+    .star-display{display:flex;align-items:center;gap:5px}
+    .star-bar-wrap{position:relative;display:inline-block;font-size:15px;line-height:1;letter-spacing:1px}
+    .star-bar-back{color:#ddd}
+    .star-bar-front{position:absolute;top:0;left:0;overflow:hidden;white-space:nowrap;color:#f39c12}
+    .star-val{font-size:13px;font-weight:700;color:#333}
+    .star-cnt{font-size:11.5px;color:#999}
+    .no-ratings{font-size:11.5px;color:#ccc;font-style:italic}
+
+    /* ── Rating widget bottom strip ── */
+    .rate-strip{padding:8px 13px 11px;border-top:1px solid #f5f5f5;display:flex;align-items:center;gap:10px}
+    .rate-label{font-size:12px;color:#888;flex-shrink:0}
+    .rate-stars{display:flex;gap:3px}
+    .rate-star{font-size:24px;color:#ddd;cursor:pointer;transition:color .1s,transform .1s;user-select:none;-webkit-user-select:none}
+    .rate-star.on{color:#f39c12}
+    .rate-star.hover{color:#f5c842}
+    .rate-star:active{transform:scale(1.2)}
 
     /* ── No results ── */
     #no-results{text-align:center;padding:40px 20px;color:#aaa;font-size:14px;display:none}
     #no-results .ico{font-size:40px;margin-bottom:8px}
 
-    /* ── RTL support ── */
+    /* ── Toast ── */
+    #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#222;color:#fff;border-radius:20px;padding:9px 20px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    /* ── RTL ── */
     body.rtl{direction:rtl}
     body.rtl .ucard-meta{flex-direction:row-reverse}
+    body.rtl .star-bar-front{left:auto;right:0}
   </style>
 </head>
 <body>
@@ -106,8 +104,8 @@
 <div id="header">
   <h1>👥 <span id="title-text">Nearby Users</span></h1>
   <div id="filters">
-    <button class="filter-chip active" data-gender=""  id="chip-all">All</button>
-    <button class="filter-chip"        data-gender="Male"  id="chip-male">👨 Male</button>
+    <button class="filter-chip active" data-gender="" id="chip-all">All</button>
+    <button class="filter-chip"        data-gender="Male"   id="chip-male">👨 Male</button>
     <button class="filter-chip"        data-gender="Female" id="chip-female">👩 Female</button>
   </div>
   <div id="filter2">
@@ -126,23 +124,24 @@
       <option value="50">≤ 50 km</option>
     </select>
   </div>
+  <div id="sort-row">
+    <button class="sort-chip active" data-sort="distance" id="chip-sdist">📍 Nearest</button>
+    <button class="sort-chip"        data-sort="rating"   id="chip-srat">⭐ Top Rated</button>
+    <button class="sort-chip"        data-sort="active"   id="chip-sact">🟢 Active</button>
+  </div>
 </div>
 
-<div id="loading">
-  <div class="spinner"></div>
-  <div id="loading-lbl">Loading…</div>
-</div>
-
+<div id="loading"><div class="spinner"></div><div id="loading-lbl">Loading…</div></div>
 <div id="list" style="display:none"></div>
 <div id="no-results"><div class="ico">🔍</div><div id="no-res-lbl">No users found</div></div>
+<div id="toast"></div>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
-  const uid  = new URLSearchParams(location.search).get('uid');
-  const lang = new URLSearchParams(location.search).get('lang') || 'en';
+  const uid     = new URLSearchParams(location.search).get('uid');
+  const lang    = new URLSearchParams(location.search).get('lang') || 'en';
   const mapBase = new URLSearchParams(location.search).get('mapBase') || '';
-
-  const isAr = lang === 'ar';
+  const isAr    = lang === 'ar';
   if (isAr) document.body.classList.add('rtl');
 
   const T = {
@@ -151,75 +150,152 @@
       all:'الكل', male:'👨 ذكر', female:'👩 أنثى',
       all_ages:'كل الأعمار', age1:'18–25', age2:'26–35', age3:'36–50', age4:'50+',
       any_dist:'أي مسافة', d1:'≤ 1 كم', d5:'≤ 5 كم', d10:'≤ 10 كم', d50:'≤ 50 كم',
-      loading:'جارٍ التحميل…',
-      no_res:'لا يوجد مستخدمون', active:'نشط الآن', away:'غير نشط',
+      sort_dist:'📍 الأقرب', sort_rat:'⭐ الأعلى تقييماً', sort_act:'🟢 النشطون',
+      loading:'جارٍ التحميل…', no_res:'لا يوجد مستخدمون', active:'نشط الآن', away:'غير نشط',
       last:'آخر ظهور', now:'الآن', min:'د', hr:'س', day:'ي',
       km:'كم', yo:'سنة', msg:'💬 مراسلة', map:'🗺️ خريطة',
-      err:'❌ خطأ في التحميل'
+      err:'❌ خطأ في التحميل',
+      no_ratings:'لم يُقيَّم بعد',
+      rate_label:'قيّم:',
+      rate_ok:'⭐ شكراً على تقييمك!',
+      rate_self:'لا يمكنك تقييم نفسك',
+      rate_err:'❌ خطأ في التقييم',
     },
     en:{
       title:'Nearby Users',
       all:'All', male:'👨 Male', female:'👩 Female',
       all_ages:'All Ages', age1:'18–25', age2:'26–35', age3:'36–50', age4:'50+',
       any_dist:'Any Distance', d1:'≤ 1 km', d5:'≤ 5 km', d10:'≤ 10 km', d50:'≤ 50 km',
-      loading:'Loading…',
-      no_res:'No users found', active:'Active now', away:'Away',
+      sort_dist:'📍 Nearest', sort_rat:'⭐ Top Rated', sort_act:'🟢 Active',
+      loading:'Loading…', no_res:'No users found', active:'Active now', away:'Away',
       last:'Last seen', now:'now', min:'m', hr:'h', day:'d',
       km:'km', yo:'yo', msg:'💬 Message', map:'🗺️ Map',
-      err:'❌ Error loading users'
+      err:'❌ Error loading users',
+      no_ratings:'Not rated yet',
+      rate_label:'Rate:',
+      rate_ok:'⭐ Thanks for rating!',
+      rate_self:'Cannot rate yourself',
+      rate_err:'❌ Rating error',
     }
   }[lang] || {};
 
   // Apply translations
-  document.getElementById('title-text').textContent = T.title;
+  document.getElementById('title-text').textContent  = T.title;
   document.getElementById('chip-all').textContent    = T.all;
   document.getElementById('chip-male').textContent   = T.male;
   document.getElementById('chip-female').textContent = T.female;
   document.getElementById('loading-lbl').textContent = T.loading;
   document.getElementById('no-res-lbl').textContent  = T.no_res;
+  document.getElementById('chip-sdist').textContent  = T.sort_dist;
+  document.getElementById('chip-srat').textContent   = T.sort_rat;
+  document.getElementById('chip-sact').textContent   = T.sort_act;
 
   const selAge  = document.getElementById('sel-age');
   const selDist = document.getElementById('sel-dist');
-  selAge.options[0].text  = T.all_ages;
-  selAge.options[1].text  = T.age1;
-  selAge.options[2].text  = T.age2;
-  selAge.options[3].text  = T.age3;
+  selAge.options[0].text  = T.all_ages; selAge.options[1].text  = T.age1;
+  selAge.options[2].text  = T.age2;     selAge.options[3].text  = T.age3;
   selAge.options[4].text  = T.age4;
-  selDist.options[0].text = T.any_dist;
-  selDist.options[1].text = T.d1;
-  selDist.options[2].text = T.d5;
-  selDist.options[3].text = T.d10;
+  selDist.options[0].text = T.any_dist; selDist.options[1].text = T.d1;
+  selDist.options[2].text = T.d5;       selDist.options[3].text = T.d10;
   selDist.options[4].text = T.d50;
 
-  // ── State ──
-  let allUsers = [];
+  let allUsers    = [];
   let activeGender = '';
+  let activeSort   = 'distance';
+  let myUserId     = null;
 
-  // ── Time helper ──
+  // ── Toast ──
+  let toastTimer = null;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+  }
+
   function timeAgo(iso) {
     if (!iso) return '';
-    const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
-    if (diff < 60)    return T.now;
-    if (diff < 3600)  return `${Math.floor(diff/60)}${T.min}`;
-    if (diff < 86400) return `${Math.floor(diff/3600)}${T.hr}`;
-    return `${Math.floor(diff/86400)}${T.day}`;
+    const d = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (d < 60) return T.now;
+    if (d < 3600) return `${Math.floor(d/60)}${T.min}`;
+    if (d < 86400) return `${Math.floor(d/3600)}${T.hr}`;
+    return `${Math.floor(d/86400)}${T.day}`;
   }
 
-  // ── Chat opener ──
   function openChat(username, telegramId) {
     const url = username ? `https://t.me/${username}` : `tg://user?id=${telegramId}`;
-    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.openTelegramLink) {
-      Telegram.WebApp.openTelegramLink(url);
-    } else { window.open(url, '_blank'); }
+    if (window.Telegram?.WebApp?.openTelegramLink) Telegram.WebApp.openTelegramLink(url);
+    else window.open(url, '_blank');
   }
 
-  // ── Map opener ──
-  function openMap(telegramId) {
-    const base = mapBase || location.origin;
-    const url = `${base}/map?uid=${telegramId}&lang=${lang}`;
-    if (window.Telegram && Telegram.WebApp && Telegram.WebApp.openLink) {
-      Telegram.WebApp.openLink(url);
-    } else { window.open(url, '_blank'); }
+  function openMap() {
+    const url = `${mapBase || location.origin}/map?uid=${uid}&lang=${lang}`;
+    if (window.Telegram?.WebApp?.openLink) Telegram.WebApp.openLink(url);
+    else window.open(url, '_blank');
+  }
+
+  // ── Star display (Google Play style) ──
+  function makeStarDisplay(avg, count) {
+    const wrap = document.createElement('div');
+    wrap.className = 'star-display';
+    if (!count || count === 0) {
+      const empty = document.createElement('span');
+      empty.className = 'no-ratings';
+      empty.textContent = T.no_ratings;
+      wrap.appendChild(empty);
+      return wrap;
+    }
+    const pct = Math.round((avg / 5) * 100);
+    const bw = document.createElement('span');
+    bw.className = 'star-bar-wrap';
+    bw.innerHTML = `<span class="star-bar-back">★★★★★</span><span class="star-bar-front" style="width:${pct}%">★★★★★</span>`;
+    wrap.appendChild(bw);
+    const vEl = document.createElement('span'); vEl.className = 'star-val'; vEl.textContent = avg.toFixed(1); wrap.appendChild(vEl);
+    const cEl = document.createElement('span'); cEl.className = 'star-cnt'; cEl.textContent = `(${count})`; wrap.appendChild(cEl);
+    return wrap;
+  }
+
+  // ── Interactive rating widget ──
+  function makeRatingWidget(currentRating, onRate) {
+    const wrap = document.createElement('div');
+    wrap.className = 'rate-stars';
+    for (let i = 1; i <= 5; i++) {
+      const star = document.createElement('span');
+      star.className = 'rate-star' + (i <= currentRating ? ' on' : '');
+      star.textContent = '★';
+      const ci = i;
+      star.addEventListener('mouseenter', () => wrap.querySelectorAll('.rate-star').forEach((s,idx) => s.classList.toggle('hover', idx < ci)));
+      star.addEventListener('mouseleave', () => wrap.querySelectorAll('.rate-star').forEach(s => s.classList.remove('hover')));
+      star.addEventListener('click', () => {
+        wrap.querySelectorAll('.rate-star').forEach((s,idx) => s.classList.toggle('on', idx < ci));
+        onRate(ci);
+      });
+      wrap.appendChild(star);
+    }
+    return wrap;
+  }
+
+  // ── Rate user ──
+  async function rateUser(targetId, rating, displayWrap) {
+    try {
+      const res  = await fetch('/api/user/rate', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({uid: parseInt(uid), target_id: targetId, rating})
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(T.rate_ok);
+        if (displayWrap) {
+          const newDisp = makeStarDisplay(data.avg_rating, data.rating_count);
+          displayWrap.replaceWith(newDisp);
+        }
+        const u = allUsers.find(x => x.id === targetId);
+        if (u) { u.avg_rating = data.avg_rating; u.rating_count = data.rating_count; u.my_rating = rating; }
+      } else if (data.error === 'self_rate') {
+        showToast(T.rate_self);
+      } else { showToast(T.rate_err); }
+    } catch(e) { showToast(T.rate_err); }
   }
 
   // ── Render ──
@@ -228,7 +304,7 @@
     const ageRange  = selAge.value;
     const distLimit = selDist.value ? parseFloat(selDist.value) : null;
 
-    const filtered = allUsers.filter(u => {
+    let filtered = allUsers.filter(u => {
       if (gFilter && u.gender !== gFilter) return false;
       if (ageRange) {
         const age = u.age || 0;
@@ -241,55 +317,52 @@
       return true;
     });
 
-    const list = document.getElementById('list');
+    if (activeSort === 'distance')    filtered.sort((a,b) => (a.distance ?? 9999) - (b.distance ?? 9999));
+    else if (activeSort === 'rating') filtered.sort((a,b) => (b.avg_rating||0) - (a.avg_rating||0));
+    else if (activeSort === 'active') filtered.sort((a,b) => (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0));
+
+    const list  = document.getElementById('list');
     const noRes = document.getElementById('no-results');
     list.innerHTML = '';
 
-    if (!filtered.length) {
-      list.style.display = 'none';
-      noRes.style.display = 'block';
-      return;
-    }
-    noRes.style.display = 'none';
-    list.style.display  = 'flex';
+    if (!filtered.length) { list.style.display = 'none'; noRes.style.display = 'block'; return; }
+    noRes.style.display = 'none'; list.style.display = 'flex';
 
     filtered.forEach(u => {
-      const isActive  = u.is_active;
-      const ago       = timeAgo(u.last_seen);
-      const initial   = (u.username || '?')[0].toUpperCase();
-      const genderDisplay = u.gender === 'Male' ? (isAr ? 'ذكر' : 'Male') :
+      const isActive     = u.is_active;
+      const ago          = timeAgo(u.last_seen);
+      const initial      = (u.username || '?')[0].toUpperCase();
+      const genderDisplay = u.gender === 'Male'   ? (isAr ? 'ذكر' : 'Male') :
                             u.gender === 'Female' ? (isAr ? 'أنثى' : 'Female') : '';
 
       const card = document.createElement('div');
       card.className = 'ucard';
 
+      // ── Top row ──
+      const top = document.createElement('div');
+      top.className = 'ucard-top';
+
       // Avatar
-      const avatarWrap = document.createElement('div');
-      avatarWrap.className = 'avatar-wrap';
+      const avWrap = document.createElement('div');
+      avWrap.className = 'avatar-wrap';
       if (u.photo_url) {
         const img = document.createElement('img');
         img.src = u.photo_url;
         img.alt = initial;
-        img.onerror = function() {
-          this.style.display='none';
-          fallback.style.display='flex';
-        };
+        img.onerror = function() { this.style.display='none'; fallback.style.display='flex'; };
         const fallback = document.createElement('div');
         fallback.className = 'avatar-initial';
         fallback.style.display = 'none';
         fallback.textContent = initial;
-        avatarWrap.appendChild(img);
-        avatarWrap.appendChild(fallback);
+        avWrap.appendChild(img);
+        avWrap.appendChild(fallback);
       } else {
-        const av = document.createElement('div');
-        av.className = 'avatar-initial';
-        av.textContent = initial;
-        avatarWrap.appendChild(av);
+        const av = document.createElement('div'); av.className = 'avatar-initial'; av.textContent = initial; avWrap.appendChild(av);
       }
       const dot = document.createElement('div');
       dot.className = `status-dot ${isActive ? 'active' : 'away'}`;
-      avatarWrap.appendChild(dot);
-      card.appendChild(avatarWrap);
+      avWrap.appendChild(dot);
+      top.appendChild(avWrap);
 
       // Body
       const body = document.createElement('div');
@@ -302,65 +375,57 @@
 
       const meta = document.createElement('div');
       meta.className = 'ucard-meta';
-      if (u.age) {
-        const b = document.createElement('span');
-        b.className = 'meta-badge';
-        b.textContent = `🎂 ${u.age} ${T.yo}`;
-        meta.appendChild(b);
-      }
-      if (genderDisplay) {
-        const b = document.createElement('span');
-        b.className = 'meta-badge';
-        b.textContent = u.gender === 'Male' ? `👨 ${genderDisplay}` : `👩 ${genderDisplay}`;
-        meta.appendChild(b);
-      }
-      if (u.distance != null) {
-        const b = document.createElement('span');
-        b.className = 'meta-badge red';
-        b.textContent = `📍 ${u.distance} ${T.km}`;
-        meta.appendChild(b);
-      }
-      const statusB = document.createElement('span');
-      statusB.className = `meta-badge ${isActive ? 'green' : 'blue'}`;
-      statusB.textContent = isActive ? `🟢 ${T.active}` : `🕒 ${ago}`;
-      meta.appendChild(statusB);
+      if (u.age) { const b = document.createElement('span'); b.className = 'meta-badge'; b.textContent = `🎂 ${u.age} ${T.yo}`; meta.appendChild(b); }
+      if (genderDisplay) { const b = document.createElement('span'); b.className = 'meta-badge'; b.textContent = u.gender === 'Male' ? `👨 ${genderDisplay}` : `👩 ${genderDisplay}`; meta.appendChild(b); }
+      if (u.distance != null) { const b = document.createElement('span'); b.className = 'meta-badge red'; b.textContent = `📍 ${u.distance} ${T.km}`; meta.appendChild(b); }
+      const sb = document.createElement('span');
+      sb.className = `meta-badge ${isActive ? 'green' : 'blue'}`;
+      sb.textContent = isActive ? `🟢 ${T.active}` : `🕒 ${ago}`;
+      meta.appendChild(sb);
       body.appendChild(meta);
 
-      if (u.bio) {
-        const bio = document.createElement('div');
-        bio.className = 'ucard-bio';
-        bio.textContent = u.bio;
-        body.appendChild(bio);
-      }
+      // ── Star display ──
+      const starDisp = makeStarDisplay(u.avg_rating || 0, u.rating_count || 0);
+      starDisp.style.marginTop = '5px';
+      body.appendChild(starDisp);
+
+      if (u.bio) { const bio = document.createElement('div'); bio.className = 'ucard-bio'; bio.textContent = u.bio; body.appendChild(bio); }
 
       const actions = document.createElement('div');
       actions.className = 'ucard-actions';
       if (u.username || u.telegram_id) {
         const btnMsg = document.createElement('button');
-        btnMsg.className = 'act-btn msg';
-        btnMsg.innerHTML = T.msg;
-        btnMsg.addEventListener('click', e => {
-          e.stopPropagation();
-          openChat(u.username, u.telegram_id);
-        });
+        btnMsg.className = 'act-btn msg'; btnMsg.innerHTML = T.msg;
+        btnMsg.addEventListener('click', e => { e.stopPropagation(); openChat(u.username, u.telegram_id); });
         actions.appendChild(btnMsg);
       }
       const btnMap = document.createElement('button');
-      btnMap.className = 'act-btn map';
-      btnMap.innerHTML = T.map;
-      btnMap.addEventListener('click', e => {
-        e.stopPropagation();
-        openMap(uid);
-      });
+      btnMap.className = 'act-btn map'; btnMap.innerHTML = T.map;
+      btnMap.addEventListener('click', e => { e.stopPropagation(); openMap(); });
       actions.appendChild(btnMap);
       body.appendChild(actions);
 
-      card.appendChild(body);
+      top.appendChild(body);
+      card.appendChild(top);
+
+      // ── Rating strip ──
+      const strip = document.createElement('div');
+      strip.className = 'rate-strip';
+      const rLabel = document.createElement('span');
+      rLabel.className = 'rate-label';
+      rLabel.textContent = T.rate_label;
+      strip.appendChild(rLabel);
+      const widget = makeRatingWidget(u.my_rating || 0, async (val) => {
+        await rateUser(u.id, val, starDisp);
+      });
+      strip.appendChild(widget);
+      card.appendChild(strip);
+
       list.appendChild(card);
     });
   }
 
-  // ── Gender chips ──
+  // Gender chips
   document.querySelectorAll('.filter-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -369,10 +434,19 @@
       render();
     });
   });
-  selAge.addEventListener('change',  render);
+  // Sort chips
+  document.querySelectorAll('.sort-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.sort-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeSort = chip.dataset.sort;
+      render();
+    });
+  });
+  selAge.addEventListener('change', render);
   selDist.addEventListener('change', render);
 
-  // ── Fetch ──
+  // Fetch
   fetch(`/api/nearby/${uid}`)
     .then(r => r.json())
     .then(data => {
@@ -382,6 +456,7 @@
         document.getElementById('no-results').style.display = 'block';
         return;
       }
+      myUserId = data.my_user_id || null;
       allUsers = data.nearby || [];
       render();
     })

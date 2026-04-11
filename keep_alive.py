@@ -153,6 +153,34 @@ def api_nearby(telegram_id):
 
         nearby.sort(key=lambda x: x["distance"])
 
+        # ── Batch-fetch user ratings ──
+        user_ids = [u["id"] for u in nearby]
+        avg_u_ratings  = {}   # user_id → (avg, count)
+        my_u_ratings   = {}   # user_id → my rating
+        if user_ids:
+            try:
+                all_urat = supabase.table("user_ratings_v1") \
+                    .select("rated_user_id, rating").execute()
+                from collections import defaultdict
+                ubucket = defaultdict(list)
+                for row in (all_urat.data or []):
+                    ubucket[row["rated_user_id"]].append(row["rating"])
+                for uid2, vals in ubucket.items():
+                    avg_u_ratings[uid2] = (round(sum(vals)/len(vals), 1), len(vals))
+                if my_id:
+                    my_urat = supabase.table("user_ratings_v1") \
+                        .select("rated_user_id, rating").eq("rater_id", my_id).execute()
+                    my_u_ratings = {row["rated_user_id"]: row["rating"]
+                                    for row in (my_urat.data or [])}
+            except Exception:
+                pass
+
+        for u in nearby:
+            avg, cnt = avg_u_ratings.get(u["id"], (0, 0))
+            u["avg_rating"]   = avg
+            u["rating_count"] = cnt
+            u["my_rating"]    = my_u_ratings.get(u["id"], 0)
+
         return jsonify({
             "me": {
                 "lat":       my_lat,
@@ -162,6 +190,7 @@ def api_nearby(telegram_id):
                 "last_seen": my_rec,
                 "is_active": _is_active(my_rec),
             },
+            "my_user_id": my_id,
             "nearby": nearby,
         })
 
@@ -242,6 +271,34 @@ def api_rooms(telegram_id):
                 "is_creator": (my_id is not None and r.get("created_by") == my_id),
                 "is_member":  (r["id"] in my_room_ids),
             })
+
+        # ── Batch-fetch room ratings ──
+        room_ids = [r["id"] for r in (rooms_res.data or []) if r.get("latitude")]
+        avg_ratings  = {}   # room_id → (avg, count)
+        my_r_ratings = {}   # room_id → my rating
+        if room_ids:
+            try:
+                all_rat = supabase.table("room_ratings_v1") \
+                    .select("room_id, rating").execute()
+                from collections import defaultdict
+                bucket = defaultdict(list)
+                for row in (all_rat.data or []):
+                    bucket[row["room_id"]].append(row["rating"])
+                for rid, vals in bucket.items():
+                    avg_ratings[rid] = (round(sum(vals)/len(vals), 1), len(vals))
+                if my_id is not None:
+                    my_rat = supabase.table("room_ratings_v1") \
+                        .select("room_id, rating").eq("user_id", my_id).execute()
+                    my_r_ratings = {row["room_id"]: row["rating"] for row in (my_rat.data or [])}
+            except Exception:
+                pass
+
+        for entry in rooms_out:
+            rid = entry["id"]
+            avg, cnt = avg_ratings.get(rid, (0, 0))
+            entry["avg_rating"]   = avg
+            entry["rating_count"] = cnt
+            entry["my_rating"]    = my_r_ratings.get(rid, 0)
 
         return jsonify({"rooms": rooms_out, "my_user_id": my_id})
     except Exception as e:
@@ -385,6 +442,139 @@ def api_room_image_delete():
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/room/rate', methods=['POST'])
+def api_room_rate():
+    try:
+        from database import supabase
+        data    = request.get_json(force=True)
+        uid     = int(data.get("uid", 0))
+        room_id = int(data.get("room_id", 0))
+        rating  = int(data.get("rating", 0))
+        if not 1 <= rating <= 5:
+            return jsonify({"ok": False, "error": "invalid_rating"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        # Upsert (insert or update)
+        existing = supabase.table("room_ratings_v1") \
+            .select("id").eq("room_id", room_id).eq("user_id", my_id).execute()
+        if existing.data:
+            supabase.table("room_ratings_v1") \
+                .update({"rating": rating}) \
+                .eq("id", existing.data[0]["id"]).execute()
+        else:
+            supabase.table("room_ratings_v1").insert({
+                "room_id": room_id, "user_id": my_id, "rating": rating
+            }).execute()
+
+        # Return new avg
+        all_rat = supabase.table("room_ratings_v1") \
+            .select("rating").eq("room_id", room_id).execute()
+        vals = [r["rating"] for r in (all_rat.data or [])]
+        avg  = round(sum(vals) / len(vals), 1) if vals else 0
+        return jsonify({"ok": True, "avg_rating": avg, "rating_count": len(vals)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/user/rate', methods=['POST'])
+def api_user_rate():
+    try:
+        from database import supabase
+        data          = request.get_json(force=True)
+        uid           = int(data.get("uid", 0))
+        target_user_id = int(data.get("target_id", 0))
+        rating        = int(data.get("rating", 0))
+        if not 1 <= rating <= 5:
+            return jsonify({"ok": False, "error": "invalid_rating"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        if my_id == target_user_id:
+            return jsonify({"ok": False, "error": "self_rate"})
+
+        existing = supabase.table("user_ratings_v1") \
+            .select("id").eq("rated_user_id", target_user_id).eq("rater_id", my_id).execute()
+        if existing.data:
+            supabase.table("user_ratings_v1") \
+                .update({"rating": rating}) \
+                .eq("id", existing.data[0]["id"]).execute()
+        else:
+            supabase.table("user_ratings_v1").insert({
+                "rated_user_id": target_user_id, "rater_id": my_id, "rating": rating
+            }).execute()
+
+        # Return new avg
+        all_rat = supabase.table("user_ratings_v1") \
+            .select("rating").eq("rated_user_id", target_user_id).execute()
+        vals = [r["rating"] for r in (all_rat.data or [])]
+        avg  = round(sum(vals) / len(vals), 1) if vals else 0
+        return jsonify({"ok": True, "avg_rating": avg, "rating_count": len(vals)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/room/<int:room_id>/members/<int:telegram_id>')
+def api_room_members(room_id, telegram_id):
+    """Get room members with their user info and creator's ratings of them."""
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", telegram_id).execute()
+        if not me.data:
+            return jsonify({"ok": False, "members": []})
+        my_id = me.data[0]["id"]
+
+        # Get members
+        memb_res = supabase.table("room_members_v1") \
+            .select("user_id").eq("room_id", room_id).execute()
+        member_ids = [m["user_id"] for m in (memb_res.data or []) if m["user_id"] != my_id]
+
+        if not member_ids:
+            return jsonify({"ok": True, "members": []})
+
+        # Fetch user info for each member
+        members_out = []
+        for uid2 in member_ids:
+            try:
+                u = supabase.table("users_v1") \
+                    .select("id, username, photo_url") \
+                    .eq("id", uid2).single().execute()
+                if not u.data:
+                    continue
+                photo = _resolve_photo(u.data.get("photo_url"), BOT_TOKEN)
+                # My existing rating for this user
+                my_rat = supabase.table("user_ratings_v1") \
+                    .select("rating").eq("rated_user_id", uid2).eq("rater_id", my_id).execute()
+                my_rating = my_rat.data[0]["rating"] if my_rat.data else 0
+                # Avg rating for this user
+                all_rat = supabase.table("user_ratings_v1") \
+                    .select("rating").eq("rated_user_id", uid2).execute()
+                vals = [r["rating"] for r in (all_rat.data or [])]
+                avg  = round(sum(vals)/len(vals), 1) if vals else 0
+                members_out.append({
+                    "user_id":     uid2,
+                    "username":    u.data.get("username") or f"User#{uid2}",
+                    "photo_url":   photo,
+                    "my_rating":   my_rating,
+                    "avg_rating":  avg,
+                    "rating_count": len(vals),
+                })
+            except Exception:
+                continue
+
+        return jsonify({"ok": True, "members": members_out})
+    except Exception as e:
+        return jsonify({"ok": False, "members": [], "error": str(e)})
 
 
 def run():
