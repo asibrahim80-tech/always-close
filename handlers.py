@@ -284,12 +284,10 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
             except Exception:
                 pass
 
-            # Build room record
+            # Build room record using actual column names
             room_record = {
                 "name":       room_name,
-                "purpose":    room_purpose,
-                "creator_id": creator_id,
-                "is_active":  True,
+                "created_by": creator_id,
             }
             if room_lat is not None:
                 room_record["latitude"]  = room_lat
@@ -303,7 +301,6 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
                     supabase.table("room_members_v1").insert({
                         "room_id": room_id,
                         "user_id": creator_id,
-                        "status":  "accepted",
                     }).execute()
                 except Exception:
                     pass
@@ -891,52 +888,54 @@ async def show_nearby_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = get_lang(update, context)
     tg_id = update.effective_user.id
 
-    # get user id
-    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
-    if not me.data:
-        await update.message.reply_text("❌ Register first")
-        return
-
-    my_id = me.data[0]["id"]
-
-    # get location
-    loc = supabase.table("user_locations_v1") \
-        .select("latitude, longitude") \
-        .eq("user_id", my_id) \
-        .limit(1) \
-        .execute()
-
-    if not loc.data:
-        await update.message.reply_text("📍 Share location first")
-        return
-
-    lat = loc.data[0]["latitude"]
-    lng = loc.data[0]["longitude"]
-
-    # call RPC function
     try:
-        res = supabase.rpc("get_nearby_rooms", {
-            "user_lat": lat,
-            "user_lng": lng
-        }).execute()
+        me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+        if not me.data:
+            await update.message.reply_text(T(lang, "register_first"))
+            return
+        my_id = me.data[0]["id"]
 
-        rooms = res.data
+        loc = supabase.table("user_locations_v1") \
+            .select("latitude, longitude") \
+            .eq("user_id", my_id).limit(1).execute()
+        if not loc.data:
+            await update.message.reply_text(T(lang, "share_location_first"))
+            return
+
+        my_lat = float(loc.data[0]["latitude"])
+        my_lng = float(loc.data[0]["longitude"])
+
+        rooms_res = supabase.table("rooms_v1") \
+            .select("id, name, latitude, longitude") \
+            .execute()
+
+        rooms = []
+        for r in (rooms_res.data or []):
+            rlat = r.get("latitude")
+            rlng = r.get("longitude")
+            if rlat is None or rlng is None:
+                continue
+            dist = _haversine(float(my_lat), float(my_lng), float(rlat), float(rlng))
+            try:
+                cnt = supabase.table("room_members_v1") \
+                    .select("id", count="exact").eq("room_id", r["id"]).execute()
+                members = cnt.count or 0
+            except Exception:
+                members = 0
+            rooms.append({"name": r["name"], "dist": dist, "members": members})
+
+        rooms.sort(key=lambda x: x["dist"])
+
+        if not rooms:
+            await update.message.reply_text(T(lang, "no_nearby"))
+            return
+
+        lines = [f"🏠 {r['name']}  👥 {r['members']}  📍 {r['dist']} {T(lang, 'km_unit')}" for r in rooms]
+        await update.message.reply_text("📍 " + "\n".join(lines))
 
     except Exception as e:
-        print(e)
-        await update.message.reply_text("❌ Error loading rooms")
-        return
-
-    if not rooms:
-        await update.message.reply_text("❌ No rooms nearby")
-        return
-
-    text = "📍 Nearby Rooms:\n\n"
-
-    for r in rooms:
-        text += f"💬 {r['name']} ({r['members']} people)\n"
-
-    await update.message.reply_text(text)
+        logger.error(f"show_nearby_rooms error: {e}", exc_info=True)
+        await update.message.reply_text(T(lang, "error"))
 
 # =========================================================
 # SETTINGS

@@ -189,8 +189,7 @@ def api_rooms(telegram_id):
                 my_lng = float(loc.data[0]["longitude"])
 
         rooms_res = supabase.table("rooms_v1") \
-            .select("id, name, purpose, latitude, longitude, creator_id, created_at") \
-            .eq("is_active", True) \
+            .select("id, name, latitude, longitude, created_by, created_at") \
             .execute()
 
         rooms_out = []
@@ -208,7 +207,6 @@ def api_rooms(telegram_id):
                 cnt = supabase.table("room_members_v1") \
                     .select("id", count="exact") \
                     .eq("room_id", r["id"]) \
-                    .eq("status", "accepted") \
                     .execute()
                 members = cnt.count if cnt.count is not None else 0
             except Exception:
@@ -217,7 +215,6 @@ def api_rooms(telegram_id):
             rooms_out.append({
                 "id":       r["id"],
                 "name":     r.get("name", "Room"),
-                "purpose":  r.get("purpose", ""),
                 "lat":      float(rlat),
                 "lng":      float(rlng),
                 "distance": dist,
