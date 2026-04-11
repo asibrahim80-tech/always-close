@@ -86,7 +86,8 @@ def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
         [KeyboardButton(T(lang, "btn_share_phone"), request_contact=True)],
         [KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
         [KeyboardButton(T(lang, "btn_map")), KeyboardButton(T(lang, "btn_users_list"))],
-        [KeyboardButton(T(lang, "btn_rooms_nearby")), KeyboardButton(T(lang, "btn_create_room"))],
+        [KeyboardButton(T(lang, "btn_rooms_list")), KeyboardButton(T(lang, "btn_create_room"))],
+        [KeyboardButton(T(lang, "btn_rooms_nearby"))],
         [KeyboardButton(T(lang, "btn_view_nearby"))],
         [KeyboardButton(T(lang, "btn_matches")), KeyboardButton(T(lang, "btn_requests"))],
         [KeyboardButton(T(lang, "btn_hide")), KeyboardButton(T(lang, "btn_phone_toggle"))],
@@ -840,6 +841,37 @@ async def show_users_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================================================
+# SHOW ROOMS LIST
+# =========================================================
+
+async def show_rooms_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_lang(update, context)
+    tg_id = update.effective_user.id
+
+    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+    if not me.data:
+        await update.message.reply_text(T(lang, "rooms_list_not_registered"))
+        return
+
+    my_id = me.data[0]["id"]
+    loc = supabase.table("user_locations_v1").select("id").eq("user_id", my_id).limit(1).execute()
+    if not loc.data:
+        await update.message.reply_text(T(lang, "rooms_list_no_location"))
+        return
+
+    rooms_url = f"https://{DOMAIN}/rooms?uid={tg_id}&lang={lang}"
+    await update.message.reply_text(
+        T(lang, "rooms_list_tap"),
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                T(lang, "rooms_list_btn_open"),
+                web_app=WebAppInfo(url=rooms_url),
+            )
+        ]])
+    )
+
+
+# =========================================================
 # TOGGLE VISIBILITY
 # =========================================================
 
@@ -1007,6 +1039,10 @@ async def handle_text_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if text in ALL_BTN["rooms_nearby"]:
         await show_nearby_rooms(update, context)
+        return
+
+    if text in ALL_BTN["rooms_list"]:
+        await show_rooms_list(update, context)
         return
 
     # Catch-all: unknown message → restore main keyboard

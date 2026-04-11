@@ -113,6 +113,12 @@ TEXTS = {
         "users_btn_open": "👥 فتح القائمة",
         "users_no_location": "❌ شارك موقعك أولاً ثم افتح القائمة.",
         "users_not_registered": "❌ يجب التسجيل أولاً.",
+        # Rooms list
+        "btn_rooms_list": "🏠 قائمة الغرف",
+        "rooms_list_tap": "🏠 اضغط لعرض الغرف القريبة",
+        "rooms_list_btn_open": "🏠 فتح قائمة الغرف",
+        "rooms_list_no_location": "❌ شارك موقعك أولاً ثم افتح قائمة الغرف.",
+        "rooms_list_not_registered": "❌ يجب التسجيل أولاً.",
     },
     "en": {
         # Welcome
@@ -228,6 +234,12 @@ TEXTS = {
         "users_btn_open": "👥 Open List",
         "users_no_location": "❌ Please share your location first, then open the list.",
         "users_not_registered": "❌ Please register first.",
+        # Rooms list
+        "btn_rooms_list": "🏠 Rooms List",
+        "rooms_list_tap": "🏠 Tap to browse nearby rooms",
+        "rooms_list_btn_open": "🏠 Open Rooms List",
+        "rooms_list_no_location": "❌ Please share your location first, then open the rooms list.",
+        "rooms_list_not_registered": "❌ Please register first.",
     },
 }
 
@@ -260,6 +272,7 @@ ALL_BTN = {
     "map":            ["🗺️ الخريطة",                 "🗺️ Map"],
     "users_list":     ["👥 قائمة المستخدمين",        "👥 Users List"],
     "rooms_nearby":   ["📍 الغرف القريبة",             "📍 Rooms Nearby"],
+    "rooms_list":     ["🏠 قائمة الغرف",               "🏠 Rooms List"],
     "create_room":    ["🏠 إنشاء غرفة",               "🏠 Create Room"],
     "cancel_action":  ["❌ إلغاء",                     "❌ Cancel"],
     "settings":       ["⚙️ الإعدادات",                 "⚙️ Settings"],

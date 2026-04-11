@@ -71,6 +71,11 @@ def settings_page():
     return render_template("settings.html")
 
 
+@app.route('/rooms')
+def rooms_page():
+    return render_template("rooms.html")
+
+
 @app.route('/api/nearby/<int:telegram_id>')
 def api_nearby(telegram_id):
     try:
@@ -213,12 +218,13 @@ def api_rooms(telegram_id):
                 members = 0
 
             rooms_out.append({
-                "id":       r["id"],
-                "name":     r.get("name", "Room"),
-                "lat":      float(rlat),
-                "lng":      float(rlng),
-                "distance": dist,
-                "members":  members,
+                "id":         r["id"],
+                "name":       r.get("name", "Room"),
+                "lat":        float(rlat),
+                "lng":        float(rlng),
+                "distance":   dist,
+                "members":    members,
+                "created_at": r.get("created_at"),
             })
 
         return jsonify({"rooms": rooms_out})
