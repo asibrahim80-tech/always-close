@@ -165,6 +165,73 @@ def api_nearby(telegram_id):
         return jsonify({"error": str(e)})
 
 
+@app.route('/api/rooms/<int:telegram_id>')
+def api_rooms(telegram_id):
+    """Return active rooms that have a saved location."""
+    try:
+        from database import supabase
+
+        # Get current user's location for distance calc
+        me_res = supabase.table("users_v1") \
+            .select("id") \
+            .eq("telegram_id", telegram_id) \
+            .execute()
+
+        my_lat, my_lng = None, None
+        if me_res.data:
+            my_id = me_res.data[0]["id"]
+            loc = supabase.table("user_locations_v1") \
+                .select("latitude, longitude") \
+                .eq("user_id", my_id) \
+                .limit(1).execute()
+            if loc.data:
+                my_lat = float(loc.data[0]["latitude"])
+                my_lng = float(loc.data[0]["longitude"])
+
+        rooms_res = supabase.table("rooms_v1") \
+            .select("id, name, purpose, latitude, longitude, creator_id, created_at") \
+            .eq("is_active", True) \
+            .not_.is_("latitude", "null") \
+            .execute()
+
+        rooms_out = []
+        for r in (rooms_res.data or []):
+            rlat = r.get("latitude")
+            rlng = r.get("longitude")
+            if rlat is None or rlng is None:
+                continue
+            dist = None
+            if my_lat is not None:
+                dist = round(_haversine(my_lat, my_lng, float(rlat), float(rlng)), 2)
+
+            # Count members
+            try:
+                cnt = supabase.table("room_members_v1") \
+                    .select("id", count="exact") \
+                    .eq("room_id", r["id"]) \
+                    .eq("status", "accepted") \
+                    .execute()
+                members = cnt.count if cnt.count is not None else 0
+            except Exception:
+                members = 0
+
+            rooms_out.append({
+                "id":       r["id"],
+                "name":     r.get("name", "Room"),
+                "purpose":  r.get("purpose", ""),
+                "lat":      float(rlat),
+                "lng":      float(rlng),
+                "distance": dist,
+                "members":  members,
+            })
+
+        return jsonify({"rooms": rooms_out})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"rooms": [], "error": str(e)})
+
+
 def run():
     app.run(host='0.0.0.0', port=5000, threaded=True)
 

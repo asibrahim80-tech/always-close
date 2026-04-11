@@ -1,4 +1,5 @@
 import os
+import logging
 from telegram import (
     Update,
     ReplyKeyboardMarkup,
@@ -13,6 +14,8 @@ from datetime import datetime, timezone
 from math import radians, sin, cos, sqrt, atan2
 import geohash2
 from lang import T, detect_lang, ALL_BTN
+
+logger = logging.getLogger(__name__)
 
 DOMAIN = os.environ.get("REPLIT_DEV_DOMAIN", "")
 
@@ -251,44 +254,66 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
             context.user_data["lang"] = lang
             await update.message.reply_text(T(lang, "room_cancel"), reply_markup=main_keyboard(lang))
             return
-        tg_id = update.effective_user.id
+
+        tg_id        = update.effective_user.id
         room_name    = context.user_data.get("room_name", "Room")
         room_purpose = text.strip()
 
-        # Clear step FIRST so bot never gets stuck
+        # Clear step FIRST — bot cannot get stuck regardless of what follows
         context.user_data.clear()
         context.user_data["lang"] = lang
 
-        me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
-        if not me.data:
-            await update.message.reply_text(T(lang, "register_first"), reply_markup=main_keyboard(lang))
-            return
-
-        creator_id = me.data[0]["id"]
         try:
-            result = supabase.table("rooms_v1").insert({
-                "name": room_name,
-                "purpose": room_purpose,
+            # Look up creator
+            me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+            if not me.data:
+                await update.message.reply_text(T(lang, "register_first"), reply_markup=main_keyboard(lang))
+                return
+            creator_id = me.data[0]["id"]
+
+            # Look up creator's last known location (fixed pin for the room)
+            room_lat, room_lng = None, None
+            try:
+                loc = supabase.table("user_locations_v1") \
+                    .select("latitude, longitude") \
+                    .eq("user_id", creator_id) \
+                    .limit(1).execute()
+                if loc.data:
+                    room_lat = float(loc.data[0]["latitude"])
+                    room_lng = float(loc.data[0]["longitude"])
+            except Exception:
+                pass
+
+            # Build room record
+            room_record = {
+                "name":       room_name,
+                "purpose":    room_purpose,
                 "creator_id": creator_id,
-                "is_active": True,
-            }).execute()
-            rows = result.data or []
+                "is_active":  True,
+            }
+            if room_lat is not None:
+                room_record["latitude"]  = room_lat
+                room_record["longitude"] = room_lng
+
+            result = supabase.table("rooms_v1").insert(room_record).execute()
+            rows   = result.data or []
             if rows:
                 room_id = rows[0]["id"]
                 try:
                     supabase.table("room_members_v1").insert({
                         "room_id": room_id,
                         "user_id": creator_id,
-                        "status": "accepted",
+                        "status":  "accepted",
                     }).execute()
                 except Exception:
                     pass
+
             await update.message.reply_text(
                 T(lang, "room_created").format(room_name, room_purpose),
                 reply_markup=main_keyboard(lang)
             )
         except Exception as e:
-            logger.error(f"Room creation error: {e}")
+            logger.error(f"Room creation error: {e}", exc_info=True)
             await update.message.reply_text(T(lang, "room_create_error"), reply_markup=main_keyboard(lang))
         return
 

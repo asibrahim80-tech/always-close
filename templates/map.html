@@ -123,6 +123,20 @@
       will-change:transform;
     }
 
+    /* ── Room pin ── */
+    .room-pin{
+      background:#7c3aed;border:2px solid #fff;
+      border-radius:10px;padding:3px 7px;
+      color:#fff;font-size:11px;font-weight:700;
+      white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.40);
+      cursor:pointer;user-select:none;
+      display:flex;align-items:center;gap:4px;
+    }
+    .room-pin::after{
+      content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);
+      border:4px solid transparent;border-top:5px solid #7c3aed;
+    }
+
     /* ── Pin ring animations ── */
     @keyframes ring-red{
       0%  {box-shadow:0 0 0 0   rgba(231,76,60,.70),0 3px 12px rgba(0,0,0,.35)}
@@ -563,9 +577,53 @@
     jpad.addEventListener(ev, () => { joyActive = false; stopJoyMove(); })
   );
 
+  // ── Room markers ──────────────────────────────────────────────────────
+  const roomMarkers = {};
+
+  function makeRoomIcon(name) {
+    const el = document.createElement('div');
+    el.className = 'room-pin';
+    el.style.position = 'relative';
+    el.innerHTML = `🏠 ${name}`;
+    return L.divIcon({ html: el.outerHTML, className: '', iconAnchor: [0, 28] });
+  }
+
+  function loadRooms() {
+    if (!uid) return;
+    fetch(`/api/rooms/${uid}`)
+      .then(r => r.json())
+      .then(data => {
+        const rooms = data.rooms || [];
+        // Remove old markers
+        Object.values(roomMarkers).forEach(m => map.removeLayer(m));
+        Object.keys(roomMarkers).forEach(k => delete roomMarkers[k]);
+        // Add new markers
+        rooms.forEach(r => {
+          const icon = makeRoomIcon(r.name);
+          const m = L.marker([r.lat, r.lng], { icon, zIndexOffset: 500 })
+            .addTo(map);
+          const dist = r.distance !== null
+            ? `${r.distance} ${L_.km}`
+            : '';
+          const members = r.members || 0;
+          m.bindPopup(`
+            <div style="padding:10px;min-width:150px">
+              <div style="font-weight:700;font-size:14px;margin-bottom:4px">🏠 ${r.name}</div>
+              <div style="font-size:12px;opacity:.8;margin-bottom:6px">${r.purpose}</div>
+              <div style="font-size:11px;opacity:.6">👥 ${members} &nbsp;${dist ? '📍 ' + dist : ''}</div>
+            </div>
+          `);
+          roomMarkers[r.id] = m;
+        });
+      })
+      .catch(() => {});
+  }
+
   // ── Boot ──────────────────────────────────────────────────────────────
   loadData(true);
   startCountdown();
+  loadRooms();
+  setInterval(loadRooms, 30000);
 </script>
 </body>
 </html>
