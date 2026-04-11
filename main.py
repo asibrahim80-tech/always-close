@@ -1,4 +1,7 @@
 import logging
+import os
+import sys
+
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -38,13 +41,57 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+_LOCK_FILE = "/tmp/always_close_bot.lock"
+
+
+def _acquire_lock() -> bool:
+    """Return True if this process owns the lock, False if another instance is running."""
+    my_pid = os.getpid()
+    if os.path.exists(_LOCK_FILE):
+        try:
+            with open(_LOCK_FILE) as f:
+                old_pid = int(f.read().strip())
+            # Check if that process is still alive
+            os.kill(old_pid, 0)
+            # Still alive → another instance is running
+            logger.warning(
+                f"Another bot instance (PID {old_pid}) is already running. "
+                "This instance will handle only Flask (web server)."
+            )
+            return False
+        except (ProcessLookupError, ValueError, OSError):
+            # Old process is dead → we can take over
+            pass
+    with open(_LOCK_FILE, "w") as f:
+        f.write(str(my_pid))
+    return True
+
+
+def _release_lock():
+    try:
+        os.remove(_LOCK_FILE)
+    except OSError:
+        pass
+
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.error("Exception while handling an update:", exc_info=context.error)
 
 
 def main():
+    # Always start Flask (web server) so the port is served
     keep_alive()
+
+    # Only ONE instance should run the Telegram bot polling
+    if not _acquire_lock():
+        logger.info("Flask web server started. Bot polling is handled by the primary instance.")
+        # Block forever so the process stays alive for the webview port
+        import time
+        while True:
+            time.sleep(60)
+
+    import atexit
+    atexit.register(_release_lock)
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
