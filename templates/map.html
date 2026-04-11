@@ -601,10 +601,25 @@
             ? `${r.distance} ${L_.km}`
             : '';
           const members = r.members || 0;
+          const natureBadge = r.nature
+            ? `<span style="display:inline-block;background:#e8f8f0;color:#1e8449;border-radius:8px;padding:2px 8px;font-size:11px;margin-bottom:4px">${r.nature}</span>`
+            : '';
+          const purposeRow = r.purpose
+            ? `<div style="font-size:12px;opacity:.8;margin-bottom:4px">📝 ${r.purpose}</div>`
+            : '';
+          let expiresRow = '';
+          if (r.expires_at) {
+            const exp = new Date(r.expires_at);
+            const daysLeft = Math.ceil((exp - Date.now()) / 86400000);
+            if (daysLeft > 0) expiresRow = `<div style="font-size:11px;color:#e67e22;margin-bottom:4px">⏳ ${daysLeft}d left</div>`;
+            else expiresRow = `<div style="font-size:11px;color:#e74c3c;margin-bottom:4px">⚠️ Expired</div>`;
+          }
           m.bindPopup(`
-            <div style="padding:10px;min-width:150px">
-              <div style="font-weight:700;font-size:14px;margin-bottom:4px">🏠 ${r.name}</div>
-              <div style="font-size:12px;opacity:.8;margin-bottom:6px">${r.purpose}</div>
+            <div style="padding:10px;min-width:160px">
+              <div style="font-weight:700;font-size:14px;margin-bottom:5px">🏠 ${r.name}</div>
+              ${natureBadge}
+              ${purposeRow}
+              ${expiresRow}
               <div style="font-size:11px;opacity:.6">👥 ${members} &nbsp;${dist ? '📍 ' + dist : ''}</div>
             </div>
           `);

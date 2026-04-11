@@ -277,12 +277,53 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_text(T(lang, "room_cancel"), reply_markup=main_keyboard(lang))
             return
 
+        context.user_data["room_nature"] = text.strip()
+        context.user_data["step"] = "create_room_expires"
+
+        expires_keys = [
+            [T(lang, "expires_1d"),      T(lang, "expires_3d")],
+            [T(lang, "expires_1w"),      T(lang, "expires_1m")],
+            [T(lang, "expires_forever")],
+            [T(lang, "btn_cancel_action")],
+        ]
+        await update.message.reply_text(
+            T(lang, "create_room_ask_expires"),
+            reply_markup=ReplyKeyboardMarkup(expires_keys, resize_keyboard=True)
+        )
+        return
+
+    elif step == "create_room_expires":
+        if text in ALL_BTN.get("cancel_action", []):
+            context.user_data.clear()
+            context.user_data["lang"] = lang
+            await update.message.reply_text(T(lang, "room_cancel"), reply_markup=main_keyboard(lang))
+            return
+
+        import datetime as _dt
+
         tg_id        = update.effective_user.id
         room_name    = context.user_data.get("room_name", "Room")
         room_purpose = context.user_data.get("room_purpose", "")
-        room_nature  = text.strip()
+        room_nature  = context.user_data.get("room_nature", "")
 
-        # Clear step FIRST — bot cannot get stuck regardless of what follows
+        # Map button text → timedelta
+        expires_at = None
+        expire_labels_1d = [T("ar", "expires_1d"), T("en", "expires_1d")]
+        expire_labels_3d = [T("ar", "expires_3d"), T("en", "expires_3d")]
+        expire_labels_1w = [T("ar", "expires_1w"), T("en", "expires_1w")]
+        expire_labels_1m = [T("ar", "expires_1m"), T("en", "expires_1m")]
+        now = _dt.datetime.utcnow()
+        if text in expire_labels_1d:
+            expires_at = (now + _dt.timedelta(days=1)).isoformat()
+        elif text in expire_labels_3d:
+            expires_at = (now + _dt.timedelta(days=3)).isoformat()
+        elif text in expire_labels_1w:
+            expires_at = (now + _dt.timedelta(weeks=1)).isoformat()
+        elif text in expire_labels_1m:
+            expires_at = (now + _dt.timedelta(days=30)).isoformat()
+        # else: forever → None
+
+        # Clear step FIRST
         context.user_data.clear()
         context.user_data["lang"] = lang
 
@@ -294,7 +335,7 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
                 return
             creator_id = me.data[0]["id"]
 
-            # Look up creator's last known location (fixed pin for the room)
+            # Look up creator's last known location
             room_lat, room_lng = None, None
             try:
                 loc = supabase.table("user_locations_v1") \
@@ -307,19 +348,18 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
             except Exception:
                 pass
 
-            # Build room record using actual column names
+            # Build room record
             room_record = {
                 "name":       room_name,
                 "created_by": creator_id,
+                "purpose":    room_purpose,
+                "nature":     room_nature,
             }
             if room_lat is not None:
                 room_record["latitude"]  = room_lat
                 room_record["longitude"] = room_lng
-            try:
-                room_record["purpose"] = room_purpose
-                room_record["nature"]  = room_nature
-            except Exception:
-                pass
+            if expires_at is not None:
+                room_record["expires_at"] = expires_at
 
             result = supabase.table("rooms_v1").insert(room_record).execute()
             rows   = result.data or []

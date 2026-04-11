@@ -667,6 +667,23 @@
       if (r.purpose) {
         const pb = document.createElement('span'); pb.className = 'badge purp'; pb.title = r.purpose; pb.textContent = `📝 ${r.purpose}`; badges.appendChild(pb);
       }
+      if (r.expires_at) {
+        const exp = new Date(r.expires_at);
+        const daysLeft = Math.ceil((exp - Date.now()) / 86400000);
+        const eb = document.createElement('span');
+        eb.className = 'badge';
+        if (daysLeft <= 0) {
+          eb.style.cssText = 'background:#fdf0ef;color:#e74c3c';
+          eb.textContent = `⚠️ ${isAr ? 'منتهية' : 'Expired'}`;
+        } else if (daysLeft <= 1) {
+          eb.style.cssText = 'background:#fff3e0;color:#e67e22';
+          eb.textContent = `⏳ ${isAr ? 'ينتهي اليوم' : 'Expires today'}`;
+        } else {
+          eb.style.cssText = 'background:#eaf3fb;color:#2980b9';
+          eb.textContent = `⏳ ${daysLeft}${isAr ? ' أيام' : 'd'}`;
+        }
+        badges.appendChild(eb);
+      }
       body.appendChild(badges);
 
       // ── Star display ──

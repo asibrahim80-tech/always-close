@@ -223,7 +223,7 @@ def api_rooms(telegram_id):
         # Fetch rooms — try new columns gracefully
         try:
             rooms_res = supabase.table("rooms_v1") \
-                .select("id, name, latitude, longitude, created_by, created_at, purpose, nature, image_url") \
+                .select("id, name, latitude, longitude, created_by, created_at, purpose, nature, image_url, expires_at") \
                 .execute()
         except Exception:
             rooms_res = supabase.table("rooms_v1") \
@@ -268,6 +268,7 @@ def api_rooms(telegram_id):
                 "purpose":    r.get("purpose") or "",
                 "nature":     r.get("nature") or "",
                 "image_url":  r.get("image_url") or "",
+                "expires_at": r.get("expires_at") or "",
                 "is_creator": (my_id is not None and r.get("created_by") == my_id),
                 "is_member":  (r["id"] in my_room_ids),
             })
