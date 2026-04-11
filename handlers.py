@@ -88,6 +88,7 @@ def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
         [KeyboardButton(T(lang, "btn_map")),             KeyboardButton(T(lang, "btn_users_list"))],
         [KeyboardButton(T(lang, "btn_rooms_list")),      KeyboardButton(T(lang, "btn_create_room"))],
         [KeyboardButton(T(lang, "btn_stores_list")),     KeyboardButton(T(lang, "btn_create_store"))],
+        [KeyboardButton(T(lang, "btn_room_chats")),      KeyboardButton(T(lang, "btn_store_chats"))],
         [KeyboardButton(T(lang, "btn_rooms_nearby")),    KeyboardButton(T(lang, "btn_view_nearby"))],
         [KeyboardButton(T(lang, "btn_stores_nearby")),   KeyboardButton(T(lang, "btn_matches"))],
         [KeyboardButton(T(lang, "btn_requests")),        KeyboardButton(T(lang, "btn_hide"))],
@@ -894,6 +895,74 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 context.user_data["current_index"] = new_idx
                 await send_profile_card(context, chat_id, users[new_idx], lang)
 
+        # ── Room chat select ──────────────────────────────
+        elif data.startswith("room_chat_sel:"):
+            room_id = int(data.split(":")[1])
+            _room_chat_sessions[telegram_id]  = room_id
+            _store_chat_sessions.pop(telegram_id, None)
+            _private_chats.pop(telegram_id, None)
+            room_res  = supabase.table("rooms_v1").select("name").eq("id", room_id).execute()
+            room_name = room_res.data[0]["name"] if room_res.data else "?"
+            await query.answer()
+            await query.message.reply_text(
+                T(lang, "chat_room_joined", room_name),
+                reply_markup=_exit_btn(lang)
+            )
+
+        # ── Store chat select ─────────────────────────────
+        elif data.startswith("store_chat_sel:"):
+            store_id = int(data.split(":")[1])
+            _store_chat_sessions[telegram_id] = store_id
+            _room_chat_sessions.pop(telegram_id, None)
+            _private_chats.pop(telegram_id, None)
+            store_res  = supabase.table("stores_v1").select("name").eq("id", store_id).execute()
+            store_name = store_res.data[0]["name"] if store_res.data else "?"
+            await query.answer()
+            await query.message.reply_text(
+                T(lang, "chat_store_joined", store_name),
+                reply_markup=_exit_btn(lang)
+            )
+
+        # ── Start private chat ────────────────────────────
+        elif data.startswith("priv_chat:"):
+            target_tg_id = int(data.split(":")[1])
+            if target_tg_id == telegram_id:
+                await query.answer("❌")
+                return
+            # Set both sides into private chat
+            _private_chats[telegram_id] = target_tg_id
+            _private_chats[target_tg_id] = telegram_id
+            _room_chat_sessions.pop(telegram_id, None)
+            _store_chat_sessions.pop(telegram_id, None)
+            _room_chat_sessions.pop(target_tg_id, None)
+            _store_chat_sessions.pop(target_tg_id, None)
+
+            me_user = supabase.table("users_v1").select("username").eq("telegram_id", telegram_id).execute()
+            my_name = f"@{me_user.data[0]['username']}" if me_user.data and me_user.data[0].get("username") else "?"
+
+            tg_user = supabase.table("users_v1").select("username").eq("telegram_id", target_tg_id).execute()
+            target_name = f"@{tg_user.data[0]['username']}" if tg_user.data and tg_user.data[0].get("username") else "?"
+
+            await query.answer()
+            await query.message.reply_text(
+                T(lang, "chat_private_started", target_name),
+                reply_markup=_exit_btn(lang)
+            )
+            try:
+                await context.bot.send_message(
+                    target_tg_id,
+                    T(lang, "chat_private_notify", my_name),
+                    reply_markup=_exit_btn(lang)
+                )
+            except Exception:
+                pass
+
+        # ── Exit chat ─────────────────────────────────────
+        elif data == "chat_exit":
+            _exit_all_chats(telegram_id)
+            await query.answer()
+            await query.message.reply_text(T(lang, "chat_exited"))
+
         else:
             await query.answer()
 
@@ -1365,6 +1434,258 @@ async def create_room_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =========================================================
+# CHAT STATE  (in-memory — lost on restart, acceptable)
+# =========================================================
+
+_room_chat_sessions:  dict = {}   # telegram_id → room_id
+_store_chat_sessions: dict = {}   # telegram_id → store_id
+_private_chats:       dict = {}   # telegram_id → target telegram_id
+
+
+def _in_any_chat(tg_id: int) -> bool:
+    return (tg_id in _room_chat_sessions
+            or tg_id in _store_chat_sessions
+            or tg_id in _private_chats)
+
+
+def _exit_all_chats(tg_id: int):
+    _room_chat_sessions.pop(tg_id, None)
+    _store_chat_sessions.pop(tg_id, None)
+    _private_chats.pop(tg_id, None)
+
+
+def _exit_btn(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(T(lang, "chat_btn_exit"), callback_data="chat_exit")
+    ]])
+
+
+# =========================================================
+# SHOW ROOM CHATS LIST
+# =========================================================
+
+async def show_room_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang  = get_lang(update, context)
+    tg_id = update.effective_user.id
+
+    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+    if not me.data:
+        await update.message.reply_text(T(lang, "register_first"))
+        return
+    my_id = me.data[0]["id"]
+
+    memb = supabase.table("room_members_v1").select("room_id").eq("user_id", my_id).execute()
+    room_ids = [m["room_id"] for m in (memb.data or [])]
+    if not room_ids:
+        await update.message.reply_text(T(lang, "chat_no_rooms"))
+        return
+
+    buttons = []
+    for rid in room_ids:
+        r = supabase.table("rooms_v1").select("id, name").eq("id", rid).execute()
+        if r.data:
+            buttons.append([InlineKeyboardButton(
+                f"🏠 {r.data[0]['name']}", callback_data=f"room_chat_sel:{rid}"
+            )])
+
+    await update.message.reply_text(
+        T(lang, "chat_select_room"),
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+
+# =========================================================
+# SHOW STORE CHATS LIST
+# =========================================================
+
+async def show_store_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang  = get_lang(update, context)
+    tg_id = update.effective_user.id
+
+    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+    if not me.data:
+        await update.message.reply_text(T(lang, "register_first"))
+        return
+    my_id = me.data[0]["id"]
+
+    memb = supabase.table("store_members_v1").select("store_id").eq("user_id", my_id).execute()
+    store_ids = [m["store_id"] for m in (memb.data or [])]
+    if not store_ids:
+        await update.message.reply_text(T(lang, "chat_no_stores"))
+        return
+
+    buttons = []
+    for sid in store_ids:
+        s = supabase.table("stores_v1").select("id, name").eq("id", sid).execute()
+        if s.data:
+            buttons.append([InlineKeyboardButton(
+                f"🏪 {s.data[0]['name']}", callback_data=f"store_chat_sel:{sid}"
+            )])
+
+    await update.message.reply_text(
+        T(lang, "chat_select_store"),
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+
+# =========================================================
+# EXIT CHAT
+# =========================================================
+
+async def exit_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang  = get_lang(update, context)
+    tg_id = update.effective_user.id
+    _exit_all_chats(tg_id)
+    await update.message.reply_text(T(lang, "chat_exited"), reply_markup=main_keyboard(lang))
+
+
+# =========================================================
+# RELAY HELPERS
+# =========================================================
+
+async def _send_relayed(bot, target_chat_id: int, msg, header: str,
+                        reply_markup=None):
+    """Send any message type to target_chat_id with a header."""
+    cap = lambda extra="": f"{header}\n\n{extra}".strip()
+
+    if msg.sticker:
+        await bot.send_message(target_chat_id, header, reply_markup=reply_markup)
+        await bot.send_sticker(target_chat_id, msg.sticker.file_id)
+    elif msg.photo:
+        await bot.send_photo(target_chat_id, msg.photo[-1].file_id,
+                             caption=cap(msg.caption or ""), reply_markup=reply_markup)
+    elif msg.video:
+        await bot.send_video(target_chat_id, msg.video.file_id,
+                             caption=cap(msg.caption or ""), reply_markup=reply_markup)
+    elif msg.document:
+        await bot.send_document(target_chat_id, msg.document.file_id,
+                                caption=cap(msg.caption or ""), reply_markup=reply_markup)
+    elif msg.voice:
+        await bot.send_voice(target_chat_id, msg.voice.file_id,
+                             caption=cap(msg.caption or ""), reply_markup=reply_markup)
+    elif msg.audio:
+        await bot.send_audio(target_chat_id, msg.audio.file_id,
+                             caption=cap(msg.caption or ""), reply_markup=reply_markup)
+    elif msg.video_note:
+        await bot.send_message(target_chat_id, header, reply_markup=reply_markup)
+        await bot.send_video_note(target_chat_id, msg.video_note.file_id)
+    elif msg.animation:
+        await bot.send_animation(target_chat_id, msg.animation.file_id,
+                                 caption=cap(msg.caption or ""), reply_markup=reply_markup)
+    elif msg.text:
+        await bot.send_message(target_chat_id, cap(msg.text), reply_markup=reply_markup)
+    else:
+        await bot.send_message(target_chat_id, header, reply_markup=reply_markup)
+
+
+async def _get_room_member_tg_ids(room_id: int, exclude_my_id: int) -> list:
+    """Return telegram_ids of all room members except me."""
+    memb = supabase.table("room_members_v1").select("user_id").eq("room_id", room_id).execute()
+    targets = []
+    for m in (memb.data or []):
+        if m["user_id"] == exclude_my_id:
+            continue
+        u = supabase.table("users_v1").select("telegram_id").eq("id", m["user_id"]).execute()
+        if u.data:
+            targets.append(u.data[0]["telegram_id"])
+    return targets
+
+
+async def _get_store_member_tg_ids(store_id: int, exclude_my_id: int) -> list:
+    """Return telegram_ids of all store followers except me."""
+    memb = supabase.table("store_members_v1").select("user_id").eq("store_id", store_id).execute()
+    targets = []
+    for m in (memb.data or []):
+        if m["user_id"] == exclude_my_id:
+            continue
+        u = supabase.table("users_v1").select("telegram_id").eq("id", m["user_id"]).execute()
+        if u.data:
+            targets.append(u.data[0]["telegram_id"])
+    return targets
+
+
+# =========================================================
+# RELAY ANY MESSAGE
+# =========================================================
+
+async def relay_any_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Relay any message type when user is in an active chat session."""
+    tg_id = update.effective_user.id
+    msg   = update.message
+    lang  = get_lang(update, context)
+
+    user_obj      = update.effective_user
+    display_name  = f"@{user_obj.username}" if user_obj.username else (user_obj.full_name or "?")
+
+    # ── Room group chat ──────────────────────────────────
+    if tg_id in _room_chat_sessions:
+        room_id = _room_chat_sessions[tg_id]
+        room_res = supabase.table("rooms_v1").select("name").eq("id", room_id).execute()
+        room_name = room_res.data[0]["name"] if room_res.data else "?"
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+        if not me.data:
+            return
+        my_id = me.data[0]["id"]
+
+        targets = await _get_room_member_tg_ids(room_id, my_id)
+        if not targets:
+            await msg.reply_text(T(lang, "chat_no_members"))
+            return
+
+        header   = T(lang, "chat_from", display_name, room_name)
+        priv_btn = InlineKeyboardMarkup([[
+            InlineKeyboardButton(T(lang, "chat_btn_private"), callback_data=f"priv_chat:{tg_id}")
+        ]])
+        for t in targets:
+            try:
+                await _send_relayed(context.bot, t, msg, header, priv_btn)
+            except Exception as e:
+                logger.error(f"room relay → {t}: {e}")
+        return
+
+    # ── Store group chat ─────────────────────────────────
+    if tg_id in _store_chat_sessions:
+        store_id = _store_chat_sessions[tg_id]
+        store_res = supabase.table("stores_v1").select("name").eq("id", store_id).execute()
+        store_name = store_res.data[0]["name"] if store_res.data else "?"
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+        if not me.data:
+            return
+        my_id = me.data[0]["id"]
+
+        targets = await _get_store_member_tg_ids(store_id, my_id)
+        if not targets:
+            await msg.reply_text(T(lang, "chat_no_members"))
+            return
+
+        header   = T(lang, "chat_from_store", display_name, store_name)
+        priv_btn = InlineKeyboardMarkup([[
+            InlineKeyboardButton(T(lang, "chat_btn_private"), callback_data=f"priv_chat:{tg_id}")
+        ]])
+        for t in targets:
+            try:
+                await _send_relayed(context.bot, t, msg, header, priv_btn)
+            except Exception as e:
+                logger.error(f"store relay → {t}: {e}")
+        return
+
+    # ── Private chat ─────────────────────────────────────
+    if tg_id in _private_chats:
+        target_tg_id = _private_chats[tg_id]
+        header   = T(lang, "chat_private_from", display_name)
+        reply_btn = InlineKeyboardMarkup([[
+            InlineKeyboardButton(T(lang, "chat_btn_reply"), callback_data=f"priv_chat:{tg_id}")
+        ]])
+        try:
+            await _send_relayed(context.bot, target_tg_id, msg, header, reply_btn)
+        except Exception as e:
+            logger.error(f"private relay → {target_tg_id}: {e}")
+        return
+
+
+# =========================================================
 # HANDLE MESSAGES
 # =========================================================
 
@@ -1374,8 +1695,27 @@ async def handle_text_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         await handle_profile_steps(update, context)
         return
 
-    lang = get_lang(update, context)
-    text = update.message.text
+    tg_id = update.effective_user.id
+    lang  = get_lang(update, context)
+    text  = update.message.text
+
+    # Exit chat button
+    if text in ALL_BTN["exit_chat"]:
+        await exit_chat(update, context)
+        return
+
+    # If in any chat session → relay the text message
+    if _in_any_chat(tg_id):
+        await relay_any_message(update, context)
+        return
+
+    if text in ALL_BTN["room_chats"]:
+        await show_room_chats(update, context)
+        return
+
+    if text in ALL_BTN["store_chats"]:
+        await show_store_chats(update, context)
+        return
 
     if text in ALL_BTN["rooms_nearby"]:
         await show_nearby_rooms(update, context)

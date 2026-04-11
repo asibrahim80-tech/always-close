@@ -165,6 +165,26 @@ TEXTS = {
         "store_create_error": "❌ خطأ في إنشاء المتجر. تأكد أن قاعدة البيانات جاهزة.",
         "store_cancel": "❌ تم إلغاء إنشاء المتجر.",
         "nearby_stores": "📍 المتاجر القريبة:",
+        # Chat system
+        "btn_room_chats":      "💬 دردشة الغرف",
+        "btn_store_chats":     "💬 دردشة المتاجر",
+        "btn_exit_chat":       "❌ خروج من الدردشة",
+        "chat_select_room":    "🏠 اختر الغرفة للدردشة:",
+        "chat_select_store":   "🏪 اختر المتجر للدردشة:",
+        "chat_no_rooms":       "❌ أنت لست عضواً في أي غرفة. انضم لغرفة أولاً.",
+        "chat_no_stores":      "❌ أنت لا تتابع أي متجر. تابع متجراً أولاً.",
+        "chat_room_joined":    "✅ دخلت دردشة غرفة «{}»\n\nأرسل أي رسالة أو صورة أو ملف أو ستيكر وستصل لجميع الأعضاء.\n\nاضغط الزر بالأسفل للخروج.",
+        "chat_store_joined":   "✅ دخلت دردشة متجر «{}»\n\nأرسل أي رسالة أو صورة أو ملف أو ستيكر وستصل لجميع المتابعين.\n\nاضغط الزر بالأسفل للخروج.",
+        "chat_exited":         "✅ خرجت من الدردشة.",
+        "chat_from":           "💬 {} — غرفة «{}»",
+        "chat_from_store":     "🏪 {} — متجر «{}»",
+        "chat_private_from":   "🔒 رسالة خاصة من {}",
+        "chat_btn_private":    "💬 مراسلة خاصة",
+        "chat_btn_reply":      "↩️ رد خاص",
+        "chat_btn_exit":       "❌ خروج من الدردشة",
+        "chat_private_started":"🔒 بدأت محادثة خاصة مع {}\nأرسل أي رسالة وستصله مباشرة.\nاضغط الزر بالأسفل للخروج.",
+        "chat_private_notify": "🔒 {} بدأ محادثة خاصة معك.",
+        "chat_no_members":     "ℹ️ لا يوجد أعضاء آخرون في الغرفة/المتجر الآن.",
     },
     "en": {
         # Welcome
@@ -332,6 +352,26 @@ TEXTS = {
         "store_create_error": "❌ Error creating the store. Make sure the database is ready.",
         "store_cancel": "❌ Store creation cancelled.",
         "nearby_stores": "📍 Nearby Stores:",
+        # Chat system
+        "btn_room_chats":      "💬 Room Chats",
+        "btn_store_chats":     "💬 Store Chats",
+        "btn_exit_chat":       "❌ Exit Chat",
+        "chat_select_room":    "🏠 Choose a room to chat in:",
+        "chat_select_store":   "🏪 Choose a store to chat in:",
+        "chat_no_rooms":       "❌ You are not a member of any room. Join a room first.",
+        "chat_no_stores":      "❌ You are not following any store. Follow a store first.",
+        "chat_room_joined":    "✅ You joined the group chat of room «{}»\n\nSend any message, photo, file or sticker — it will reach all members.\n\nPress the button below to exit.",
+        "chat_store_joined":   "✅ You joined the group chat of store «{}»\n\nSend any message, photo, file or sticker — it will reach all followers.\n\nPress the button below to exit.",
+        "chat_exited":         "✅ You left the chat.",
+        "chat_from":           "💬 {} — Room «{}»",
+        "chat_from_store":     "🏪 {} — Store «{}»",
+        "chat_private_from":   "🔒 Private message from {}",
+        "chat_btn_private":    "💬 Private Chat",
+        "chat_btn_reply":      "↩️ Reply Privately",
+        "chat_btn_exit":       "❌ Exit Chat",
+        "chat_private_started":"🔒 Private chat started with {}\nSend any message and it will go directly to them.\nPress the button below to exit.",
+        "chat_private_notify": "🔒 {} started a private chat with you.",
+        "chat_no_members":     "ℹ️ No other members in this room/store right now.",
     },
 }
 
@@ -371,6 +411,9 @@ ALL_BTN = {
     "stores_nearby":  ["📍 المتاجر القريبة",            "📍 Stores Nearby"],
     "cancel_action":  ["❌ إلغاء",                     "❌ Cancel"],
     "settings":       ["⚙️ الإعدادات",                 "⚙️ Settings"],
+    "room_chats":     ["💬 دردشة الغرف",               "💬 Room Chats"],
+    "store_chats":    ["💬 دردشة المتاجر",              "💬 Store Chats"],
+    "exit_chat":      ["❌ خروج من الدردشة",            "❌ Exit Chat"],
 }
 
 

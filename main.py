@@ -37,6 +37,10 @@ from handlers import (
     edit_profile,
     handle_edit_choice,
     handle_text_buttons,
+    show_room_chats,
+    show_store_chats,
+    exit_chat,
+    relay_any_message,
 )
 
 logging.basicConfig(
@@ -140,6 +144,12 @@ def main():
         filters.TEXT & filters.Regex(btn_regex("phone_toggle")), toggle_phone_visibility))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("edit_profile")), edit_profile))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("room_chats")), show_room_chats))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("store_chats")), show_store_chats))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("exit_chat")), exit_chat))
 
     # Edit Profile Choices (Arabic & English) — must come before the catch-all
     app.add_handler(MessageHandler(
@@ -149,6 +159,14 @@ def main():
             filters.Regex(btn_regex("edit_bio"))
         ),
         handle_edit_choice
+    ))
+
+    # Media relay — handles photos, stickers, files, videos, voice etc when in chat mode
+    app.add_handler(MessageHandler(
+        (filters.PHOTO | filters.Sticker.ALL | filters.Document.ALL |
+         filters.VIDEO | filters.VOICE | filters.AUDIO |
+         filters.VIDEO_NOTE | filters.ANIMATION) & ~filters.COMMAND,
+        relay_any_message
     ))
 
     # Catch-all: handles profile setup steps AND Rooms Nearby
