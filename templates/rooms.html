@@ -775,24 +775,29 @@
   selDist.addEventListener('change', render);
   selMem.addEventListener('change',  render);
 
-  // Fetch
-  fetch(`/api/rooms/${uid}`)
-    .then(r => r.json())
-    .then(data => {
-      document.getElementById('loading').style.display = 'none';
-      if (data.error && !data.rooms?.length) {
-        document.getElementById('no-res-lbl').textContent = data.error;
+  // Fetch & auto-refresh
+  let firstLoad = true;
+  function loadData() {
+    fetch(`/api/rooms/${uid}`)
+      .then(r => r.json())
+      .then(data => {
+        if (firstLoad) { document.getElementById('loading').style.display = 'none'; firstLoad = false; }
+        if (data.error && !data.rooms?.length) {
+          document.getElementById('no-res-lbl').textContent = data.error;
+          document.getElementById('no-results').style.display = 'block';
+          return;
+        }
+        allRooms = data.rooms || [];
+        render();
+      })
+      .catch(() => {
+        if (firstLoad) { document.getElementById('loading').style.display = 'none'; firstLoad = false; }
+        document.getElementById('no-res-lbl').textContent = T.err;
         document.getElementById('no-results').style.display = 'block';
-        return;
-      }
-      allRooms = data.rooms || [];
-      render();
-    })
-    .catch(() => {
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('no-res-lbl').textContent = T.err;
-      document.getElementById('no-results').style.display = 'block';
-    });
+      });
+  }
+  loadData();
+  setInterval(loadData, 5000);
 </script>
 </body>
 </html>
