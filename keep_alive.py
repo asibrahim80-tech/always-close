@@ -894,6 +894,130 @@ def api_store_members(store_id, telegram_id):
         return jsonify({"ok": False, "members": [], "error": str(e)})
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  CATALOG ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════════
+
+CATALOG_CATS_STORE = ['product','menu_food','menu_drink','clothing',
+                      'accessory','other','contact','hours']
+CATALOG_CATS_ROOM  = ['service','event','meeting','offer','info','contact']
+
+
+@app.route('/api/catalog/<entity_type>/<int:entity_id>')
+def api_catalog_get(entity_type, entity_id):
+    try:
+        rows = (supabase.table('catalogs_v1')
+                .select('*')
+                .eq('entity_type', entity_type)
+                .eq('entity_id',   entity_id)
+                .order('sort_order')
+                .order('created_at')
+                .execute().data or [])
+        return jsonify({'ok': True, 'items': rows})
+    except Exception as e:
+        return jsonify({'ok': False, 'items': [], 'error': str(e)})
+
+
+@app.route('/api/catalog/add', methods=['POST'])
+def api_catalog_add():
+    try:
+        d = request.get_json(force=True) or {}
+        uid         = int(d.get('uid', 0))
+        entity_type = d.get('entity_type', '')
+        entity_id   = int(d.get('entity_id', 0))
+        if not uid or entity_type not in ('room','store') or not entity_id:
+            return jsonify({'ok': False, 'error': 'invalid params'}), 400
+
+        # ownership check
+        tbl = 'rooms_v1' if entity_type == 'room' else 'stores_v1'
+        owner = supabase.table(tbl).select('created_by').eq('id', entity_id).execute().data
+        if not owner or int(owner[0]['created_by']) != uid:
+            return jsonify({'ok': False, 'error': 'not owner'}), 403
+
+        row = {
+            'entity_type': entity_type,
+            'entity_id':   entity_id,
+            'category':    d.get('category', 'general'),
+            'title':       (d.get('title') or '').strip()[:120],
+            'description': (d.get('description') or '').strip()[:400],
+            'price':       float(d['price']) if d.get('price') not in (None,'') else None,
+            'currency':    d.get('currency', 'SAR'),
+            'phone':       (d.get('phone') or '').strip()[:40],
+            'website':     (d.get('website') or '').strip()[:200],
+            'hours':       (d.get('hours') or '').strip()[:200],
+            'sort_order':  int(d.get('sort_order', 0)),
+            'created_by':  uid,
+        }
+        if not row['title']:
+            return jsonify({'ok': False, 'error': 'title required'}), 400
+
+        res = supabase.table('catalogs_v1').insert(row).execute()
+        return jsonify({'ok': True, 'item': res.data[0] if res.data else {}})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/catalog/delete', methods=['POST'])
+def api_catalog_delete():
+    try:
+        d   = request.get_json(force=True) or {}
+        uid = int(d.get('uid', 0))
+        cid = int(d.get('id', 0))
+        if not uid or not cid:
+            return jsonify({'ok': False, 'error': 'invalid params'}), 400
+
+        row = supabase.table('catalogs_v1').select('created_by,image_url').eq('id', cid).execute().data
+        if not row:
+            return jsonify({'ok': False, 'error': 'not found'}), 404
+        if int(row[0]['created_by']) != uid:
+            return jsonify({'ok': False, 'error': 'not owner'}), 403
+
+        # delete image file if present
+        img = row[0].get('image_url', '')
+        if img:
+            path = img.lstrip('/')
+            try:
+                import os as _os
+                if _os.path.exists(path):
+                    _os.remove(path)
+            except Exception:
+                pass
+
+        supabase.table('catalogs_v1').delete().eq('id', cid).execute()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/catalog/image/upload', methods=['POST'])
+def api_catalog_image_upload():
+    try:
+        uid = int(request.form.get('uid', 0))
+        cid = int(request.form.get('id', 0))
+        f   = request.files.get('image')
+        if not uid or not cid or not f:
+            return jsonify({'ok': False, 'error': 'missing fields'}), 400
+
+        row = supabase.table('catalogs_v1').select('created_by').eq('id', cid).execute().data
+        if not row or int(row[0]['created_by']) != uid:
+            return jsonify({'ok': False, 'error': 'not owner'}), 403
+
+        import os as _os
+        ext = (f.filename or 'jpg').rsplit('.', 1)[-1].lower()
+        if ext not in ('jpg','jpeg','png','webp','gif'):
+            ext = 'jpg'
+        folder = 'static/catalog_images'
+        _os.makedirs(folder, exist_ok=True)
+        path = f'{folder}/cat_{cid}.{ext}'
+        f.save(path)
+        url  = '/' + path
+
+        supabase.table('catalogs_v1').update({'image_url': url}).eq('id', cid).execute()
+        return jsonify({'ok': True, 'url': url})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/api/update_location', methods=['POST'])
 def api_update_location():
     """Receive live GPS from the browser and persist it to Supabase."""

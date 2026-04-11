@@ -143,6 +143,57 @@
     body.rtl .room-banner-del-img{left:auto;right:10px}
     body.rtl .member-count-label{margin-left:0;margin-right:4px}
     body.rtl .star-bar-front{left:auto;right:0}
+
+    /* ── Catalog modal ── */
+    #cat-modal{position:fixed;inset:0;z-index:600;display:none}
+    #cat-modal-bg{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+    #cat-panel{
+      position:absolute;bottom:0;left:0;right:0;
+      background:#fff;border-radius:22px 22px 0 0;
+      max-height:90vh;display:flex;flex-direction:column;
+    }
+    #cat-panel.open{animation:slideUp .3s ease}
+    #cat-header{padding:14px 16px 0;border-bottom:1px solid #f0f0f0;flex-shrink:0;background:#fff;border-radius:22px 22px 0 0}
+    #cat-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    #cat-title{font-size:16px;font-weight:700;color:#111}
+    #cat-close{font-size:22px;color:#999;cursor:pointer;padding:4px;line-height:1}
+    #cat-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}
+    #cat-tabs::-webkit-scrollbar{display:none}
+    .cat-tab{flex-shrink:0;padding:6px 14px;border-radius:18px;border:1.5px solid #ddd;background:#f7f7f7;font-size:12px;font-weight:600;cursor:pointer;color:#555;white-space:nowrap;transition:all .15s}
+    .cat-tab.active{background:#8e44ad;border-color:#8e44ad;color:#fff}
+    #cat-body{overflow-y:auto;padding:10px 14px 30px;flex:1}
+    #cat-add-btn{
+      width:100%;padding:11px;border-radius:12px;border:2px dashed #d7bde2;
+      background:#fdf8ff;color:#8e44ad;font-size:14px;font-weight:600;
+      cursor:pointer;margin-bottom:12px;
+    }
+    #cat-add-btn:active{background:#f3e5f5}
+    /* add form */
+    #cat-form{background:#f9f4fc;border-radius:14px;padding:14px;margin-bottom:14px;display:none}
+    #cat-form input,#cat-form textarea,#cat-form select{
+      width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #e0e0e0;
+      font-size:13px;color:#333;background:#fff;outline:none;margin-bottom:8px;box-sizing:border-box;
+    }
+    #cat-form input:focus,#cat-form textarea:focus,#cat-form select:focus{border-color:#8e44ad}
+    #cat-form textarea{min-height:68px;resize:vertical}
+    #cat-form-row{display:flex;gap:8px}
+    #cat-form-row input{flex:1;margin-bottom:0}
+    #cat-save-btn{background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff;border:none;border-radius:11px;padding:10px;width:100%;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px}
+    #cat-save-btn:active{opacity:.8}
+    /* item cards */
+    .cat-item{background:#fff;border-radius:14px;border:1px solid #f0e6f9;box-shadow:0 1px 6px rgba(142,68,173,.07);margin-bottom:10px;overflow:hidden}
+    .cat-item-img{width:100%;height:130px;object-fit:cover;display:block;background:#f5f0fb}
+    .cat-item-body{padding:10px 12px}
+    .cat-item-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:4px}
+    .cat-item-title{font-size:14px;font-weight:700;color:#111;flex:1}
+    .cat-item-price{font-size:13px;font-weight:700;color:#8e44ad;white-space:nowrap}
+    .cat-item-desc{font-size:12px;color:#666;line-height:1.5;margin-bottom:6px}
+    .cat-item-extra{font-size:12px;color:#555;display:flex;align-items:center;gap:6px;margin-bottom:3px}
+    .cat-item-del{background:#fdf0ef;color:#e74c3c;border:1px solid #fadbd8;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer}
+    .cat-item-del:active{opacity:.7}
+    .cat-empty{text-align:center;padding:30px;color:#bbb;font-size:14px}
+    .cat-spinner{width:26px;height:26px;border:3px solid #e0e0e0;border-top-color:#8e44ad;border-radius:50%;animation:spin .7s linear infinite;margin:20px auto}
+    body.rtl #cat-close{order:-1}
   </style>
 </head>
 <body>
@@ -179,6 +230,21 @@
 <div id="no-results"><div class="ico">🏠</div><div id="no-res-lbl">No rooms found</div></div>
 <div id="toast"></div>
 <input type="file" id="img-input" accept="image/*" style="display:none">
+
+<!-- ── Catalog modal ── -->
+<div id="cat-modal">
+  <div id="cat-modal-bg"></div>
+  <div id="cat-panel">
+    <div id="cat-header">
+      <div id="cat-title-row">
+        <span id="cat-title">📋 Catalog</span>
+        <span id="cat-close">✕</span>
+      </div>
+      <div id="cat-tabs"></div>
+    </div>
+    <div id="cat-body"></div>
+  </div>
+</div>
 
 <!-- Members rating modal -->
 <div id="members-modal">
@@ -222,6 +288,14 @@
       rate_ok:'⭐ شكراً على تقييمك!', rate_err:'❌ خطأ في التقييم',
       modal_title:'تقييم أعضاء الغرفة', modal_empty:'لا يوجد أعضاء آخرون',
       member_rate_ok:'⭐ تم تقييم العضو',
+      btn_catalog:'📋 كتالوج',
+      cat_title:'كتالوج الغرفة', cat_add:'+ إضافة عنصر', cat_save:'حفظ',
+      cat_empty:'لا يوجد محتوى بعد — كن أول من يضيف!',
+      cat_del_confirm:'حذف هذا العنصر؟', cat_del_ok:'🗑️ تم الحذف', cat_add_ok:'✅ تم الإضافة',
+      cat_err:'❌ خطأ', cat_ph_title:'العنوان *', cat_ph_desc:'الوصف',
+      cat_ph_price:'السعر', cat_ph_cur:'العملة', cat_ph_phone:'رقم الهاتف',
+      cat_ph_web:'الموقع الإلكتروني', cat_ph_hours:'مواعيد العمل',
+      cat_tabs:{service:'🛎️ خدمات',event:'🎉 فعاليات',meeting:'📅 اجتماعات',offer:'🎁 عروض',info:'ℹ️ معلومات',contact:'📞 تواصل'},
     },
     en:{
       title:'Rooms List',
@@ -244,6 +318,14 @@
       rate_ok:'⭐ Thanks for rating!', rate_err:'❌ Rating error',
       modal_title:'Rate Room Members', modal_empty:'No other members',
       member_rate_ok:'⭐ Member rated',
+      btn_catalog:'📋 Catalog',
+      cat_title:'Room Catalog', cat_add:'+ Add Item', cat_save:'Save',
+      cat_empty:'No content yet — be the first to add!',
+      cat_del_confirm:'Delete this item?', cat_del_ok:'🗑️ Deleted', cat_add_ok:'✅ Added',
+      cat_err:'❌ Error', cat_ph_title:'Title *', cat_ph_desc:'Description',
+      cat_ph_price:'Price', cat_ph_cur:'Currency', cat_ph_phone:'Phone',
+      cat_ph_web:'Website', cat_ph_hours:'Working Hours',
+      cat_tabs:{service:'🛎️ Services',event:'🎉 Events',meeting:'📅 Meetings',offer:'🎁 Offers',info:'ℹ️ Info',contact:'📞 Contact'},
     }
   }[lang] || {};
 
@@ -741,6 +823,14 @@
         brm.addEventListener('click', () => openMembersModal(r.id)); actions.appendChild(brm);
       }
 
+      // Catalog button (all users)
+      const bcat = document.createElement('button');
+      bcat.className = 'act-btn rate-members';
+      bcat.style.cssText = 'background:#f3e5f5;color:#7b1fa2;border:1.5px solid #ce93d8;flex:0 0 auto;padding:9px 14px';
+      bcat.textContent = T.btn_catalog || '📋';
+      bcat.addEventListener('click', () => openCatalog('room', r.id, r.name, r.is_creator));
+      actions.appendChild(bcat);
+
       card.appendChild(actions);
 
       // Divider + Rating section
@@ -798,6 +888,265 @@
   }
   loadData();
   setInterval(loadData, 5000);
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  CATALOG SYSTEM
+  // ══════════════════════════════════════════════════════════════════════
+  const CAT_CATS  = ['service','event','meeting','offer','info','contact'];
+  const catModal  = document.getElementById('cat-modal');
+  const catPanel  = document.getElementById('cat-panel');
+  const catClose  = document.getElementById('cat-close');
+  const catTitle  = document.getElementById('cat-title');
+  const catTabs   = document.getElementById('cat-tabs');
+  const catBody   = document.getElementById('cat-body');
+
+  let _catEntityType = '';
+  let _catEntityId   = 0;
+  let _catIsOwner    = false;
+  let _catActiveCat  = CAT_CATS[0];
+  let _catAllItems   = [];
+  let _catImgInput   = null;
+  let _catPendingImg = null;  // catalog item id awaiting image
+
+  catClose.addEventListener('click', closeCatalog);
+  document.getElementById('cat-modal-bg').addEventListener('click', closeCatalog);
+
+  function closeCatalog() {
+    catModal.style.display = 'none';
+  }
+
+  function openCatalog(entityType, entityId, name, isOwner) {
+    _catEntityType = entityType;
+    _catEntityId   = entityId;
+    _catIsOwner    = isOwner;
+    _catActiveCat  = CAT_CATS[0];
+    catTitle.textContent = `📋 ${name}`;
+    catModal.style.display = 'block';
+    catPanel.classList.remove('open');
+    void catPanel.offsetWidth;
+    catPanel.classList.add('open');
+    buildCatTabs();
+    loadCatalog();
+  }
+
+  function buildCatTabs() {
+    catTabs.innerHTML = '';
+    CAT_CATS.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'cat-tab' + (cat === _catActiveCat ? ' active' : '');
+      btn.textContent = (T.cat_tabs || {})[cat] || cat;
+      btn.addEventListener('click', () => {
+        _catActiveCat = cat;
+        document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderCatalogItems();
+      });
+      catTabs.appendChild(btn);
+    });
+  }
+
+  function loadCatalog() {
+    catBody.innerHTML = `<div class="cat-spinner"></div>`;
+    fetch(`/api/catalog/${_catEntityType}/${_catEntityId}`)
+      .then(r => r.json())
+      .then(data => {
+        _catAllItems = data.items || [];
+        renderCatalogItems();
+      })
+      .catch(() => { catBody.innerHTML = `<div class="cat-empty">${T.cat_err}</div>`; });
+  }
+
+  function renderCatalogItems() {
+    catBody.innerHTML = '';
+
+    // ── Add button (owner only) ──
+    if (_catIsOwner) {
+      const addBtn = document.createElement('button');
+      addBtn.id = 'cat-add-btn';
+      addBtn.textContent = T.cat_add;
+      addBtn.addEventListener('click', () => toggleAddForm());
+      catBody.appendChild(addBtn);
+
+      // Add form
+      const form = buildAddForm();
+      catBody.appendChild(form);
+    }
+
+    const filtered = _catAllItems.filter(it => it.category === _catActiveCat);
+    if (!filtered.length) {
+      const empty = document.createElement('div');
+      empty.className = 'cat-empty';
+      empty.textContent = T.cat_empty;
+      catBody.appendChild(empty);
+      return;
+    }
+
+    filtered.forEach(it => catBody.appendChild(buildCatItem(it)));
+  }
+
+  function toggleAddForm() {
+    const form = document.getElementById('cat-form');
+    if (!form) return;
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function buildAddForm() {
+    const form = document.createElement('div');
+    form.id = 'cat-form';
+    form.style.display = 'none';
+
+    const catSel = document.createElement('select');
+    CAT_CATS.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = (T.cat_tabs || {})[c] || c;
+      if (c === _catActiveCat) o.selected = true;
+      catSel.appendChild(o);
+    });
+    form.appendChild(catSel);
+
+    const inp = (ph, type='text') => {
+      const el = document.createElement(type === 'textarea' ? 'textarea' : 'input');
+      if (type !== 'textarea') el.type = type;
+      el.placeholder = ph;
+      return el;
+    };
+
+    const fTitle = inp(T.cat_ph_title);
+    const fDesc  = inp(T.cat_ph_desc, 'textarea');
+    const fRow   = document.createElement('div'); fRow.id = 'cat-form-row';
+    const fPrice = inp(T.cat_ph_price, 'number'); fPrice.min = '0'; fPrice.step = '0.01';
+    const fCur   = inp(T.cat_ph_cur);   fCur.value = 'SAR'; fCur.style.width = '80px';
+    fRow.appendChild(fPrice); fRow.appendChild(fCur);
+    const fPhone = inp(T.cat_ph_phone);
+    const fWeb   = inp(T.cat_ph_web);
+    const fHours = inp(T.cat_ph_hours);
+    [fTitle, fDesc, fRow, fPhone, fWeb, fHours].forEach(el => form.appendChild(el));
+
+    const saveBtn = document.createElement('button');
+    saveBtn.id = 'cat-save-btn';
+    saveBtn.textContent = T.cat_save;
+    saveBtn.addEventListener('click', async () => {
+      const title = fTitle.value.trim();
+      if (!title) { showToast(T.cat_ph_title); return; }
+      saveBtn.disabled = true;
+      try {
+        const res = await fetch('/api/catalog/add', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            uid, entity_type: _catEntityType, entity_id: _catEntityId,
+            category: catSel.value, title,
+            description: fDesc.value.trim(),
+            price: fPrice.value || null,
+            currency: fCur.value.trim() || 'SAR',
+            phone: fPhone.value.trim(),
+            website: fWeb.value.trim(),
+            hours: fHours.value.trim(),
+          })
+        }).then(r => r.json());
+        if (res.ok) {
+          showToast(T.cat_add_ok);
+          _catActiveCat = catSel.value;
+          buildCatTabs();
+          loadCatalog();
+          form.style.display = 'none';
+          [fTitle,fDesc,fPrice,fPhone,fWeb,fHours].forEach(el => el.value = '');
+        } else { showToast(T.cat_err); }
+      } catch(e) { showToast(T.cat_err); }
+      saveBtn.disabled = false;
+    });
+    form.appendChild(saveBtn);
+    return form;
+  }
+
+  function buildCatItem(it) {
+    const el = document.createElement('div');
+    el.className = 'cat-item';
+
+    if (it.image_url) {
+      const img = document.createElement('img');
+      img.className = 'cat-item-img';
+      img.src = it.image_url;
+      img.onerror = () => img.remove();
+      el.appendChild(img);
+    }
+
+    const body = document.createElement('div');
+    body.className = 'cat-item-body';
+
+    const top = document.createElement('div'); top.className = 'cat-item-top';
+    const ttl = document.createElement('div'); ttl.className = 'cat-item-title'; ttl.textContent = it.title;
+    top.appendChild(ttl);
+    if (it.price != null) {
+      const pr = document.createElement('div'); pr.className = 'cat-item-price';
+      pr.textContent = `${parseFloat(it.price).toLocaleString()} ${it.currency || 'SAR'}`;
+      top.appendChild(pr);
+    }
+    body.appendChild(top);
+
+    if (it.description) {
+      const ds = document.createElement('div'); ds.className = 'cat-item-desc';
+      ds.textContent = it.description; body.appendChild(ds);
+    }
+    if (it.hours)   addExtra(body, '🕐', it.hours);
+    if (it.phone)   addExtra(body, '📞', it.phone);
+    if (it.website) addExtra(body, '🌐', it.website);
+
+    if (_catIsOwner) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:7px;margin-top:8px;flex-wrap:wrap';
+
+      const delBtn = document.createElement('button'); delBtn.className = 'cat-item-del';
+      delBtn.textContent = '🗑️ ' + (lang==='ar'?'حذف':'Delete');
+      delBtn.addEventListener('click', async () => {
+        if (!confirm(T.cat_del_confirm)) return;
+        const res = await fetch('/api/catalog/delete',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({uid, id:it.id})}).then(r=>r.json());
+        if (res.ok) { showToast(T.cat_del_ok); loadCatalog(); } else showToast(T.cat_err);
+      });
+      row.appendChild(delBtn);
+
+      // Image upload button
+      const imgBtn = document.createElement('button'); imgBtn.className = 'cat-item-del';
+      imgBtn.style.cssText = 'background:#eaf3fb;color:#2980b9;border-color:#aed6f1';
+      imgBtn.textContent = '📷 ' + (lang==='ar'?'صورة':'Photo');
+      imgBtn.addEventListener('click', () => {
+        _catPendingImg = it.id;
+        if (!_catImgInput) {
+          _catImgInput = document.createElement('input');
+          _catImgInput.type = 'file'; _catImgInput.accept = 'image/*';
+          _catImgInput.style.display = 'none';
+          document.body.appendChild(_catImgInput);
+          _catImgInput.addEventListener('change', uploadCatImage);
+        }
+        _catImgInput.value = '';
+        _catImgInput.click();
+      });
+      row.appendChild(imgBtn);
+
+      body.appendChild(row);
+    }
+
+    el.appendChild(body);
+    return el;
+  }
+
+  function addExtra(parent, icon, text) {
+    const d = document.createElement('div'); d.className = 'cat-item-extra';
+    d.textContent = `${icon} ${text}`; parent.appendChild(d);
+  }
+
+  async function uploadCatImage() {
+    if (!_catImgInput || !_catPendingImg) return;
+    const file = _catImgInput.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('uid', uid); fd.append('id', _catPendingImg); fd.append('image', file);
+    try {
+      const res = await fetch('/api/catalog/image/upload',{method:'POST',body:fd}).then(r=>r.json());
+      if (res.ok) { showToast('✅'); loadCatalog(); } else showToast(T.cat_err);
+    } catch { showToast(T.cat_err); }
+  }
 </script>
 </body>
 </html>
