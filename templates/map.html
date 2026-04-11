@@ -523,7 +523,7 @@
 
   function joyStep() {
     const z = map.getZoom();
-    return 0.000004 * speedMult * Math.pow(2, Math.max(0, 16 - z));
+    return 0.0000008 * speedMult * Math.pow(2, Math.max(0, 16 - z));
   }
 
   function startJoyMove() {
