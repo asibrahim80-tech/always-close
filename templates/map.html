@@ -220,7 +220,7 @@
       <span class="leg-dot green"></span>
       <span id="leg-active">Active</span>
     </span>
-    <span class="leg-item" id="leg-roam-item" style="display:none">
+    <span class="leg-item" id="leg-roam-item">
       <span class="leg-dot yellow"></span>
       <span id="leg-roam">Roaming</span>
     </span>
@@ -391,8 +391,6 @@
     if (!meMarker) return;
     const roam = isRoaming();
     meMarker.setIcon(makePin(true, true, myPhoto, myInitial, roam));
-    const ri = document.getElementById('leg-roam-item');
-    if (ri) ri.style.display = roam ? 'flex' : 'none';
   }
 
   // ── Popup card ───────────────────────────────────────────────────────────
@@ -456,9 +454,6 @@
           meMarker.setIcon(meIcon);
           // Don't move meMarker back to gpsLatLng — joystick position is kept
         }
-
-        const ri = document.getElementById('leg-roam-item');
-        if (ri) ri.style.display = roam ? 'flex' : 'none';
 
         // ── Nearby users ──────────────────────────────────────
         const seenIds = new Set();
