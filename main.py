@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import time
 
 from telegram import Update
 from telegram.ext import (
@@ -101,7 +102,15 @@ def main():
     import atexit
     atexit.register(_release_lock)
 
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = (
+        ApplicationBuilder()
+        .token(BOT_TOKEN)
+        .connect_timeout(30)
+        .read_timeout(30)
+        .write_timeout(30)
+        .pool_timeout(30)
+        .build()
+    )
 
     # Commands
     app.add_handler(CommandHandler("start", start))
@@ -176,7 +185,23 @@ def main():
     app.add_error_handler(error_handler)
 
     logger.info("🚀 Always Close Bot Started...")
-    app.run_polling()
+
+    # ── Polling with auto-reconnect ──────────────────────────────────────
+    retry_delay = 5   # seconds between reconnect attempts
+    while True:
+        try:
+            app.run_polling(
+                allowed_updates=Update.ALL_TYPES,
+                drop_pending_updates=False,
+                poll_interval=1.0,
+                timeout=20,
+            )
+        except Exception as exc:
+            logger.error(f"Bot polling crashed: {exc}. Reconnecting in {retry_delay}s…")
+            time.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 60)  # exponential back-off, max 60s
+        else:
+            break   # clean shutdown (e.g. SIGTERM)
 
 
 if __name__ == "__main__":

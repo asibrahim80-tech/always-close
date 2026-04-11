@@ -4,6 +4,10 @@ from math import radians, sin, cos, sqrt, atan2
 from datetime import datetime, timezone
 import httpx
 import os
+import time
+import logging
+
+_ka_logger = logging.getLogger("keep_alive")
 
 app = Flask(__name__)
 
@@ -890,11 +894,42 @@ def api_store_members(store_id, telegram_id):
         return jsonify({"ok": False, "members": [], "error": str(e)})
 
 
+@app.route('/health')
+def health():
+    return jsonify({
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+
+
+def _self_ping_loop():
+    """Ping our own /health every 4 minutes to prevent Replit from sleeping."""
+    domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
+    if not domain:
+        _ka_logger.warning("REPLIT_DEV_DOMAIN not set — self-ping disabled.")
+        return
+    url = f"https://{domain}/health"
+    _ka_logger.info(f"Self-ping started → {url}")
+    while True:
+        time.sleep(240)   # every 4 minutes
+        try:
+            r = httpx.get(url, timeout=10)
+            _ka_logger.debug(f"Self-ping OK: {r.status_code}")
+        except Exception as e:
+            _ka_logger.warning(f"Self-ping failed: {e}")
+
+
 def run():
     app.run(host='0.0.0.0', port=5000, threaded=True)
 
 
 def keep_alive():
-    t = Thread(target=run)
-    t.daemon = True
-    t.start()
+    # Flask server thread
+    flask_thread = Thread(target=run, name="flask-server")
+    flask_thread.daemon = True
+    flask_thread.start()
+
+    # Self-ping thread to keep Replit awake
+    ping_thread = Thread(target=_self_ping_loop, name="self-pinger")
+    ping_thread.daemon = True
+    ping_thread.start()
