@@ -1020,6 +1020,49 @@ def api_catalog_image_upload():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/api/entity/edit', methods=['POST'])
+def api_entity_edit():
+    """Update name, purpose, and nature of a room or store (creator only)."""
+    try:
+        data        = request.get_json(force=True) or {}
+        uid         = int(data.get('uid', 0))
+        entity_type = data.get('entity_type', '')   # 'room' | 'store'
+        entity_id   = int(data.get('entity_id', 0))
+        new_name    = (data.get('name') or '').strip()
+        new_purpose = (data.get('purpose') or '').strip()
+        new_nature  = (data.get('nature') or '').strip()
+
+        if not uid or entity_type not in ('room', 'store') or not entity_id:
+            return jsonify({'ok': False, 'error': 'invalid params'}), 400
+        if not new_name:
+            return jsonify({'ok': False, 'error': 'name required'}), 400
+        if len(new_name) > 60:
+            return jsonify({'ok': False, 'error': 'name too long'}), 400
+
+        tbl = 'rooms_v1' if entity_type == 'room' else 'stores_v1'
+
+        # Verify ownership
+        user_res = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not user_res.data:
+            return jsonify({'ok': False, 'error': 'user not found'}), 404
+        user_db_id = user_res.data[0]["id"]
+
+        entity_res = supabase.table(tbl).select("created_by").eq("id", entity_id).execute()
+        if not entity_res.data:
+            return jsonify({'ok': False, 'error': 'entity not found'}), 404
+        if entity_res.data[0].get("created_by") != user_db_id:
+            return jsonify({'ok': False, 'error': 'not creator'}), 403
+
+        supabase.table(tbl).update({
+            "name":    new_name,
+            "purpose": new_purpose or None,
+            "nature":  new_nature  or None,
+        }).eq("id", entity_id).execute()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/api/entity/set_icon', methods=['POST'])
 def api_set_entity_icon():
     """Update the emoji icon of a room or store (creator only)."""

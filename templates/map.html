@@ -168,6 +168,39 @@
       border:6px solid transparent;border-top:7px solid #e67e22;
     }
 
+    /* ── Entity edit overlay ── */
+    #entity-edit-overlay{
+      position:fixed;inset:0;z-index:3100;display:none;
+      background:rgba(0,0,0,.52);
+    }
+    #entity-edit-box{
+      position:absolute;bottom:0;left:0;right:0;
+      background:#fff;border-radius:22px 22px 0 0;
+      padding:20px 16px 34px;
+    }
+    #entity-edit-box.open{animation:mc-in .28s ease}
+    #entity-edit-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    #entity-edit-title{font-size:16px;font-weight:800;color:#111}
+    #entity-edit-close-btn{font-size:22px;color:#aaa;cursor:pointer;padding:4px;line-height:1}
+    .ee-label{font-size:12px;font-weight:700;color:#555;margin-bottom:4px;display:block}
+    .ee-input{
+      width:100%;box-sizing:border-box;
+      padding:11px 13px;border:1.5px solid #ddd;
+      border-radius:12px;font-size:14px;margin-bottom:12px;
+      outline:none;font-family:inherit;transition:border-color .15s;
+    }
+    .ee-input:focus{border-color:#7c3aed}
+    .ee-textarea{resize:none;height:72px;line-height:1.5}
+    #entity-edit-save{
+      width:100%;padding:13px;
+      background:linear-gradient(135deg,#7c3aed,#5b21b6);
+      color:#fff;border:none;border-radius:14px;
+      font-size:15px;font-weight:700;cursor:pointer;
+      transition:opacity .15s;
+    }
+    #entity-edit-save:disabled{opacity:.5}
+    .ee-char-count{font-size:11px;color:#aaa;text-align:left;margin-top:-10px;margin-bottom:10px}
+
     /* ── Icon picker overlay ── */
     #icon-picker-overlay{
       position:fixed;inset:0;z-index:3000;display:none;
@@ -340,6 +373,25 @@
 
 <!-- ── Proximity bubble notifications ── -->
 <div id="bubble-container"></div>
+
+<!-- ── Entity edit overlay ── -->
+<div id="entity-edit-overlay">
+  <div id="entity-edit-box">
+    <div id="entity-edit-hdr">
+      <span id="entity-edit-title">✏️</span>
+      <span id="entity-edit-close-btn">✕</span>
+    </div>
+    <label class="ee-label" id="ee-name-label"></label>
+    <input  class="ee-input" id="ee-name"    type="text"    maxlength="60">
+    <div class="ee-char-count" id="ee-name-count">0/60</div>
+    <label class="ee-label" id="ee-purpose-label"></label>
+    <input  class="ee-input" id="ee-purpose" type="text"    maxlength="120">
+    <label class="ee-label" id="ee-nature-label"></label>
+    <input  class="ee-input" id="ee-nature"  type="text"    maxlength="60"
+            placeholder="">
+    <button id="entity-edit-save"></button>
+  </div>
+</div>
 
 <!-- ── Icon picker overlay ── -->
 <div id="icon-picker-overlay">
@@ -796,9 +848,10 @@
               ${purposeRow}
               ${expiresRow}
               <div style="font-size:11px;opacity:.6;margin-bottom:8px">👥 ${members} &nbsp;${dist ? '📍 ' + dist : ''}</div>
-              <div style="display:flex;gap:7px">
-                <button onclick="openMapCatalog('room',${r.id},'${r.name.replace(/'/g,"\\'")}',${JSON.stringify(lang==='ar'?{service:'🛎️ خدمات',event:'🎉 فعاليات',meeting:'📅 اجتماعات',offer:'🎁 عروض',info:'ℹ️ معلومات',contact:'📞 تواصل',hours:'🕐 مواعيد'}:{service:'🛎️ Services',event:'🎉 Events',meeting:'📅 Meetings',offer:'🎁 Offers',info:'ℹ️ Info',contact:'📞 Contact',hours:'🕐 Hours'})});" style="flex:1;padding:8px 6px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">📋 ${lang==='ar'?'الكتالوج':'Catalog'}</button>
-                ${r.is_creator ? `<button onclick="openIconPicker('room',${r.id},'${(r.icon||'🏠')}')" style="padding:8px 10px;background:#f3f0ff;border:1.5px solid #c4b5fd;border-radius:10px;font-size:16px;cursor:pointer">🎨</button>` : ''}
+              <div style="display:flex;gap:6px">
+                <button onclick="openMapCatalog('room',${r.id},'${r.name.replace(/'/g,"\\'")}',${JSON.stringify(lang==='ar'?{service:'🛎️ خدمات',event:'🎉 فعاليات',meeting:'📅 اجتماعات',offer:'🎁 عروض',info:'ℹ️ معلومات',contact:'📞 تواصل',hours:'🕐 مواعيد'}:{service:'🛎️ Services',event:'🎉 Events',meeting:'📅 Meetings',offer:'🎁 Offers',info:'ℹ️ Info',contact:'📞 Contact',hours:'🕐 Hours'})});" style="flex:1;padding:8px 4px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">📋 ${lang==='ar'?'الكتالوج':'Catalog'}</button>
+                ${r.is_creator ? `<button onclick="openIconPicker('room',${r.id},'${(r.icon||'🏠')}')" style="padding:8px 9px;background:#f3f0ff;border:1.5px solid #c4b5fd;border-radius:10px;font-size:15px;cursor:pointer" title="${lang==='ar'?'تغيير الأيقونة':'Change Icon'}">🎨</button>` : ''}
+                ${r.is_creator ? `<button onclick="openEntityEdit('room',${r.id},'${r.name.replace(/'/g,"\\'")}','${(r.purpose||'').replace(/'/g,"\\'")}','${(r.nature||'').replace(/'/g,"\\'")}');" style="padding:8px 9px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;font-size:15px;cursor:pointer" title="${lang==='ar'?'تعديل':'Edit'}">✏️</button>` : ''}
               </div>
             </div>
           `);
@@ -856,9 +909,10 @@
               ${purposeRow}
               ${expiresRow}
               <div style="font-size:11px;opacity:.6;margin-bottom:8px">🔔 ${members} ${dist ? '&nbsp;📍 ' + dist : ''}</div>
-              <div style="display:flex;gap:7px">
-                <button onclick="openMapCatalog('store',${s.id},'${s.name.replace(/'/g,"\\'")}',${JSON.stringify(lang==='ar'?{product:'📦 منتجات',menu_food:'🍔 طعام',menu_drink:'🥤 مشروبات',clothing:'👕 ملابس',accessory:'💍 اكسسوار',other:'📋 أخرى',contact:'📞 تواصل',hours:'🕐 مواعيد'}:{product:'📦 Products',menu_food:'🍔 Food',menu_drink:'🥤 Drinks',clothing:'👕 Clothing',accessory:'💍 Accessories',other:'📋 Other',contact:'📞 Contact',hours:'🕐 Hours'})});" style="flex:1;padding:8px 6px;background:linear-gradient(135deg,#e67e22,#c0392b);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">📋 ${lang==='ar'?'الكتالوج':'Catalog'}</button>
-                ${s.is_creator ? `<button onclick="openIconPicker('store',${s.id},'${(s.icon||'🏪')}')" style="padding:8px 10px;background:#fff8f0;border:1.5px solid #fcd9a7;border-radius:10px;font-size:16px;cursor:pointer">🎨</button>` : ''}
+              <div style="display:flex;gap:6px">
+                <button onclick="openMapCatalog('store',${s.id},'${s.name.replace(/'/g,"\\'")}',${JSON.stringify(lang==='ar'?{product:'📦 منتجات',menu_food:'🍔 طعام',menu_drink:'🥤 مشروبات',clothing:'👕 ملابس',accessory:'💍 اكسسوار',other:'📋 أخرى',contact:'📞 تواصل',hours:'🕐 مواعيد'}:{product:'📦 Products',menu_food:'🍔 Food',menu_drink:'🥤 Drinks',clothing:'👕 Clothing',accessory:'💍 Accessories',other:'📋 Other',contact:'📞 Contact',hours:'🕐 Hours'})});" style="flex:1;padding:8px 4px;background:linear-gradient(135deg,#e67e22,#c0392b);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">📋 ${lang==='ar'?'الكتالوج':'Catalog'}</button>
+                ${s.is_creator ? `<button onclick="openIconPicker('store',${s.id},'${(s.icon||'🏪')}')" style="padding:8px 9px;background:#fff8f0;border:1.5px solid #fcd9a7;border-radius:10px;font-size:15px;cursor:pointer" title="${lang==='ar'?'تغيير الأيقونة':'Change Icon'}">🎨</button>` : ''}
+                ${s.is_creator ? `<button onclick="openEntityEdit('store',${s.id},'${s.name.replace(/'/g,"\\'")}','${(s.purpose||'').replace(/'/g,"\\'")}','${(s.nature||'').replace(/'/g,"\\'")}');" style="padding:8px 9px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;font-size:15px;cursor:pointer" title="${lang==='ar'?'تعديل':'Edit'}">✏️</button>` : ''}
               </div>
             </div>
           `);
@@ -951,6 +1005,114 @@
   } else {
     document.getElementById('gps-badge').style.display = 'none';
   }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ENTITY EDIT SYSTEM (name / purpose / nature)
+  // ══════════════════════════════════════════════════════════════════════
+  const _eeOverlay   = document.getElementById('entity-edit-overlay');
+  const _eeBox       = document.getElementById('entity-edit-box');
+  const _eeTitle     = document.getElementById('entity-edit-title');
+  const _eeName      = document.getElementById('ee-name');
+  const _eeNameCount = document.getElementById('ee-name-count');
+  const _eePurpose   = document.getElementById('ee-purpose');
+  const _eeNature    = document.getElementById('ee-nature');
+  const _eeSave      = document.getElementById('entity-edit-save');
+
+  let _eeEntityType = '';
+  let _eeEntityId   = 0;
+
+  // Labels (AR / EN)
+  const _eeL = {
+    room:  lang==='ar' ? {
+      title:'✏️ تعديل الغرفة', name:'اسم الغرفة', purpose:'الهدف / الوصف',
+      nature:'الطبيعة (مثال: عام، خاص، ترفيهي)', save:'💾 حفظ التغييرات',
+      ok:'✅ تم الحفظ', err:'❌ حدث خطأ', nameReq:'الاسم مطلوب'
+    } : {
+      title:'✏️ Edit Room', name:'Room Name', purpose:'Purpose / Description',
+      nature:'Nature (e.g. Public, Private, Social)', save:'💾 Save Changes',
+      ok:'✅ Saved', err:'❌ Error', nameReq:'Name is required'
+    },
+    store: lang==='ar' ? {
+      title:'✏️ تعديل المتجر', name:'اسم المتجر', purpose:'الهدف / الوصف',
+      nature:'الطبيعة (مثال: مطعم، بقالة، إلكترونيات)', save:'💾 حفظ التغييرات',
+      ok:'✅ تم الحفظ', err:'❌ حدث خطأ', nameReq:'الاسم مطلوب'
+    } : {
+      title:'✏️ Edit Store', name:'Store Name', purpose:'Purpose / Description',
+      nature:'Nature (e.g. Restaurant, Grocery, Electronics)', save:'💾 Save Changes',
+      ok:'✅ Saved', err:'❌ Error', nameReq:'Name is required'
+    }
+  };
+
+  document.getElementById('entity-edit-close-btn').addEventListener('click', closeEntityEdit);
+  _eeOverlay.addEventListener('click', e => { if (e.target === _eeOverlay) closeEntityEdit(); });
+
+  // character counter for name
+  _eeName.addEventListener('input', () => {
+    const n = _eeName.value.length;
+    _eeNameCount.textContent = `${n}/60`;
+  });
+
+  function closeEntityEdit() { _eeOverlay.style.display = 'none'; }
+
+  window.openEntityEdit = function(entityType, entityId, name, purpose, nature) {
+    _eeEntityType = entityType;
+    _eeEntityId   = entityId;
+    const L = _eeL[entityType] || _eeL.room;
+
+    _eeTitle.textContent = L.title;
+    document.getElementById('ee-name-label').textContent    = L.name;
+    document.getElementById('ee-purpose-label').textContent = L.purpose;
+    document.getElementById('ee-nature-label').textContent  = L.nature;
+    _eeSave.textContent = L.save;
+
+    _eeName.value    = name    || '';
+    _eePurpose.value = purpose || '';
+    _eeNature.value  = nature  || '';
+    _eeNameCount.textContent = `${_eeName.value.length}/60`;
+
+    _eeOverlay.style.display = 'block';
+    _eeBox.classList.remove('open');
+    void _eeBox.offsetWidth;
+    _eeBox.classList.add('open');
+    map.closePopup();
+    setTimeout(() => _eeName.focus(), 320);
+  };
+
+  _eeSave.addEventListener('click', async () => {
+    const L = _eeL[_eeEntityType] || _eeL.room;
+    const name = _eeName.value.trim();
+    if (!name) { _eeName.style.borderColor='#e74c3c'; _eeName.focus(); return; }
+    _eeName.style.borderColor = '';
+    _eeSave.disabled = true;
+    _eeSave.textContent = '⏳';
+    try {
+      const res = await fetch('/api/entity/edit', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          uid, entity_type:_eeEntityType, entity_id:_eeEntityId,
+          name, purpose:_eePurpose.value.trim(), nature:_eeNature.value.trim()
+        })
+      }).then(r => r.json());
+
+      if (res.ok) {
+        _eeSave.textContent = L.ok;
+        setTimeout(() => {
+          closeEntityEdit();
+          if (_eeEntityType==='room') loadRooms();
+          else loadStores();
+          _eeSave.textContent = L.save;
+          _eeSave.disabled = false;
+        }, 800);
+      } else {
+        _eeSave.textContent = L.err;
+        setTimeout(() => { _eeSave.textContent = L.save; _eeSave.disabled = false; }, 1500);
+      }
+    } catch(e) {
+      _eeSave.textContent = L.err;
+      setTimeout(() => { _eeSave.textContent = L.save; _eeSave.disabled = false; }, 1500);
+    }
+  });
 
   // ══════════════════════════════════════════════════════════════════════
   // ICON PICKER SYSTEM
