@@ -403,21 +403,18 @@
   document.getElementById('zoom-out').addEventListener('click', () => map.zoomOut());
 
   // ── Position state ──────────────────────────────────────────────────────
-  let gpsLatLng  = null;   // real GPS from server
-  let myLatLng   = null;   // displayed pin position (moves with joystick)
-  let myPhoto    = null;   // me profile photo URL
-  let myInitial  = '?';
+  let gpsLatLng       = null;   // latest live GPS (from watchPosition only)
+  let myLatLng        = null;   // displayed pin position (moves with joystick)
+  let myPhoto         = null;   // me profile photo URL
+  let myInitial       = '?';
+  let joystickRoaming = false;  // true only while user is moving via joystick
 
-  const ROAM_THRESH = 0.0001;  // ~11 metres
-  function isRoaming() {
-    if (!gpsLatLng || !myLatLng) return false;
-    return Math.abs(gpsLatLng[0]-myLatLng[0]) > ROAM_THRESH ||
-           Math.abs(gpsLatLng[1]-myLatLng[1]) > ROAM_THRESH;
-  }
+  function isRoaming() { return joystickRoaming; }
 
   // ── Recenter ────────────────────────────────────────────────────────────
   document.getElementById('recenter').addEventListener('click', () => {
     if (!gpsLatLng) return;
+    joystickRoaming = false;           // reset roaming flag
     myLatLng = [...gpsLatLng];
     if (meMarker) meMarker.setLatLng(myLatLng);
     map.setView(myLatLng, 16, { animate: true });
@@ -560,7 +557,9 @@
         if (data.error) return;
 
         const me = data.me;
-        gpsLatLng = [me.lat, me.lng];
+        // Only use server position as fallback on very first load (before live GPS arrives)
+        const serverPos = [me.lat, me.lng];
+        if (!gpsLatLng) gpsLatLng = serverPos;   // first-time fallback only
         if (!myLatLng)  myLatLng  = [...gpsLatLng];
         if (!myPhoto)   myPhoto   = me.photo_url || null;
         myInitial = (me.name || '?')[0].toUpperCase();
@@ -685,6 +684,7 @@
     e.preventDefault();
     jpad.setPointerCapture(e.pointerId);
     joyActive = true;
+    joystickRoaming = true;   // user is intentionally moving away from GPS
     const r = jpad.getBoundingClientRect();
     joyCX = r.left + r.width/2;
     joyCY = r.top  + r.height/2;
@@ -857,10 +857,11 @@
     // ── Update gpsLatLng so recenter works ──
     gpsLatLng = [lat, lng];
 
-    // ── If not roaming (joystick untouched) keep meMarker on GPS ──
-    if (!isRoaming() && meMarker) {
+    // ── If not joystick-roaming, always follow live GPS ──
+    if (!joystickRoaming && meMarker) {
       myLatLng = [lat, lng];
       meMarker.setLatLng(myLatLng);
+      map.panTo(myLatLng, { animate: true, duration: 0.5 });
       refreshMeMarker();
     }
 
