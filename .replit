@@ -31,18 +31,21 @@ author = "agent"
 task = "workflow.run"
 args = "Flask App"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = ""
+
 [[workflows.workflow]]
 name = ""
 mode = "parallel"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main.py"
-waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
+args = "echo 'disabled'"
 
 [[workflows.workflow]]
 name = "Flask App"
