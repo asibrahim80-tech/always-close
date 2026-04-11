@@ -894,6 +894,30 @@ def api_store_members(store_id, telegram_id):
         return jsonify({"ok": False, "members": [], "error": str(e)})
 
 
+@app.route('/api/update_location', methods=['POST'])
+def api_update_location():
+    """Receive live GPS from the browser and persist it to Supabase."""
+    try:
+        data = request.get_json(force=True) or {}
+        uid  = int(data.get('uid', 0))
+        lat  = float(data.get('lat', 0))
+        lng  = float(data.get('lng', 0))
+        acc  = float(data.get('accuracy', 999))
+        if not uid:
+            return jsonify({"ok": False, "error": "missing uid"}), 400
+        # Only accept fixes better than 200 m accuracy
+        if acc > 200:
+            return jsonify({"ok": False, "error": "accuracy too low"}), 200
+        supabase.table("users_v1").update({
+            "latitude":    lat,
+            "longitude":   lng,
+            "recorded_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("telegram_id", uid).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @app.route('/health')
 def health():
     return jsonify({

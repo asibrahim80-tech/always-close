@@ -37,6 +37,19 @@
       border:var(--ui-bd);
       display:flex;align-items:center;gap:7px;user-select:none
     }
+
+    /* ── GPS accuracy badge ── */
+    #gps-badge{
+      position:fixed;top:12px;right:12px;z-index:1000;
+      background:var(--ui-bg);backdrop-filter:var(--ui-blur);
+      color:#fff;border-radius:20px;padding:6px 12px;font-size:11px;
+      border:var(--ui-bd);display:flex;align-items:center;gap:6px;
+      transition:opacity .4s;
+    }
+    #gps-dot{width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0}
+    #gps-dot.good{background:#2ecc71}
+    #gps-dot.fair{background:#f1c40f}
+    #gps-dot.bad {background:#e74c3c}
     .pulse-dot{
       width:8px;height:8px;border-radius:50%;background:#2ecc71;
       animation:pulse-green 1.5s infinite
@@ -210,6 +223,12 @@
   <span class="pulse-dot"></span>
   <span id="live-lbl">LIVE</span>
   <span id="countdown"> 5s </span>
+</div>
+
+<!-- ── GPS accuracy badge ── -->
+<div id="gps-badge">
+  <span id="gps-dot"></span>
+  <span id="gps-lbl">GPS…</span>
 </div>
 
 <!-- ── Drag Joystick ── -->
@@ -690,6 +709,86 @@
         });
       })
       .catch(() => {});
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // LIVE GPS TRACKING — watchPosition
+  // ══════════════════════════════════════════════════════════════════════
+  const gpsDot = document.getElementById('gps-dot');
+  const gpsLbl = document.getElementById('gps-lbl');
+
+  let lastSentLat   = null;
+  let lastSentLng   = null;
+  let lastSentTime  = 0;
+  const MIN_DIST_M  = 5;    // only send if moved ≥ 5 metres
+  const MIN_SEND_MS = 4000; // at most once every 4 seconds
+
+  function metresToDeg(m) { return m / 111320; }
+
+  function movedEnough(lat, lng) {
+    if (lastSentLat === null) return true;
+    const dLat = Math.abs(lat - lastSentLat);
+    const dLng = Math.abs(lng - lastSentLng);
+    return dLat > metresToDeg(MIN_DIST_M) || dLng > metresToDeg(MIN_DIST_M);
+  }
+
+  function setGpsUi(state, text) {
+    gpsDot.className = state;   // good | fair | bad | ''
+    gpsLbl.textContent = text;
+  }
+
+  function onGpsPosition(pos) {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    const acc = pos.coords.accuracy; // metres
+
+    // ── Update GPS accuracy badge ──
+    if      (acc <= 20)  setGpsUi('good', `±${Math.round(acc)}m`);
+    else if (acc <= 100) setGpsUi('fair', `±${Math.round(acc)}m`);
+    else                 setGpsUi('bad',  `±${Math.round(acc)}m`);
+
+    // ── Update gpsLatLng so recenter works ──
+    gpsLatLng = [lat, lng];
+
+    // ── If not roaming (joystick untouched) keep meMarker on GPS ──
+    if (!isRoaming() && meMarker) {
+      myLatLng = [lat, lng];
+      meMarker.setLatLng(myLatLng);
+      refreshMeMarker();
+    }
+
+    // ── Throttle server updates ──
+    const now = Date.now();
+    if (now - lastSentTime < MIN_SEND_MS) return;
+    if (!movedEnough(lat, lng)) return;
+
+    lastSentLat  = lat;
+    lastSentLng  = lng;
+    lastSentTime = now;
+
+    fetch('/api/update_location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, lat, lng, accuracy: acc })
+    }).catch(() => {});
+  }
+
+  function onGpsError(err) {
+    setGpsUi('bad', lang === 'ar' ? 'GPS ✗' : 'GPS off');
+  }
+
+  if (uid && navigator.geolocation) {
+    navigator.geolocation.watchPosition(
+      onGpsPosition,
+      onGpsError,
+      {
+        enableHighAccuracy: true,
+        timeout:            10000,
+        maximumAge:         0,      // always fresh position
+      }
+    );
+  } else {
+    document.getElementById('gps-badge').style.display = 'none';
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────
