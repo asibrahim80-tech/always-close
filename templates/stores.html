@@ -145,6 +145,34 @@
     body.rtl .member-count-label{margin-left:0;margin-right:4px}
     body.rtl .star-bar-front{left:auto;right:0}
 
+    /* ── Edit modal ── */
+    #edit-modal{position:fixed;inset:0;z-index:700;display:none}
+    #edit-modal-bg{position:absolute;inset:0;background:rgba(0,0,0,.52)}
+    #edit-panel{
+      position:absolute;bottom:0;left:0;right:0;background:#fff;
+      border-radius:22px 22px 0 0;padding:20px 16px 36px;
+      max-height:90vh;overflow-y:auto;
+    }
+    #edit-panel.open{animation:slideUpE .3s ease}
+    @keyframes slideUpE{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    #edit-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    #edit-modal-title{font-size:16px;font-weight:800;color:#111}
+    #edit-modal-close{font-size:22px;color:#aaa;cursor:pointer;padding:4px;line-height:1}
+    .ef-label{font-size:12px;font-weight:700;color:#555;margin-bottom:5px;display:block}
+    .ef-input{
+      width:100%;box-sizing:border-box;padding:11px 13px;
+      border:1.5px solid #ddd;border-radius:12px;font-size:14px;
+      margin-bottom:12px;outline:none;font-family:inherit;transition:border-color .15s;
+    }
+    .ef-input:focus{border-color:#e67e22}
+    .ef-char{font-size:11px;color:#bbb;text-align:right;margin-top:-10px;margin-bottom:10px}
+    #edit-save-btn{
+      width:100%;padding:13px;background:linear-gradient(135deg,#e67e22,#c0392b);
+      color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;
+      cursor:pointer;transition:opacity .15s;
+    }
+    #edit-save-btn:disabled{opacity:.5}
+
     /* ── Catalog modal (orange theme) ── */
     #cat-modal{position:fixed;inset:0;z-index:600;display:none}
     #cat-modal-bg{position:absolute;inset:0;background:rgba(0,0,0,.5)}
@@ -222,6 +250,25 @@
 <div id="toast"></div>
 <input type="file" id="img-input" accept="image/*" style="display:none">
 
+<!-- ── Edit modal (creator only) ── -->
+<div id="edit-modal">
+  <div id="edit-modal-bg"></div>
+  <div id="edit-panel">
+    <div id="edit-hdr">
+      <span id="edit-modal-title"></span>
+      <span id="edit-modal-close">✕</span>
+    </div>
+    <label class="ef-label" id="ef-name-label"></label>
+    <input  class="ef-input" id="ef-name" type="text" maxlength="60">
+    <div class="ef-char" id="ef-name-char">0/60</div>
+    <label class="ef-label" id="ef-purpose-label"></label>
+    <input  class="ef-input" id="ef-purpose" type="text" maxlength="120">
+    <label class="ef-label" id="ef-nature-label"></label>
+    <input  class="ef-input" id="ef-nature" type="text" maxlength="60">
+    <button id="edit-save-btn"></button>
+  </div>
+</div>
+
 <!-- ── Catalog modal ── -->
 <div id="cat-modal">
   <div id="cat-modal-bg"></div>
@@ -280,7 +327,12 @@
       rate_ok:'⭐ شكراً على تقييمك!', rate_err:'❌ خطأ في التقييم',
       modal_title:'تقييم المتابعين', modal_empty:'لا يوجد متابعون آخرون',
       member_rate_ok:'⭐ تم تقييم المتابع',
-      btn_catalog:'📋 كتالوج',
+      btn_catalog:'📋 كتالوج', btn_edit:'✏️ تعديل',
+      edit_title:'✏️ تعديل المتجر',
+      edit_name:'اسم المتجر', edit_purpose:'الهدف / الوصف',
+      edit_nature:'الطبيعة (مطعم، بقالة، إلكترونيات...)',
+      edit_save:'💾 حفظ التغييرات', edit_ok:'✅ تم الحفظ', edit_err:'❌ حدث خطأ',
+      edit_name_req:'الاسم مطلوب',
       cat_title:'كتالوج المتجر', cat_add:'+ إضافة منتج / خدمة', cat_save:'حفظ',
       cat_empty:'لا يوجد محتوى بعد',
       cat_del_confirm:'حذف هذا العنصر؟', cat_del_ok:'🗑️ تم الحذف', cat_add_ok:'✅ تم الإضافة',
@@ -311,7 +363,12 @@
       rate_ok:'⭐ Thanks for rating!', rate_err:'❌ Rating error',
       modal_title:'Rate Store Followers', modal_empty:'No other followers',
       member_rate_ok:'⭐ Follower rated',
-      btn_catalog:'📋 Catalog',
+      btn_catalog:'📋 Catalog', btn_edit:'✏️ Edit',
+      edit_title:'✏️ Edit Store',
+      edit_name:'Store Name', edit_purpose:'Purpose / Description',
+      edit_nature:'Nature (Restaurant, Grocery, Electronics...)',
+      edit_save:'💾 Save Changes', edit_ok:'✅ Saved', edit_err:'❌ Error',
+      edit_name_req:'Name is required',
       cat_title:'Store Catalog', cat_add:'+ Add Product / Service', cat_save:'Save',
       cat_empty:'No content yet — be the first to add!',
       cat_del_confirm:'Delete this item?', cat_del_ok:'🗑️ Deleted', cat_add_ok:'✅ Added',
@@ -720,6 +777,16 @@
       bcat.addEventListener('click', () => openCatalog('store', s.id, s.name, s.is_creator));
       actions.appendChild(bcat);
 
+      // Edit button — creator only
+      if (s.is_creator) {
+        const bedit = document.createElement('button');
+        bedit.className = 'act-btn';
+        bedit.style.cssText = 'background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;flex:0 0 auto;padding:9px 14px;font-weight:700';
+        bedit.textContent = T.btn_edit || '✏️';
+        bedit.addEventListener('click', () => openEditModal('store', s.id, s.name, s.purpose, s.nature, nameEl));
+        actions.appendChild(bedit);
+      }
+
       card.appendChild(actions);
 
       // Divider + Rating strip
@@ -960,6 +1027,62 @@
     try{const r=await fetch('/api/catalog/image/upload',{method:'POST',body:fd}).then(r=>r.json());
       if(r.ok){showToast('✅');loadCatalog();}else showToast(T.cat_err);}catch{showToast(T.cat_err);}
   }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // EDIT MODAL — creator only (stores)
+  // ══════════════════════════════════════════════════════════════════════
+  const _emModal    = document.getElementById('edit-modal');
+  const _emPanel    = document.getElementById('edit-panel');
+  const _emTitle    = document.getElementById('edit-modal-title');
+  const _emName     = document.getElementById('ef-name');
+  const _emNameChar = document.getElementById('ef-name-char');
+  const _emPurpose  = document.getElementById('ef-purpose');
+  const _emNature   = document.getElementById('ef-nature');
+  const _emSave     = document.getElementById('edit-save-btn');
+  let _emEntityType = 'store';
+  let _emEntityId   = 0;
+  let _emNameEl     = null;
+
+  document.getElementById('edit-modal-close').addEventListener('click', () => _emModal.style.display='none');
+  document.getElementById('edit-modal-bg').addEventListener('click', () => _emModal.style.display='none');
+  _emName.addEventListener('input', () => { _emNameChar.textContent = `${_emName.value.length}/60`; });
+
+  function openEditModal(entityType, entityId, name, purpose, nature, nameEl) {
+    _emEntityType = entityType; _emEntityId = entityId; _emNameEl = nameEl;
+    document.getElementById('ef-name-label').textContent    = T.edit_name    || 'Name';
+    document.getElementById('ef-purpose-label').textContent = T.edit_purpose || 'Purpose';
+    document.getElementById('ef-nature-label').textContent  = T.edit_nature  || 'Nature';
+    _emTitle.textContent = T.edit_title || '✏️ Edit';
+    _emSave.textContent  = T.edit_save  || '💾 Save';
+    _emName.value = name || ''; _emPurpose.value = purpose || ''; _emNature.value = nature || '';
+    _emNameChar.textContent = `${_emName.value.length}/60`;
+    _emName.style.borderColor = '';
+    _emModal.style.display = 'block';
+    _emPanel.classList.remove('open'); void _emPanel.offsetWidth; _emPanel.classList.add('open');
+    setTimeout(() => _emName.focus(), 320);
+  }
+
+  _emSave.addEventListener('click', async () => {
+    const name = _emName.value.trim();
+    if (!name) { _emName.style.borderColor = '#e74c3c'; _emName.focus(); return; }
+    _emName.style.borderColor = '';
+    _emSave.disabled = true; _emSave.textContent = '⏳';
+    try {
+      const res = await fetch('/api/entity/edit', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ uid, entity_type:_emEntityType, entity_id:_emEntityId,
+          name, purpose:_emPurpose.value.trim(), nature:_emNature.value.trim() })
+      }).then(r=>r.json());
+      if (res.ok) {
+        _emSave.textContent = T.edit_ok || '✅';
+        if (_emNameEl) _emNameEl.textContent = name;
+        setTimeout(() => { _emModal.style.display='none'; loadData(); _emSave.disabled=false; _emSave.textContent=T.edit_save||'💾 Save'; }, 700);
+      } else {
+        _emSave.textContent = T.edit_err || '❌';
+        setTimeout(() => { _emSave.disabled=false; _emSave.textContent=T.edit_save||'💾 Save'; }, 1500);
+      }
+    } catch { _emSave.textContent=T.edit_err||'❌'; setTimeout(()=>{ _emSave.disabled=false; _emSave.textContent=T.edit_save||'💾 Save'; },1500); }
+  });
 </script>
 </body>
 </html>
