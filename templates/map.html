@@ -207,6 +207,42 @@
       cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px
     }
     .last-seen{font-size:11px;color:#999;margin-top:5px}
+
+    /* ══════════════════════════════════════
+       PROXIMITY BUBBLE NOTIFICATIONS
+    ══════════════════════════════════════ */
+    #bubble-container{
+      position:fixed;bottom:82px;left:10px;right:10px;
+      z-index:1100;display:flex;flex-direction:column;
+      gap:8px;pointer-events:none;
+    }
+    .map-bubble{
+      background:rgba(10,10,22,.88);
+      backdrop-filter:blur(10px);
+      border-left:4px solid #3498db;
+      border-radius:14px;padding:10px 12px 10px 14px;
+      color:#fff;display:flex;align-items:center;
+      gap:10px;font-size:13px;line-height:1.45;
+      animation:bub-in .38s cubic-bezier(.17,.67,.35,1.2);
+      transition:opacity .4s,transform .4s;
+      pointer-events:all;max-width:100%;
+      box-shadow:0 4px 20px rgba(0,0,0,.45);
+    }
+    @keyframes bub-in{
+      from{transform:translateY(18px) scale(.95);opacity:0}
+      to  {transform:translateY(0)   scale(1);  opacity:1}
+    }
+    .bub-icon{font-size:20px;flex-shrink:0;line-height:1}
+    .bub-msg {flex:1;min-width:0}
+    .bub-title{font-weight:700;font-size:13px;margin-bottom:2px}
+    .bub-sub  {font-size:11px;opacity:.75}
+    .bub-close{
+      background:none;border:none;color:rgba(255,255,255,.45);
+      cursor:pointer;font-size:14px;flex-shrink:0;
+      padding:2px 4px;line-height:1;
+    }
+    .bub-close:hover{color:#fff}
+    .map-bubble.bub-out{opacity:0;transform:translateX(-10px)}
   </style>
 </head>
 <body>
@@ -230,6 +266,9 @@
   <span id="gps-dot"></span>
   <span id="gps-lbl">GPS…</span>
 </div>
+
+<!-- ── Proximity bubble notifications ── -->
+<div id="bubble-container"></div>
 
 <!-- ── Drag Joystick ── -->
 <div id="joystick">
@@ -514,6 +553,10 @@
           }
         });
 
+        // ── Feed proximity engine ──────────────────────────
+        _prox_users = data.nearby || [];
+        if (!firstLoad) runProximityChecks();
+
         refreshTimer = 5;
       })
       .catch(() => {});
@@ -624,6 +667,10 @@
         Object.values(roomMarkers).forEach(m => map.removeLayer(m));
         Object.keys(roomMarkers).forEach(k => delete roomMarkers[k]);
         // Add new markers
+        // ── Feed proximity engine ──────────────────────────
+        _prox_rooms = rooms;
+        runProximityChecks();
+
         rooms.forEach(r => {
           const icon = makeRoomIcon(r.name);
           const m = L.marker([r.lat, r.lng], { icon, zIndexOffset: 500 })
@@ -678,6 +725,11 @@
         const stores = data.stores || [];
         Object.values(storeMarkers).forEach(m => map.removeLayer(m));
         Object.keys(storeMarkers).forEach(k => delete storeMarkers[k]);
+
+        // ── Feed proximity engine ──────────────────────────
+        _prox_stores = stores;
+        runProximityChecks();
+
         stores.forEach(s => {
           const icon = makeStoreIcon(s.name);
           const m = L.marker([s.lat, s.lng], { icon, zIndexOffset: 400 }).addTo(map);
@@ -757,6 +809,9 @@
       refreshMeMarker();
     }
 
+    // ── Run proximity checks on GPS move ──
+    runProximityChecks();
+
     // ── Throttle server updates ──
     const now = Date.now();
     if (now - lastSentTime < MIN_SEND_MS) return;
@@ -789,6 +844,195 @@
     );
   } else {
     document.getElementById('gps-badge').style.display = 'none';
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // PROXIMITY BUBBLE NOTIFICATION ENGINE
+  // ══════════════════════════════════════════════════════════════════════
+
+  // ── Data caches ──────────────────────────────────────────────────────
+  let _prox_users  = [];
+  let _prox_rooms  = [];
+  let _prox_stores = [];
+  const _prevRoomMembers  = {};   // roomId  → last known member count
+  const _prevStoreMembers = {};   // storeId → last known member count
+
+  // ── Cooldown / dedup ─────────────────────────────────────────────────
+  const _bubShown  = {};          // key → timestamp last shown
+  const BUB_COOL   = 120000;      // 2 min before repeating same key
+  const BUB_MAX    = 4;           // max visible bubbles at once
+  let   _bubCount  = 0;
+  let   _lastCheck = 0;
+  const CHECK_INT  = 8000;        // run proximity checks every 8 s
+
+  // ── Haversine distance in metres ────────────────────────────────────
+  function _dist(la1, lo1, la2, lo2) {
+    const R = 6371000, r = Math.PI/180;
+    const dLa = (la2-la1)*r, dLo = (lo2-lo1)*r;
+    const a = Math.sin(dLa/2)**2 +
+              Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function _mStr(m) {
+    if (m < 1000) return `${Math.round(m)}${lang==='ar'?'م':'m'}`;
+    return `${(m/1000).toFixed(1)} ${L_.km}`;
+  }
+
+  // ── Show one bubble ──────────────────────────────────────────────────
+  function showBubble(icon, title, sub, key, color, dur) {
+    const now = Date.now();
+    if (_bubShown[key] && now - _bubShown[key] < BUB_COOL) return;
+    if (_bubCount >= BUB_MAX) return;
+    _bubShown[key] = now;
+    _bubCount++;
+
+    const el = document.createElement('div');
+    el.className = 'map-bubble';
+    el.style.borderLeftColor = color;
+    el.innerHTML = `
+      <span class="bub-icon">${icon}</span>
+      <div class="bub-msg">
+        <div class="bub-title">${title}</div>
+        ${sub ? `<div class="bub-sub">${sub}</div>` : ''}
+      </div>
+      <button class="bub-close" onclick="dismissBubble(this)">✕</button>`;
+
+    document.getElementById('bubble-container').appendChild(el);
+
+    const lifetime = (dur || 7000);
+    setTimeout(() => {
+      el.classList.add('bub-out');
+      setTimeout(() => { el.remove(); _bubCount = Math.max(0, _bubCount-1); }, 420);
+    }, lifetime);
+  }
+
+  window.dismissBubble = function(btn) {
+    const el = btn.closest('.map-bubble');
+    if (!el) return;
+    el.classList.add('bub-out');
+    setTimeout(() => { el.remove(); _bubCount = Math.max(0, _bubCount-1); }, 420);
+  };
+
+  // ── Message templates ────────────────────────────────────────────────
+  const T = {
+    ar: {
+      group:      (n,d)   => [`👥 تجمّع ${n} أشخاص بالقرب`,  `على بعد ${d} منك`],
+      user_bio:   (n,b,d) => [`👤 ${n} موجود على بعد ${d}`,   `"${b}"`],
+      user_act:   (n,d)   => [`👤 شخص نشط بالقرب — ${d}`,     `${n||'مستخدم'}`],
+      room_full:  (n,m,d) => [`🏠 غرفة "${n}" على بعد ${d}`,  `يوجد بها ${m} أشخاص الآن`],
+      room_empty: (n,d)   => [`🏠 غرفة "${n}" قريبة`,          `على بعد ${d} — انضم الآن`],
+      room_new:   (n,m)   => [`✨ ${m} أشخاص تعارفوا للتو!`,   `في غرفة "${n}" القريبة منك`],
+      store_full: (n,nat,m,d) => [`🏪 ${nat||'متجر'} "${n}" على بعد ${d}`, `يرتاده ${m} ${m===1?'شخص':'أشخاص'} الآن`],
+      store_empty:(n,nat,d)   => [`🏪 ${nat||'متجر'} "${n}" قريب`,          `على بعد ${d} — تفضل بزيارته`],
+      store_new:  (n,m)   => [`🔔 ${m} أشخاص في "${n}" الآن!`, `زاد الإقبال على هذا المتجر`],
+    },
+    en: {
+      group:      (n,d)   => [`👥 ${n} people gathered nearby`, `Within ${d} of you`],
+      user_bio:   (n,b,d) => [`👤 ${n} is ${d} away`,           `"${b}"`],
+      user_act:   (n,d)   => [`👤 Active person nearby — ${d}`,  `${n||'User'}`],
+      room_full:  (n,m,d) => [`🏠 Room "${n}" is ${d} away`,     `${m} people inside right now`],
+      room_empty: (n,d)   => [`🏠 Room "${n}" nearby`,           `${d} away — come join!`],
+      room_new:   (n,m)   => [`✨ ${m} people just connected!`,   `In room "${n}" nearby you`],
+      store_full: (n,nat,m,d) => [`🏪 ${nat||'Store'} "${n}" is ${d} away`, `${m} ${m===1?'person':'people'} visiting now`],
+      store_empty:(n,nat,d)   => [`🏪 ${nat||'Store'} "${n}" nearby`,        `${d} away — check it out`],
+      store_new:  (n,m)   => [`🔔 ${m} people at "${n}" now!`,   `Footfall just increased`],
+    }
+  };
+  const TL = T[lang] || T.en;
+
+  // ── Main proximity check ─────────────────────────────────────────────
+  function runProximityChecks(force) {
+    const now = Date.now();
+    if (!force && now - _lastCheck < CHECK_INT) return;
+    if (!myLatLng) return;
+    _lastCheck = now;
+    const [la, lo] = myLatLng;
+
+    // ── 1. Rooms ──────────────────────────────────────────────────────
+    _prox_rooms.forEach(r => {
+      if (!r.lat || !r.lng) return;
+      const d = _dist(la, lo, r.lat, r.lng);
+      if (d > 350) return;
+      const dStr   = _mStr(d);
+      const members = r.members || 0;
+
+      // ── New members just joined? ──
+      const prev = _prevRoomMembers[r.id];
+      if (prev !== undefined && members > prev && members >= 2) {
+        const [ti, su] = TL.room_new(r.name, members);
+        showBubble('✨', ti, su, `room_new_${r.id}_${members}`, '#f1c40f', 9000);
+      }
+      _prevRoomMembers[r.id] = members;
+
+      // ── Proximity notification ──
+      const nature = r.nature ? `(${r.nature})` : '';
+      const purpose = r.purpose || '';
+      if (members >= 2) {
+        const [ti, su] = TL.room_full(r.name, members, dStr);
+        showBubble('🏠', ti, purpose || su, `room_prox_${r.id}`, '#7c3aed');
+      } else {
+        const [ti, su] = TL.room_empty(r.name, dStr);
+        showBubble('🏠', ti, purpose || su, `room_prox_${r.id}`, '#9b59b6');
+      }
+    });
+
+    // ── 2. Stores ─────────────────────────────────────────────────────
+    _prox_stores.forEach(s => {
+      if (!s.lat || !s.lng) return;
+      const d = _dist(la, lo, s.lat, s.lng);
+      if (d > 300) return;
+      const dStr   = _mStr(d);
+      const members = s.members || 0;
+      const nat    = s.nature || '';
+
+      // ── New visitors? ──
+      const prev = _prevStoreMembers[s.id];
+      if (prev !== undefined && members > prev && members >= 2) {
+        const [ti, su] = TL.store_new(s.name, members);
+        showBubble('🔔', ti, su, `store_new_${s.id}_${members}`, '#f39c12', 9000);
+      }
+      _prevStoreMembers[s.id] = members;
+
+      const purpose = s.purpose || '';
+      if (members >= 1) {
+        const [ti, su] = TL.store_full(s.name, nat, members, dStr);
+        showBubble('🏪', ti, purpose || su, `store_prox_${s.id}`, '#e67e22');
+      } else {
+        const [ti, su] = TL.store_empty(s.name, nat, dStr);
+        showBubble('🏪', ti, purpose || su, `store_prox_${s.id}`, '#d35400');
+      }
+    });
+
+    // ── 3. Users ──────────────────────────────────────────────────────
+    const close = _prox_users.filter(u => {
+      if (!u.lat || !u.lng) return false;
+      return _dist(la, lo, u.lat, u.lng) <= 150;
+    });
+
+    if (close.length >= 3) {
+      // Group bubble
+      const dMax = Math.max(...close.map(u => _dist(la, lo, u.lat, u.lng)));
+      const [ti, su] = TL.group(close.length, _mStr(dMax));
+      const gKey = `grp_${Math.round(la*100)}_${Math.round(lo*100)}`;
+      showBubble('👥', ti, su, gKey, '#2ecc71');
+    } else {
+      // Individual bubbles (max 2)
+      close.slice(0, 2).forEach(u => {
+        const d    = _dist(la, lo, u.lat, u.lng);
+        const dStr = _mStr(d);
+        const name = u.username || (lang==='ar'?'مستخدم':'User');
+        const bio  = u.bio ? u.bio.substring(0,40)+(u.bio.length>40?'…':'') : '';
+        const key  = `user_${u.id}`;
+        if (bio) {
+          const [ti, su] = TL.user_bio(name, bio, dStr);
+          showBubble('👤', ti, su, key, '#3498db');
+        } else if (u.is_active) {
+          const [ti, su] = TL.user_act(name, dStr);
+          showBubble('👤', ti, su, key, '#2980b9');
+        }
+      });
+    }
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────
