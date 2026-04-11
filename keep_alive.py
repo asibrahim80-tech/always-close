@@ -191,7 +191,6 @@ def api_rooms(telegram_id):
         rooms_res = supabase.table("rooms_v1") \
             .select("id, name, purpose, latitude, longitude, creator_id, created_at") \
             .eq("is_active", True) \
-            .not_.is_("latitude", "null") \
             .execute()
 
         rooms_out = []
