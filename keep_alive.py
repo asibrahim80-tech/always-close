@@ -232,7 +232,7 @@ def api_rooms(telegram_id):
         # Fetch rooms — try new columns gracefully
         try:
             rooms_res = supabase.table("rooms_v1") \
-                .select("id, name, latitude, longitude, created_by, created_at, purpose, nature, image_url, expires_at") \
+                .select("id, name, latitude, longitude, created_by, created_at, purpose, nature, image_url, expires_at, icon") \
                 .execute()
         except Exception:
             rooms_res = supabase.table("rooms_v1") \
@@ -278,6 +278,7 @@ def api_rooms(telegram_id):
                 "nature":     r.get("nature") or "",
                 "image_url":  r.get("image_url") or "",
                 "expires_at": r.get("expires_at") or "",
+                "icon":       r.get("icon") or "🏠",
                 "is_creator": (my_id is not None and r.get("created_by") == my_id),
                 "is_member":  (r["id"] in my_room_ids),
             })
@@ -609,7 +610,7 @@ def api_stores(telegram_id):
         # Fetch stores
         try:
             stores_res = supabase.table("stores_v1") \
-                .select("id, name, latitude, longitude, created_by, created_at, purpose, nature, image_url, expires_at") \
+                .select("id, name, latitude, longitude, created_by, created_at, purpose, nature, image_url, expires_at, icon") \
                 .execute()
         except Exception:
             stores_res = supabase.table("stores_v1") \
@@ -655,6 +656,7 @@ def api_stores(telegram_id):
                 "nature":     s.get("nature") or "",
                 "image_url":  s.get("image_url") or "",
                 "expires_at": s.get("expires_at") or "",
+                "icon":       s.get("icon") or "🏪",
                 "is_creator": (my_id is not None and s.get("created_by") == my_id),
                 "is_member":  (s["id"] in my_store_ids),
             })
@@ -1014,6 +1016,43 @@ def api_catalog_image_upload():
 
         supabase.table('catalogs_v1').update({'image_url': url}).eq('id', cid).execute()
         return jsonify({'ok': True, 'url': url})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/api/entity/set_icon', methods=['POST'])
+def api_set_entity_icon():
+    """Update the emoji icon of a room or store (creator only)."""
+    try:
+        data        = request.get_json(force=True) or {}
+        uid         = int(data.get('uid', 0))
+        entity_type = data.get('entity_type', '')   # 'room' | 'store'
+        entity_id   = int(data.get('entity_id', 0))
+        icon        = (data.get('icon') or '').strip()
+
+        if not uid or entity_type not in ('room', 'store') or not entity_id or not icon:
+            return jsonify({'ok': False, 'error': 'invalid params'}), 400
+
+        # Validate emoji is single grapheme cluster (cheap sanity check)
+        if len(icon) > 8:
+            return jsonify({'ok': False, 'error': 'invalid icon'}), 400
+
+        tbl = 'rooms_v1' if entity_type == 'room' else 'stores_v1'
+
+        # Verify ownership
+        user_res = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not user_res.data:
+            return jsonify({'ok': False, 'error': 'user not found'}), 404
+        user_db_id = user_res.data[0]["id"]
+
+        entity_res = supabase.table(tbl).select("created_by").eq("id", entity_id).execute()
+        if not entity_res.data:
+            return jsonify({'ok': False, 'error': 'entity not found'}), 404
+        if entity_res.data[0].get("created_by") != user_db_id:
+            return jsonify({'ok': False, 'error': 'not creator'}), 403
+
+        supabase.table(tbl).update({"icon": icon}).eq("id", entity_id).execute()
+        return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 

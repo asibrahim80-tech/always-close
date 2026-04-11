@@ -139,33 +139,65 @@
     /* ── Room pin ── */
     .room-pin{
       background:linear-gradient(135deg,#7c3aed,#5b21b6);
-      border:2.5px solid #fff;
-      border-radius:14px;padding:6px 12px;
-      color:#fff;font-size:13px;font-weight:800;
+      border:3px solid #fff;
+      border-radius:16px;padding:8px 16px;
+      color:#fff;font-size:15px;font-weight:800;
       white-space:nowrap;
-      box-shadow:0 3px 14px rgba(124,58,237,.55),0 1px 3px rgba(0,0,0,.3);
+      box-shadow:0 4px 18px rgba(124,58,237,.6),0 2px 5px rgba(0,0,0,.3);
       cursor:pointer;user-select:none;
-      display:flex;align-items:center;gap:5px;
+      display:flex;align-items:center;gap:6px;
       letter-spacing:.2px;
     }
     .room-pin::after{
-      content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);
-      border:5px solid transparent;border-top:6px solid #7c3aed;
+      content:'';position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);
+      border:6px solid transparent;border-top:7px solid #7c3aed;
     }
     .store-pin{
       background:linear-gradient(135deg,#e67e22,#c0392b);
-      border:2.5px solid #fff;
-      border-radius:14px;padding:6px 12px;
-      color:#fff;font-size:13px;font-weight:800;
+      border:3px solid #fff;
+      border-radius:16px;padding:8px 16px;
+      color:#fff;font-size:15px;font-weight:800;
       white-space:nowrap;
-      box-shadow:0 3px 14px rgba(230,126,34,.55),0 1px 3px rgba(0,0,0,.3);
+      box-shadow:0 4px 18px rgba(230,126,34,.6),0 2px 5px rgba(0,0,0,.3);
       cursor:pointer;user-select:none;
-      display:flex;align-items:center;gap:5px;
+      display:flex;align-items:center;gap:6px;
       position:relative;letter-spacing:.2px;
     }
     .store-pin::after{
-      content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);
-      border:5px solid transparent;border-top:6px solid #e67e22;
+      content:'';position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);
+      border:6px solid transparent;border-top:7px solid #e67e22;
+    }
+
+    /* ── Icon picker overlay ── */
+    #icon-picker-overlay{
+      position:fixed;inset:0;z-index:3000;display:none;
+      background:rgba(0,0,0,.5);
+    }
+    #icon-picker-box{
+      position:absolute;bottom:0;left:0;right:0;
+      background:#fff;border-radius:22px 22px 0 0;
+      padding:18px 14px 30px;
+    }
+    #icon-picker-box.open{animation:mc-in .28s ease}
+    #icon-picker-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    #icon-picker-title{font-size:15px;font-weight:700;color:#111}
+    #icon-picker-close-btn{font-size:22px;color:#aaa;cursor:pointer;padding:4px;line-height:1}
+    #icon-picker-grid{
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));
+      gap:6px;max-height:48vh;overflow-y:auto;
+    }
+    .icon-pick-btn{
+      font-size:26px;width:44px;height:44px;
+      border:2px solid transparent;border-radius:10px;background:#f7f7f7;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      transition:border-color .15s,background .15s;
+    }
+    .icon-pick-btn:hover{background:#ede9fe;border-color:#7c3aed}
+    .icon-pick-btn.selected{background:#ddd2fd;border-color:#7c3aed}
+    #icon-save-btn{
+      margin-top:14px;width:100%;padding:12px;
+      background:linear-gradient(135deg,#7c3aed,#5b21b6);
+      color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;
     }
 
     /* ── Map catalog overlay ── */
@@ -308,6 +340,18 @@
 
 <!-- ── Proximity bubble notifications ── -->
 <div id="bubble-container"></div>
+
+<!-- ── Icon picker overlay ── -->
+<div id="icon-picker-overlay">
+  <div id="icon-picker-box">
+    <div id="icon-picker-hdr">
+      <span id="icon-picker-title">🎨</span>
+      <span id="icon-picker-close-btn">✕</span>
+    </div>
+    <div id="icon-picker-grid"></div>
+    <button id="icon-save-btn"></button>
+  </div>
+</div>
 
 <!-- ── Map catalog overlay ── -->
 <div id="map-cat-overlay">
@@ -702,12 +746,12 @@
   // ── Room markers ──────────────────────────────────────────────────────
   const roomMarkers = {};
 
-  function makeRoomIcon(name) {
+  function makeRoomIcon(name, icon) {
     const el = document.createElement('div');
     el.className = 'room-pin';
     el.style.position = 'relative';
-    el.innerHTML = `🏠 ${name}`;
-    return L.divIcon({ html: el.outerHTML, className: '', iconAnchor: [0, 28] });
+    el.innerHTML = `${icon||'🏠'} ${name}`;
+    return L.divIcon({ html: el.outerHTML, className: '', iconAnchor: [0, 32] });
   }
 
   function loadRooms() {
@@ -725,7 +769,7 @@
         runProximityChecks();
 
         rooms.forEach(r => {
-          const icon = makeRoomIcon(r.name);
+          const icon = makeRoomIcon(r.name, r.icon);
           const m = L.marker([r.lat, r.lng], { icon, zIndexOffset: 500 })
             .addTo(map);
           const dist = r.distance !== null
@@ -746,13 +790,16 @@
             else expiresRow = `<div style="font-size:11px;color:#e74c3c;margin-bottom:4px">⚠️ Expired</div>`;
           }
           m.bindPopup(`
-            <div style="padding:10px;min-width:170px">
-              <div style="font-weight:700;font-size:14px;margin-bottom:5px">🏠 ${r.name}</div>
+            <div style="padding:10px;min-width:175px">
+              <div style="font-weight:700;font-size:15px;margin-bottom:5px">${r.icon||'🏠'} ${r.name}</div>
               ${natureBadge}
               ${purposeRow}
               ${expiresRow}
               <div style="font-size:11px;opacity:.6;margin-bottom:8px">👥 ${members} &nbsp;${dist ? '📍 ' + dist : ''}</div>
-              <button onclick="openMapCatalog('room',${r.id},'${r.name.replace(/'/g,"\\'")}',${JSON.stringify(lang==='ar'?{product:'📦 منتجات',menu_food:'🍔 طعام',menu_drink:'🥤 مشروبات',clothing:'👕 ملابس',accessory:'💍 اكسسوار',other:'📋 أخرى',contact:'📞 تواصل',hours:'🕐 مواعيد',service:'🛎️ خدمات',event:'🎉 فعاليات',meeting:'📅 اجتماعات',offer:'🎁 عروض',info:'ℹ️ معلومات'}:{product:'📦 Products',menu_food:'🍔 Food',menu_drink:'🥤 Drinks',clothing:'👕 Clothing',accessory:'💍 Accessories',other:'📋 Other',contact:'📞 Contact',hours:'🕐 Hours',service:'🛎️ Services',event:'🎉 Events',meeting:'📅 Meetings',offer:'🎁 Offers',info:'ℹ️ Info'})});" style="width:100%;padding:8px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">📋 ${lang==='ar'?'الكتالوج':'Catalog'}</button>
+              <div style="display:flex;gap:7px">
+                <button onclick="openMapCatalog('room',${r.id},'${r.name.replace(/'/g,"\\'")}',${JSON.stringify(lang==='ar'?{service:'🛎️ خدمات',event:'🎉 فعاليات',meeting:'📅 اجتماعات',offer:'🎁 عروض',info:'ℹ️ معلومات',contact:'📞 تواصل',hours:'🕐 مواعيد'}:{service:'🛎️ Services',event:'🎉 Events',meeting:'📅 Meetings',offer:'🎁 Offers',info:'ℹ️ Info',contact:'📞 Contact',hours:'🕐 Hours'})});" style="flex:1;padding:8px 6px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">📋 ${lang==='ar'?'الكتالوج':'Catalog'}</button>
+                ${r.is_creator ? `<button onclick="openIconPicker('room',${r.id},'${(r.icon||'🏠')}')" style="padding:8px 10px;background:#f3f0ff;border:1.5px solid #c4b5fd;border-radius:10px;font-size:16px;cursor:pointer">🎨</button>` : ''}
+              </div>
             </div>
           `);
           roomMarkers[r.id] = m;
@@ -764,11 +811,11 @@
   // ── Store markers ─────────────────────────────────────────────────────
   const storeMarkers = {};
 
-  function makeStoreIcon(name) {
+  function makeStoreIcon(name, icon) {
     const el = document.createElement('div');
     el.className = 'store-pin';
-    el.innerHTML = `🏪 ${name}`;
-    return L.divIcon({ html: el.outerHTML, className: '', iconAnchor: [0, 28] });
+    el.innerHTML = `${icon||'🏪'} ${name}`;
+    return L.divIcon({ html: el.outerHTML, className: '', iconAnchor: [0, 32] });
   }
 
   function loadStores() {
@@ -785,7 +832,7 @@
         runProximityChecks();
 
         stores.forEach(s => {
-          const icon = makeStoreIcon(s.name);
+          const icon = makeStoreIcon(s.name, s.icon);
           const m = L.marker([s.lat, s.lng], { icon, zIndexOffset: 400 }).addTo(map);
           const dist    = s.distance !== null ? `${s.distance} ${L_.km}` : '';
           const members = s.members || 0;
@@ -803,13 +850,16 @@
             else expiresRow = `<div style="font-size:11px;color:#e74c3c;margin-bottom:4px">⚠️ Expired</div>`;
           }
           m.bindPopup(`
-            <div style="padding:10px;min-width:170px">
-              <div style="font-weight:700;font-size:14px;margin-bottom:5px">🏪 ${s.name}</div>
+            <div style="padding:10px;min-width:175px">
+              <div style="font-weight:700;font-size:15px;margin-bottom:5px">${s.icon||'🏪'} ${s.name}</div>
               ${natureBadge}
               ${purposeRow}
               ${expiresRow}
               <div style="font-size:11px;opacity:.6;margin-bottom:8px">🔔 ${members} ${dist ? '&nbsp;📍 ' + dist : ''}</div>
-              <button onclick="openMapCatalog('store',${s.id},'${s.name.replace(/'/g,"\\'")}',${JSON.stringify(lang==='ar'?{product:'📦 منتجات',menu_food:'🍔 طعام',menu_drink:'🥤 مشروبات',clothing:'👕 ملابس',accessory:'💍 اكسسوار',other:'📋 أخرى',contact:'📞 تواصل',hours:'🕐 مواعيد',service:'🛎️ خدمات',event:'🎉 فعاليات',meeting:'📅 اجتماعات',offer:'🎁 عروض',info:'ℹ️ معلومات'}:{product:'📦 Products',menu_food:'🍔 Food',menu_drink:'🥤 Drinks',clothing:'👕 Clothing',accessory:'💍 Accessories',other:'📋 Other',contact:'📞 Contact',hours:'🕐 Hours',service:'🛎️ Services',event:'🎉 Events',meeting:'📅 Meetings',offer:'🎁 Offers',info:'ℹ️ Info'})});" style="width:100%;padding:8px;background:linear-gradient(135deg,#e67e22,#c0392b);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">📋 ${lang==='ar'?'الكتالوج':'Catalog'}</button>
+              <div style="display:flex;gap:7px">
+                <button onclick="openMapCatalog('store',${s.id},'${s.name.replace(/'/g,"\\'")}',${JSON.stringify(lang==='ar'?{product:'📦 منتجات',menu_food:'🍔 طعام',menu_drink:'🥤 مشروبات',clothing:'👕 ملابس',accessory:'💍 اكسسوار',other:'📋 أخرى',contact:'📞 تواصل',hours:'🕐 مواعيد'}:{product:'📦 Products',menu_food:'🍔 Food',menu_drink:'🥤 Drinks',clothing:'👕 Clothing',accessory:'💍 Accessories',other:'📋 Other',contact:'📞 Contact',hours:'🕐 Hours'})});" style="flex:1;padding:8px 6px;background:linear-gradient(135deg,#e67e22,#c0392b);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">📋 ${lang==='ar'?'الكتالوج':'Catalog'}</button>
+                ${s.is_creator ? `<button onclick="openIconPicker('store',${s.id},'${(s.icon||'🏪')}')" style="padding:8px 10px;background:#fff8f0;border:1.5px solid #fcd9a7;border-radius:10px;font-size:16px;cursor:pointer">🎨</button>` : ''}
+              </div>
             </div>
           `);
           storeMarkers[s.id] = m;
@@ -901,6 +951,81 @@
   } else {
     document.getElementById('gps-badge').style.display = 'none';
   }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ICON PICKER SYSTEM
+  // ══════════════════════════════════════════════════════════════════════
+  const ROOM_EMOJIS  = ['🏠','🏡','🏢','🏣','🏥','🏦','🏨','🏩','🏫','🏬','🏯','🏰','⛪','🕌','🛖','🏕️','🎪','🎭','🎨','🎬','🎵','🎧','🎤','🎸','🎮','🏋️','🏊','⛱️','🌴','🌳','🌿','🔥','⭐','🌟','🎯','🚀','💡','🔮','🧘','🤝','👥','🎓','📖','🏆','🎁','❤️','🌸','🌈','🌙','🎊','🎉','🍔','☕','🥗','🌺','💎','🛡️','⚡','🎠','🎡','🌊','🏄','🚂','✈️','🚁','💫'];
+  const STORE_EMOJIS = ['🏪','🛒','🛍️','🍔','🍕','🌮','🍣','🍰','🧁','☕','🍵','🍺','🍷','🥗','🍦','🍫','💊','💄','👗','👟','👜','💍','💎','💻','📱','📚','📷','🎁','🔧','🛠️','🚗','⚽','🎮','🎨','🌸','🌺','💈','🧴','🪴','🎀','🐾','🧸','🎪','🍀','🌞','⭐','🔑','🏷️','🎵','📦','🍓','🧃','🌶️','🧇','🥐','🥩','🎂'];
+
+  let _ipOverlay    = document.getElementById('icon-picker-overlay');
+  let _ipBox        = document.getElementById('icon-picker-box');
+  let _ipGrid       = document.getElementById('icon-picker-grid');
+  let _ipSaveBtn    = document.getElementById('icon-save-btn');
+  let _ipTitle      = document.getElementById('icon-picker-title');
+  let _ipEntityType = '';
+  let _ipEntityId   = 0;
+  let _ipSelected   = '';
+
+  document.getElementById('icon-picker-close-btn').addEventListener('click', closeIconPicker);
+  _ipOverlay.addEventListener('click', e => { if (e.target === _ipOverlay) closeIconPicker(); });
+
+  function closeIconPicker() { _ipOverlay.style.display = 'none'; }
+
+  window.openIconPicker = function(entityType, entityId, currentIcon) {
+    _ipEntityType = entityType;
+    _ipEntityId   = entityId;
+    _ipSelected   = currentIcon;
+    _ipTitle.textContent = lang === 'ar' ? `🎨 اختر أيقونة` : `🎨 Choose Icon`;
+    _ipSaveBtn.textContent = lang === 'ar' ? '💾 حفظ' : '💾 Save';
+
+    const emojis = entityType === 'room' ? ROOM_EMOJIS : STORE_EMOJIS;
+    _ipGrid.innerHTML = '';
+    emojis.forEach(em => {
+      const btn = document.createElement('button');
+      btn.className = 'icon-pick-btn' + (em === _ipSelected ? ' selected' : '');
+      btn.textContent = em;
+      btn.addEventListener('click', () => {
+        _ipSelected = em;
+        document.querySelectorAll('.icon-pick-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+      _ipGrid.appendChild(btn);
+    });
+
+    _ipOverlay.style.display = 'block';
+    _ipBox.classList.remove('open');
+    void _ipBox.offsetWidth;
+    _ipBox.classList.add('open');
+    map.closePopup();
+  };
+
+  _ipSaveBtn.addEventListener('click', async () => {
+    if (!_ipSelected) return;
+    _ipSaveBtn.disabled = true;
+    _ipSaveBtn.textContent = '⏳';
+    try {
+      const res = await fetch('/api/entity/set_icon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, entity_type: _ipEntityType, entity_id: _ipEntityId, icon: _ipSelected })
+      }).then(r => r.json());
+      if (res.ok) {
+        closeIconPicker();
+        // Reload markers immediately
+        if (_ipEntityType === 'room') loadRooms();
+        else loadStores();
+      } else {
+        _ipSaveBtn.textContent = '❌';
+        setTimeout(() => { _ipSaveBtn.textContent = lang==='ar'?'💾 حفظ':'💾 Save'; _ipSaveBtn.disabled=false; }, 1500);
+        return;
+      }
+    } catch(e) {
+      _ipSaveBtn.textContent = '❌';
+    }
+    _ipSaveBtn.disabled = false;
+    _ipSaveBtn.textContent = lang==='ar'?'💾 حفظ':'💾 Save';
+  });
 
   // ══════════════════════════════════════════════════════════════════════
   // MAP CATALOG OVERLAY (read-only view from popups)
