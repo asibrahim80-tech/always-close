@@ -85,12 +85,14 @@ def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup([
         [KeyboardButton(T(lang, "btn_share_phone"), request_contact=True),
          KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
-        [KeyboardButton(T(lang, "btn_map")),            KeyboardButton(T(lang, "btn_users_list"))],
-        [KeyboardButton(T(lang, "btn_rooms_list")),     KeyboardButton(T(lang, "btn_create_room"))],
-        [KeyboardButton(T(lang, "btn_rooms_nearby")),   KeyboardButton(T(lang, "btn_view_nearby"))],
-        [KeyboardButton(T(lang, "btn_matches")),        KeyboardButton(T(lang, "btn_requests"))],
-        [KeyboardButton(T(lang, "btn_hide")),           KeyboardButton(T(lang, "btn_phone_toggle"))],
-        [KeyboardButton(T(lang, "btn_edit")),           KeyboardButton(T(lang, "btn_settings"))],
+        [KeyboardButton(T(lang, "btn_map")),             KeyboardButton(T(lang, "btn_users_list"))],
+        [KeyboardButton(T(lang, "btn_rooms_list")),      KeyboardButton(T(lang, "btn_create_room"))],
+        [KeyboardButton(T(lang, "btn_stores_list")),     KeyboardButton(T(lang, "btn_create_store"))],
+        [KeyboardButton(T(lang, "btn_rooms_nearby")),    KeyboardButton(T(lang, "btn_view_nearby"))],
+        [KeyboardButton(T(lang, "btn_stores_nearby")),   KeyboardButton(T(lang, "btn_matches"))],
+        [KeyboardButton(T(lang, "btn_requests")),        KeyboardButton(T(lang, "btn_hide"))],
+        [KeyboardButton(T(lang, "btn_phone_toggle")),    KeyboardButton(T(lang, "btn_edit"))],
+        [KeyboardButton(T(lang, "btn_settings"))],
     ], resize_keyboard=True)
 
 
@@ -380,6 +382,150 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
         except Exception as e:
             logger.error(f"Room creation error: {e}", exc_info=True)
             await update.message.reply_text(T(lang, "room_create_error"), reply_markup=main_keyboard(lang))
+        return
+
+    # ── Store creation steps ──────────────────────────────────────────────────
+
+    elif step == "create_store_name":
+        if text in ALL_BTN.get("cancel_action", []):
+            context.user_data.clear()
+            context.user_data["lang"] = lang
+            await update.message.reply_text(T(lang, "store_cancel"), reply_markup=main_keyboard(lang))
+            return
+        context.user_data["store_name"] = text.strip()
+        context.user_data["step"] = "create_store_purpose"
+        await update.message.reply_text(
+            T(lang, "create_store_ask_purpose"),
+            reply_markup=ReplyKeyboardMarkup(
+                [[T(lang, "btn_cancel_action")]], resize_keyboard=True
+            )
+        )
+        return
+
+    elif step == "create_store_purpose":
+        if text in ALL_BTN.get("cancel_action", []):
+            context.user_data.clear()
+            context.user_data["lang"] = lang
+            await update.message.reply_text(T(lang, "store_cancel"), reply_markup=main_keyboard(lang))
+            return
+        context.user_data["store_purpose"] = text.strip()
+        context.user_data["step"] = "create_store_nature"
+
+        nature_keys = [
+            [T(lang, "store_nature_grocery"),     T(lang, "store_nature_food")],
+            [T(lang, "store_nature_clothing"),    T(lang, "store_nature_electronics")],
+            [T(lang, "store_nature_beauty"),      T(lang, "store_nature_services")],
+            [T(lang, "store_nature_other")],
+            [T(lang, "btn_cancel_action")],
+        ]
+        await update.message.reply_text(
+            T(lang, "create_store_ask_nature"),
+            reply_markup=ReplyKeyboardMarkup(nature_keys, resize_keyboard=True)
+        )
+        return
+
+    elif step == "create_store_nature":
+        if text in ALL_BTN.get("cancel_action", []):
+            context.user_data.clear()
+            context.user_data["lang"] = lang
+            await update.message.reply_text(T(lang, "store_cancel"), reply_markup=main_keyboard(lang))
+            return
+        context.user_data["store_nature"] = text.strip()
+        context.user_data["step"] = "create_store_expires"
+
+        expires_keys = [
+            [T(lang, "expires_1d"),      T(lang, "expires_3d")],
+            [T(lang, "expires_1w"),      T(lang, "expires_1m")],
+            [T(lang, "expires_forever")],
+            [T(lang, "btn_cancel_action")],
+        ]
+        await update.message.reply_text(
+            T(lang, "create_store_ask_expires"),
+            reply_markup=ReplyKeyboardMarkup(expires_keys, resize_keyboard=True)
+        )
+        return
+
+    elif step == "create_store_expires":
+        if text in ALL_BTN.get("cancel_action", []):
+            context.user_data.clear()
+            context.user_data["lang"] = lang
+            await update.message.reply_text(T(lang, "store_cancel"), reply_markup=main_keyboard(lang))
+            return
+
+        import datetime as _dt
+
+        tg_id         = update.effective_user.id
+        store_name    = context.user_data.get("store_name", "Store")
+        store_purpose = context.user_data.get("store_purpose", "")
+        store_nature  = context.user_data.get("store_nature", "")
+
+        expires_at = None
+        expire_labels_1d = [T("ar", "expires_1d"), T("en", "expires_1d")]
+        expire_labels_3d = [T("ar", "expires_3d"), T("en", "expires_3d")]
+        expire_labels_1w = [T("ar", "expires_1w"), T("en", "expires_1w")]
+        expire_labels_1m = [T("ar", "expires_1m"), T("en", "expires_1m")]
+        now = _dt.datetime.utcnow()
+        if text in expire_labels_1d:
+            expires_at = (now + _dt.timedelta(days=1)).isoformat()
+        elif text in expire_labels_3d:
+            expires_at = (now + _dt.timedelta(days=3)).isoformat()
+        elif text in expire_labels_1w:
+            expires_at = (now + _dt.timedelta(weeks=1)).isoformat()
+        elif text in expire_labels_1m:
+            expires_at = (now + _dt.timedelta(days=30)).isoformat()
+
+        context.user_data.clear()
+        context.user_data["lang"] = lang
+
+        try:
+            me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+            if not me.data:
+                await update.message.reply_text(T(lang, "register_first"), reply_markup=main_keyboard(lang))
+                return
+            creator_id = me.data[0]["id"]
+
+            store_lat, store_lng = None, None
+            try:
+                loc = supabase.table("user_locations_v1") \
+                    .select("latitude, longitude") \
+                    .eq("user_id", creator_id).limit(1).execute()
+                if loc.data:
+                    store_lat = float(loc.data[0]["latitude"])
+                    store_lng = float(loc.data[0]["longitude"])
+            except Exception:
+                pass
+
+            store_record = {
+                "name":       store_name,
+                "created_by": creator_id,
+                "purpose":    store_purpose,
+                "nature":     store_nature,
+            }
+            if store_lat is not None:
+                store_record["latitude"]  = store_lat
+                store_record["longitude"] = store_lng
+            if expires_at is not None:
+                store_record["expires_at"] = expires_at
+
+            result = supabase.table("stores_v1").insert(store_record).execute()
+            rows   = result.data or []
+            if rows:
+                store_id = rows[0]["id"]
+                try:
+                    supabase.table("store_members_v1").insert({
+                        "store_id": store_id,
+                        "user_id":  creator_id,
+                    }).execute()
+                except Exception:
+                    pass
+
+            await update.message.reply_text(
+                T(lang, "store_created").format(store_name, store_purpose),
+                reply_markup=main_keyboard(lang)
+            )
+        except Exception as e:
+            logger.error(f"Store creation error: {e}", exc_info=True)
+            await update.message.reply_text(T(lang, "store_create_error"), reply_markup=main_keyboard(lang))
         return
 
 
@@ -1051,6 +1197,122 @@ async def show_nearby_rooms(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(T(lang, "error"))
 
 # =========================================================
+# STORES LIST
+# =========================================================
+
+async def show_stores_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_lang(update, context)
+    tg_id = update.effective_user.id
+
+    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+    if not me.data:
+        await update.message.reply_text(T(lang, "stores_list_not_registered"))
+        return
+
+    my_id = me.data[0]["id"]
+    loc = supabase.table("user_locations_v1").select("id").eq("user_id", my_id).limit(1).execute()
+    if not loc.data:
+        await update.message.reply_text(T(lang, "stores_list_no_location"))
+        return
+
+    stores_url = f"https://{DOMAIN}/stores?uid={tg_id}&lang={lang}"
+    await update.message.reply_text(
+        T(lang, "stores_list_tap"),
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                T(lang, "stores_list_btn_open"),
+                web_app=WebAppInfo(url=stores_url),
+            )
+        ]])
+    )
+
+
+async def show_nearby_stores(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_lang(update, context)
+    tg_id = update.effective_user.id
+
+    try:
+        me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+        if not me.data:
+            await update.message.reply_text(T(lang, "register_first"))
+            return
+        my_id = me.data[0]["id"]
+
+        loc = supabase.table("user_locations_v1") \
+            .select("latitude, longitude") \
+            .eq("user_id", my_id).limit(1).execute()
+        if not loc.data:
+            await update.message.reply_text(T(lang, "share_location_first"))
+            return
+
+        my_lat = float(loc.data[0]["latitude"])
+        my_lng = float(loc.data[0]["longitude"])
+
+        all_stores = supabase.table("stores_v1") \
+            .select("id, name, latitude, longitude") \
+            .execute()
+
+        stores = []
+        for s in (all_stores.data or []):
+            if s.get("latitude") is None:
+                continue
+            dist = _haversine(my_lat, my_lng, float(s["latitude"]), float(s["longitude"]))
+            try:
+                cnt = supabase.table("store_members_v1") \
+                    .select("id", count="exact").eq("store_id", s["id"]).execute()
+                members = cnt.count if cnt.count is not None else 0
+            except Exception:
+                members = 0
+            stores.append({"name": s["name"], "dist": dist, "members": members})
+
+        stores.sort(key=lambda x: x["dist"])
+
+        if not stores:
+            await update.message.reply_text(T(lang, "no_nearby"))
+            return
+
+        lines = [f"🏪 {s['name']}  👥 {s['members']}  📍 {s['dist']} {T(lang, 'km_unit')}" for s in stores]
+        await update.message.reply_text(T(lang, "nearby_stores") + "\n" + "\n".join(lines))
+
+    except Exception as e:
+        logger.error(f"show_nearby_stores error: {e}", exc_info=True)
+        await update.message.reply_text(T(lang, "error"))
+
+
+# =========================================================
+# CREATE STORE
+# =========================================================
+
+async def create_store_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_lang(update, context)
+    tg_id = update.effective_user.id
+
+    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+    if not me.data:
+        await update.message.reply_text(T(lang, "register_first"))
+        return
+    creator_id = me.data[0]["id"]
+
+    # Limit: max 3 stores per user
+    try:
+        existing = supabase.table("stores_v1").select("id", count="exact") \
+            .eq("created_by", creator_id).execute()
+        if (existing.count or 0) >= 3:
+            await update.message.reply_text(T(lang, "store_limit_reached"), reply_markup=main_keyboard(lang))
+            return
+    except Exception:
+        pass
+
+    context.user_data["step"] = "create_store_name"
+    await update.message.reply_text(
+        T(lang, "create_store_ask_name"),
+        reply_markup=ReplyKeyboardMarkup(
+            [[T(lang, "btn_cancel_action")]], resize_keyboard=True
+        )
+    )
+
+
+# =========================================================
 # SETTINGS
 # =========================================================
 
@@ -1081,6 +1343,17 @@ async def create_room_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not me.data:
         await update.message.reply_text(T(lang, "register_first"))
         return
+    creator_id = me.data[0]["id"]
+
+    # Limit: max 3 rooms per user
+    try:
+        existing = supabase.table("rooms_v1").select("id", count="exact") \
+            .eq("created_by", creator_id).execute()
+        if (existing.count or 0) >= 3:
+            await update.message.reply_text(T(lang, "room_limit_reached"), reply_markup=main_keyboard(lang))
+            return
+    except Exception:
+        pass
 
     context.user_data["step"] = "create_room_name"
     await update.message.reply_text(
@@ -1110,6 +1383,18 @@ async def handle_text_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if text in ALL_BTN["rooms_list"]:
         await show_rooms_list(update, context)
+        return
+
+    if text in ALL_BTN["stores_list"]:
+        await show_stores_list(update, context)
+        return
+
+    if text in ALL_BTN["stores_nearby"]:
+        await show_nearby_stores(update, context)
+        return
+
+    if text in ALL_BTN["create_store"]:
+        await create_store_start(update, context)
         return
 
     # Catch-all: unknown message → restore main keyboard

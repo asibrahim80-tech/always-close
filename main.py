@@ -23,6 +23,9 @@ from handlers import (
     show_nearby_rooms,
     show_rooms_list,
     create_room_start,
+    show_stores_list,
+    show_nearby_stores,
+    create_store_start,
     show_settings,
     show_map,
     show_users_list,
@@ -119,6 +122,12 @@ def main():
         filters.TEXT & filters.Regex(btn_regex("rooms_list")), show_rooms_list))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("create_room")), create_room_start))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("stores_list")), show_stores_list))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("create_store")), create_store_start))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("stores_nearby")), show_nearby_stores))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("settings")), show_settings))
     app.add_handler(MessageHandler(

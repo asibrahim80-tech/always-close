@@ -77,6 +77,11 @@ def rooms_page():
     return render_template("rooms.html")
 
 
+@app.route('/stores')
+def stores_page():
+    return render_template("stores.html")
+
+
 @app.route('/api/nearby/<int:telegram_id>')
 def api_nearby(telegram_id):
     try:
@@ -568,6 +573,313 @@ def api_room_members(room_id, telegram_id):
                     "photo_url":   photo,
                     "my_rating":   my_rating,
                     "avg_rating":  avg,
+                    "rating_count": len(vals),
+                })
+            except Exception:
+                continue
+
+        return jsonify({"ok": True, "members": members_out})
+    except Exception as e:
+        return jsonify({"ok": False, "members": [], "error": str(e)})
+
+
+@app.route('/api/stores/<int:telegram_id>')
+def api_stores(telegram_id):
+    """Return all stores with membership and ownership flags."""
+    try:
+        from database import supabase
+        from collections import defaultdict
+
+        my_id = None
+        my_lat, my_lng = None, None
+
+        me_res = supabase.table("users_v1").select("id").eq("telegram_id", telegram_id).execute()
+        if me_res.data:
+            my_id = me_res.data[0]["id"]
+            loc = supabase.table("user_locations_v1") \
+                .select("latitude, longitude").eq("user_id", my_id).limit(1).execute()
+            if loc.data:
+                my_lat = float(loc.data[0]["latitude"])
+                my_lng = float(loc.data[0]["longitude"])
+
+        # Fetch stores
+        try:
+            stores_res = supabase.table("stores_v1") \
+                .select("id, name, latitude, longitude, created_by, created_at, purpose, nature, image_url, expires_at") \
+                .execute()
+        except Exception:
+            stores_res = supabase.table("stores_v1") \
+                .select("id, name, latitude, longitude, created_by, created_at") \
+                .execute()
+
+        # My memberships
+        my_store_ids = set()
+        if my_id is not None:
+            try:
+                memb_res = supabase.table("store_members_v1") \
+                    .select("store_id").eq("user_id", my_id).execute()
+                my_store_ids = {m["store_id"] for m in (memb_res.data or [])}
+            except Exception:
+                pass
+
+        stores_out = []
+        for s in (stores_res.data or []):
+            slat = s.get("latitude")
+            slng = s.get("longitude")
+            if slat is None or slng is None:
+                continue
+            dist = None
+            if my_lat is not None:
+                dist = round(_haversine(my_lat, my_lng, float(slat), float(slng)), 2)
+
+            try:
+                cnt = supabase.table("store_members_v1") \
+                    .select("id", count="exact").eq("store_id", s["id"]).execute()
+                members = cnt.count if cnt.count is not None else 0
+            except Exception:
+                members = 0
+
+            stores_out.append({
+                "id":         s["id"],
+                "name":       s.get("name", "Store"),
+                "lat":        float(slat),
+                "lng":        float(slng),
+                "distance":   dist,
+                "members":    members,
+                "created_at": s.get("created_at"),
+                "purpose":    s.get("purpose") or "",
+                "nature":     s.get("nature") or "",
+                "image_url":  s.get("image_url") or "",
+                "expires_at": s.get("expires_at") or "",
+                "is_creator": (my_id is not None and s.get("created_by") == my_id),
+                "is_member":  (s["id"] in my_store_ids),
+            })
+
+        # Batch-fetch store ratings
+        store_ids = [s["id"] for s in (stores_res.data or []) if s.get("latitude")]
+        avg_ratings  = {}
+        my_s_ratings = {}
+        if store_ids:
+            try:
+                all_rat = supabase.table("store_ratings_v1").select("store_id, rating").execute()
+                bucket = defaultdict(list)
+                for row in (all_rat.data or []):
+                    bucket[row["store_id"]].append(row["rating"])
+                for sid, vals in bucket.items():
+                    avg_ratings[sid] = (round(sum(vals)/len(vals), 1), len(vals))
+                if my_id is not None:
+                    my_rat = supabase.table("store_ratings_v1") \
+                        .select("store_id, rating").eq("user_id", my_id).execute()
+                    my_s_ratings = {row["store_id"]: row["rating"] for row in (my_rat.data or [])}
+            except Exception:
+                pass
+
+        for entry in stores_out:
+            sid = entry["id"]
+            avg, cnt = avg_ratings.get(sid, (0, 0))
+            entry["avg_rating"]   = avg
+            entry["rating_count"] = cnt
+            entry["my_rating"]    = my_s_ratings.get(sid, 0)
+
+        return jsonify({"stores": stores_out, "my_user_id": my_id})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)})
+
+
+@app.route('/api/store/join', methods=['POST'])
+def api_store_join():
+    try:
+        from database import supabase
+        data     = request.get_json(force=True)
+        uid      = int(data.get("uid", 0))
+        store_id = int(data.get("store_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        existing = supabase.table("store_members_v1") \
+            .select("id").eq("store_id", store_id).eq("user_id", my_id).execute()
+        if existing.data:
+            return jsonify({"ok": True, "already": True})
+
+        supabase.table("store_members_v1").insert({"store_id": store_id, "user_id": my_id}).execute()
+        return jsonify({"ok": True, "already": False})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/store/delete', methods=['POST'])
+def api_store_delete():
+    try:
+        from database import supabase
+        data     = request.get_json(force=True)
+        uid      = int(data.get("uid", 0))
+        store_id = int(data.get("store_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        store = supabase.table("stores_v1").select("created_by").eq("id", store_id).single().execute()
+        if not store.data or store.data["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        cnt = supabase.table("store_members_v1") \
+            .select("id", count="exact").eq("store_id", store_id).execute()
+        if (cnt.count or 0) > 1:
+            return jsonify({"ok": False, "error": "has_members"})
+
+        supabase.table("store_members_v1").delete().eq("store_id", store_id).execute()
+        supabase.table("stores_v1").delete().eq("id", store_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/store/image/upload', methods=['POST'])
+def api_store_image_upload():
+    try:
+        from database import supabase
+        uid      = int(request.form.get("uid", 0))
+        store_id = int(request.form.get("store_id", 0))
+        file     = request.files.get("image")
+        if not file:
+            return jsonify({"ok": False, "error": "no_file"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        store = supabase.table("stores_v1").select("created_by").eq("id", store_id).single().execute()
+        if not store.data or store.data["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        import os
+        ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
+        folder = "static/store_images"
+        os.makedirs(folder, exist_ok=True)
+        filename = f"store_{store_id}.{ext}"
+        path     = f"{folder}/{filename}"
+        file.save(path)
+
+        image_url = f"/static/store_images/{filename}"
+        supabase.table("stores_v1").update({"image_url": image_url}).eq("id", store_id).execute()
+        return jsonify({"ok": True, "image_url": image_url})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/store/image/delete', methods=['POST'])
+def api_store_image_delete():
+    try:
+        from database import supabase
+        data     = request.get_json(force=True)
+        uid      = int(data.get("uid", 0))
+        store_id = int(data.get("store_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        store = supabase.table("stores_v1").select("created_by, image_url").eq("id", store_id).single().execute()
+        if not store.data or store.data["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        img_url = store.data.get("image_url") or ""
+        if img_url.startswith("/static/"):
+            try:
+                import os
+                os.remove(img_url.lstrip("/"))
+            except Exception:
+                pass
+        supabase.table("stores_v1").update({"image_url": None}).eq("id", store_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/store/rate', methods=['POST'])
+def api_store_rate():
+    try:
+        from database import supabase
+        data     = request.get_json(force=True)
+        uid      = int(data.get("uid", 0))
+        store_id = int(data.get("store_id", 0))
+        rating   = int(data.get("rating", 0))
+        if not 1 <= rating <= 5:
+            return jsonify({"ok": False, "error": "invalid_rating"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        existing = supabase.table("store_ratings_v1") \
+            .select("id").eq("store_id", store_id).eq("user_id", my_id).execute()
+        if existing.data:
+            supabase.table("store_ratings_v1") \
+                .update({"rating": rating}).eq("id", existing.data[0]["id"]).execute()
+        else:
+            supabase.table("store_ratings_v1").insert({
+                "store_id": store_id, "user_id": my_id, "rating": rating
+            }).execute()
+
+        all_rat = supabase.table("store_ratings_v1") \
+            .select("rating").eq("store_id", store_id).execute()
+        vals = [r["rating"] for r in (all_rat.data or [])]
+        avg  = round(sum(vals) / len(vals), 1) if vals else 0
+        return jsonify({"ok": True, "avg_rating": avg, "rating_count": len(vals)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/store/<int:store_id>/members/<int:telegram_id>')
+def api_store_members(store_id, telegram_id):
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", telegram_id).execute()
+        if not me.data:
+            return jsonify({"ok": False, "members": []})
+        my_id = me.data[0]["id"]
+
+        memb_res = supabase.table("store_members_v1") \
+            .select("user_id").eq("store_id", store_id).execute()
+        member_ids = [m["user_id"] for m in (memb_res.data or []) if m["user_id"] != my_id]
+
+        if not member_ids:
+            return jsonify({"ok": True, "members": []})
+
+        members_out = []
+        for uid2 in member_ids:
+            try:
+                u = supabase.table("users_v1") \
+                    .select("id, username, photo_url") \
+                    .eq("id", uid2).single().execute()
+                if not u.data:
+                    continue
+                photo = _resolve_photo(u.data.get("photo_url"), BOT_TOKEN)
+                my_rat = supabase.table("user_ratings_v1") \
+                    .select("rating").eq("rated_user_id", uid2).eq("rater_id", my_id).execute()
+                my_rating = my_rat.data[0]["rating"] if my_rat.data else 0
+                all_rat = supabase.table("user_ratings_v1") \
+                    .select("rating").eq("rated_user_id", uid2).execute()
+                vals = [r["rating"] for r in (all_rat.data or [])]
+                avg  = round(sum(vals)/len(vals), 1) if vals else 0
+                members_out.append({
+                    "user_id":      uid2,
+                    "username":     u.data.get("username") or f"User#{uid2}",
+                    "photo_url":    photo,
+                    "my_rating":    my_rating,
+                    "avg_rating":   avg,
                     "rating_count": len(vals),
                 })
             except Exception:

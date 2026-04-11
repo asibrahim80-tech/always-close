@@ -136,6 +136,18 @@
       content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);
       border:4px solid transparent;border-top:5px solid #7c3aed;
     }
+    .store-pin{
+      background:#e67e22;border:2px solid #fff;
+      border-radius:10px;padding:3px 7px;
+      color:#fff;font-size:11px;font-weight:700;
+      white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.40);
+      cursor:pointer;user-select:none;
+      display:flex;align-items:center;gap:4px;position:relative;
+    }
+    .store-pin::after{
+      content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);
+      border:4px solid transparent;border-top:5px solid #e67e22;
+    }
 
     /* ── Pin ring animations ── */
     @keyframes ring-red{
@@ -629,11 +641,64 @@
       .catch(() => {});
   }
 
+  // ── Store markers ─────────────────────────────────────────────────────
+  const storeMarkers = {};
+
+  function makeStoreIcon(name) {
+    const el = document.createElement('div');
+    el.className = 'store-pin';
+    el.innerHTML = `🏪 ${name}`;
+    return L.divIcon({ html: el.outerHTML, className: '', iconAnchor: [0, 28] });
+  }
+
+  function loadStores() {
+    if (!uid) return;
+    fetch(`/api/stores/${uid}`)
+      .then(r => r.json())
+      .then(data => {
+        const stores = data.stores || [];
+        Object.values(storeMarkers).forEach(m => map.removeLayer(m));
+        Object.keys(storeMarkers).forEach(k => delete storeMarkers[k]);
+        stores.forEach(s => {
+          const icon = makeStoreIcon(s.name);
+          const m = L.marker([s.lat, s.lng], { icon, zIndexOffset: 400 }).addTo(map);
+          const dist    = s.distance !== null ? `${s.distance} ${L_.km}` : '';
+          const members = s.members || 0;
+          const natureBadge = s.nature
+            ? `<span style="display:inline-block;background:#fef9e7;color:#b7770d;border-radius:8px;padding:2px 8px;font-size:11px;margin-bottom:4px">${s.nature}</span>`
+            : '';
+          const purposeRow = s.purpose
+            ? `<div style="font-size:12px;opacity:.8;margin-bottom:4px">📝 ${s.purpose}</div>`
+            : '';
+          let expiresRow = '';
+          if (s.expires_at) {
+            const exp = new Date(s.expires_at);
+            const daysLeft = Math.ceil((exp - Date.now()) / 86400000);
+            if (daysLeft > 0) expiresRow = `<div style="font-size:11px;color:#e67e22;margin-bottom:4px">⏳ ${daysLeft}d left</div>`;
+            else expiresRow = `<div style="font-size:11px;color:#e74c3c;margin-bottom:4px">⚠️ Expired</div>`;
+          }
+          m.bindPopup(`
+            <div style="padding:10px;min-width:160px">
+              <div style="font-weight:700;font-size:14px;margin-bottom:5px">🏪 ${s.name}</div>
+              ${natureBadge}
+              ${purposeRow}
+              ${expiresRow}
+              <div style="font-size:11px;opacity:.6">🔔 ${members} ${dist ? '&nbsp;📍 ' + dist : ''}</div>
+            </div>
+          `);
+          storeMarkers[s.id] = m;
+        });
+      })
+      .catch(() => {});
+  }
+
   // ── Boot ──────────────────────────────────────────────────────────────
   loadData(true);
   startCountdown();
   loadRooms();
+  loadStores();
   setInterval(loadRooms, 30000);
+  setInterval(loadStores, 30000);
 </script>
 </body>
 </html>
