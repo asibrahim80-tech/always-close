@@ -83,15 +83,14 @@ def display_gender(gender: str, lang: str) -> str:
 
 def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup([
-        [KeyboardButton(T(lang, "btn_share_phone"), request_contact=True)],
-        [KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
-        [KeyboardButton(T(lang, "btn_map")), KeyboardButton(T(lang, "btn_users_list"))],
-        [KeyboardButton(T(lang, "btn_rooms_list")), KeyboardButton(T(lang, "btn_create_room"))],
-        [KeyboardButton(T(lang, "btn_rooms_nearby"))],
-        [KeyboardButton(T(lang, "btn_view_nearby"))],
-        [KeyboardButton(T(lang, "btn_matches")), KeyboardButton(T(lang, "btn_requests"))],
-        [KeyboardButton(T(lang, "btn_hide")), KeyboardButton(T(lang, "btn_phone_toggle"))],
-        [KeyboardButton(T(lang, "btn_edit")), KeyboardButton(T(lang, "btn_settings"))],
+        [KeyboardButton(T(lang, "btn_share_phone"), request_contact=True),
+         KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
+        [KeyboardButton(T(lang, "btn_map")),            KeyboardButton(T(lang, "btn_users_list"))],
+        [KeyboardButton(T(lang, "btn_rooms_list")),     KeyboardButton(T(lang, "btn_create_room"))],
+        [KeyboardButton(T(lang, "btn_rooms_nearby")),   KeyboardButton(T(lang, "btn_view_nearby"))],
+        [KeyboardButton(T(lang, "btn_matches")),        KeyboardButton(T(lang, "btn_requests"))],
+        [KeyboardButton(T(lang, "btn_hide")),           KeyboardButton(T(lang, "btn_phone_toggle"))],
+        [KeyboardButton(T(lang, "btn_edit")),           KeyboardButton(T(lang, "btn_settings"))],
     ], resize_keyboard=True)
 
 
