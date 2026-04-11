@@ -881,6 +881,20 @@ async def toggle_phone_visibility(update: Update, context: ContextTypes.DEFAULT_
     await update.message.reply_text(msg)
 
 # =========================================================
+# HAVERSINE HELPER
+# =========================================================
+
+def _haversine(lat1, lon1, lat2, lon2):
+    """Return distance in km between two lat/lng points."""
+    import math
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    return round(R * 2 * math.asin(math.sqrt(a)), 2)
+
+
+# =========================================================
 # SHOW NEARBY ROOMS
 # =========================================================
 
