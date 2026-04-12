@@ -1603,26 +1603,22 @@ async def _send_relayed(bot, target_chat_id: int, msg, header: str,
         await bot.send_message(target_chat_id, header, reply_markup=reply_markup)
 
 
-async def _get_room_member_tg_ids(room_id: int, exclude_my_id: int) -> list:
-    """Return telegram_ids of all room members except me."""
+async def _get_room_member_tg_ids(room_id: int, exclude_my_id: int = -1) -> list:
+    """Return telegram_ids of ALL room members (include sender for echo)."""
     memb = supabase.table("room_members_v1").select("user_id").eq("room_id", room_id).execute()
     targets = []
     for m in (memb.data or []):
-        if m["user_id"] == exclude_my_id:
-            continue
         u = supabase.table("users_v1").select("telegram_id").eq("id", m["user_id"]).execute()
         if u.data:
             targets.append(u.data[0]["telegram_id"])
     return targets
 
 
-async def _get_store_member_tg_ids(store_id: int, exclude_my_id: int) -> list:
-    """Return telegram_ids of all store followers except me."""
+async def _get_store_member_tg_ids(store_id: int, exclude_my_id: int = -1) -> list:
+    """Return telegram_ids of ALL store followers (include sender for echo)."""
     memb = supabase.table("store_members_v1").select("user_id").eq("store_id", store_id).execute()
     targets = []
     for m in (memb.data or []):
-        if m["user_id"] == exclude_my_id:
-            continue
         u = supabase.table("users_v1").select("telegram_id").eq("id", m["user_id"]).execute()
         if u.data:
             targets.append(u.data[0]["telegram_id"])
@@ -1644,54 +1640,82 @@ async def relay_any_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ── Room group chat ──────────────────────────────────
     if tg_id in _room_chat_sessions:
-        room_id = _room_chat_sessions[tg_id]
+        room_id  = _room_chat_sessions[tg_id]
         room_res = supabase.table("rooms_v1").select("name").eq("id", room_id).execute()
         room_name = room_res.data[0]["name"] if room_res.data else "?"
 
-        me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
-        if not me.data:
-            return
-        my_id = me.data[0]["id"]
+        targets = await _get_room_member_tg_ids(room_id)
+        others  = [t for t in targets if t != tg_id]
 
-        targets = await _get_room_member_tg_ids(room_id, my_id)
-        if not targets:
-            await msg.reply_text(T(lang, "chat_no_members"))
+        # Echo back to sender as confirmation
+        sent_header = (f"✅ رسالتك — غرفة «{room_name}»"
+                       if lang == "ar" else
+                       f"✅ Your message — Room «{room_name}»")
+        try:
+            await _send_relayed(context.bot, tg_id, msg, sent_header, None)
+        except Exception as e:
+            logger.error(f"room echo → sender: {e}")
+
+        if not others:
+            note = ("ℹ️ لا يوجد أعضاء آخرون في الغرفة الآن."
+                    if lang == "ar" else
+                    "ℹ️ No other members in this room right now.")
+            await msg.reply_text(note)
             return
 
-        header   = T(lang, "chat_from", display_name, room_name)
-        priv_btn = InlineKeyboardMarkup([[
+        # Relay to other members with join + private buttons
+        other_btns = InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                "💬 أدخل الدردشة" if lang == "ar" else "💬 Join Chat",
+                callback_data=f"room_chat_sel:{room_id}"
+            ),
             InlineKeyboardButton(T(lang, "chat_btn_private"), callback_data=f"priv_chat:{tg_id}")
         ]])
-        for t in targets:
+        header = T(lang, "chat_from", display_name, room_name)
+        for t in others:
             try:
-                await _send_relayed(context.bot, t, msg, header, priv_btn)
+                await _send_relayed(context.bot, t, msg, header, other_btns)
             except Exception as e:
                 logger.error(f"room relay → {t}: {e}")
         return
 
     # ── Store group chat ─────────────────────────────────
     if tg_id in _store_chat_sessions:
-        store_id = _store_chat_sessions[tg_id]
+        store_id  = _store_chat_sessions[tg_id]
         store_res = supabase.table("stores_v1").select("name").eq("id", store_id).execute()
         store_name = store_res.data[0]["name"] if store_res.data else "?"
 
-        me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
-        if not me.data:
-            return
-        my_id = me.data[0]["id"]
+        targets = await _get_store_member_tg_ids(store_id)
+        others  = [t for t in targets if t != tg_id]
 
-        targets = await _get_store_member_tg_ids(store_id, my_id)
-        if not targets:
-            await msg.reply_text(T(lang, "chat_no_members"))
+        # Echo back to sender as confirmation
+        sent_header = (f"✅ رسالتك — متجر «{store_name}»"
+                       if lang == "ar" else
+                       f"✅ Your message — Store «{store_name}»")
+        try:
+            await _send_relayed(context.bot, tg_id, msg, sent_header, None)
+        except Exception as e:
+            logger.error(f"store echo → sender: {e}")
+
+        if not others:
+            note = ("ℹ️ لا يوجد متابعون آخرون للمتجر الآن."
+                    if lang == "ar" else
+                    "ℹ️ No other store followers right now.")
+            await msg.reply_text(note)
             return
 
-        header   = T(lang, "chat_from_store", display_name, store_name)
-        priv_btn = InlineKeyboardMarkup([[
+        # Relay to other members with join + private buttons
+        other_btns = InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                "💬 أدخل الدردشة" if lang == "ar" else "💬 Join Chat",
+                callback_data=f"store_chat_sel:{store_id}"
+            ),
             InlineKeyboardButton(T(lang, "chat_btn_private"), callback_data=f"priv_chat:{tg_id}")
         ]])
-        for t in targets:
+        header = T(lang, "chat_from_store", display_name, store_name)
+        for t in others:
             try:
-                await _send_relayed(context.bot, t, msg, header, priv_btn)
+                await _send_relayed(context.bot, t, msg, header, other_btns)
             except Exception as e:
                 logger.error(f"store relay → {t}: {e}")
         return
