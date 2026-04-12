@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Always Close – Profile</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --pr:#6C5CE7;--pk:#fd79a8;--gr:#00b894;--or:#e17055;
+      --bg:#f5f6fa;--card:#fff;--text:#2d3436;--sub:#636e72;
+      --brd:#dfe6e9;
+    }
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:100px}
+    body.rtl{direction:rtl}
+
+    /* ── HEADER ── */
+    #top-header{
+      background:linear-gradient(135deg,#6C5CE7 0%,#a29bfe 50%,#fd79a8 100%);
+      padding:20px 16px 0;position:sticky;top:0;z-index:200;
+      box-shadow:0 2px 16px rgba(108,92,231,.35);
+    }
+    #hdr-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+    #hdr-avatar-wrap{position:relative;flex-shrink:0}
+    #hdr-avatar{width:58px;height:58px;border-radius:50%;object-fit:cover;
+      border:3px solid rgba(255,255,255,.6);display:block}
+    #hdr-avatar-ph{width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,.25);
+      display:flex;align-items:center;justify-content:center;font-size:24px;
+      border:3px solid rgba(255,255,255,.4);flex-shrink:0}
+    #hdr-avatar-edit{
+      position:absolute;bottom:-2px;right:-2px;
+      background:#fff;border-radius:50%;width:20px;height:20px;
+      display:flex;align-items:center;justify-content:center;font-size:11px;
+      box-shadow:0 1px 4px rgba(0,0,0,.2);cursor:pointer;
+    }
+    body.rtl #hdr-avatar-edit{right:auto;left:-2px}
+    #hdr-info{flex:1;min-width:0}
+    #hdr-name{font-size:16px;font-weight:800;color:#fff;margin-bottom:2px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #hdr-handle{font-size:12px;color:rgba(255,255,255,.7)}
+    #hdr-complete-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:0 2px}
+    #hdr-complete-label{font-size:11px;color:rgba(255,255,255,.8);flex-shrink:0}
+    #hdr-complete-bar{flex:1;height:6px;background:rgba(255,255,255,.25);border-radius:3px;overflow:hidden}
+    #hdr-complete-fill{height:100%;border-radius:3px;
+      background:linear-gradient(90deg,#55efc4,#00b894);
+      transition:width .5s ease}
+    #hdr-complete-pct{font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+
+    /* ── TABS ── */
+    #tab-bar{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;
+      background:rgba(255,255,255,.12);border-radius:12px 12px 0 0;
+      padding:4px 4px 0;}
+    #tab-bar::-webkit-scrollbar{display:none}
+    .tab-btn{
+      flex-shrink:0;padding:8px 14px;border:none;background:transparent;
+      color:rgba(255,255,255,.65);font-size:12px;font-weight:600;
+      border-radius:10px 10px 0 0;cursor:pointer;transition:all .2s;
+      white-space:nowrap;
+    }
+    .tab-btn.active{background:#fff;color:var(--pr)}
+
+    /* ── SECTIONS ── */
+    .section{display:none;padding:14px 12px 0}
+    .section.active{display:block}
+
+    /* ── CARD ── */
+    .pcard{background:var(--card);border-radius:16px;
+      box-shadow:0 1px 6px rgba(0,0,0,.07);margin-bottom:14px;overflow:hidden}
+    .pcard-hdr{
+      display:flex;align-items:center;gap:8px;
+      padding:12px 14px;border-bottom:1px solid var(--brd);
+    }
+    .pcard-hdr-icon{font-size:18px}
+    .pcard-hdr-title{font-size:13px;font-weight:700;color:var(--text)}
+    .pcard-body{padding:12px 14px}
+
+    /* ── INPUT ── */
+    .f-label{font-size:11px;font-weight:700;color:var(--sub);margin-bottom:5px;display:block;letter-spacing:.3px}
+    .f-input{
+      width:100%;padding:11px 13px;border:1.5px solid var(--brd);
+      border-radius:12px;font-size:14px;color:var(--text);
+      background:#fafafa;outline:none;transition:border-color .15s;
+      font-family:inherit;margin-bottom:12px;
+    }
+    .f-input:focus{border-color:var(--pr);background:#fff}
+    .f-input::placeholder{color:#b2bec3}
+    .f-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .f-row .f-input{margin-bottom:0}
+    .f-select{
+      width:100%;padding:11px 13px;border:1.5px solid var(--brd);
+      border-radius:12px;font-size:14px;color:var(--text);
+      background:#fafafa;outline:none;font-family:inherit;margin-bottom:12px;
+      appearance:none;-webkit-appearance:none;cursor:pointer;
+    }
+    .f-select:focus{border-color:var(--pr)}
+    .f-textarea{
+      width:100%;padding:11px 13px;border:1.5px solid var(--brd);
+      border-radius:12px;font-size:14px;color:var(--text);
+      background:#fafafa;outline:none;font-family:inherit;
+      resize:none;min-height:90px;line-height:1.5;margin-bottom:4px;
+      transition:border-color .15s;
+    }
+    .f-textarea:focus{border-color:var(--pr);background:#fff}
+    .f-char{font-size:11px;color:#b2bec3;text-align:right;margin-bottom:10px}
+    body.rtl .f-char{text-align:left}
+
+    /* ── CHIPS ── */
+    .chip-grid{display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 12px}
+    .chip{
+      padding:7px 14px;border-radius:20px;border:1.5px solid var(--brd);
+      background:#f7f8fa;font-size:13px;color:var(--sub);
+      cursor:pointer;transition:all .15s;font-weight:500;
+      user-select:none;
+    }
+    .chip:active{transform:scale(.95)}
+    .chip.sel-purple{background:var(--pr);border-color:var(--pr);color:#fff}
+    .chip.sel-pink  {background:var(--pk);border-color:var(--pk);color:#fff}
+    .chip.sel-green {background:var(--gr);border-color:var(--gr);color:#fff}
+    .chip.sel-orange{background:var(--or);border-color:var(--or);color:#fff}
+
+    /* Single-select chips (radio) */
+    .chip.radio{border-radius:10px}
+    .chip.radio.active{background:var(--pr);border-color:var(--pr);color:#fff}
+
+    /* ── TOGGLE ROW ── */
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0 12px}
+    .toggle-label{font-size:14px;color:var(--text);font-weight:500}
+    .toggle{position:relative;width:46px;height:26px;background:var(--brd);
+      border-radius:13px;cursor:pointer;transition:background .2s;flex-shrink:0}
+    .toggle.on{background:var(--pr)}
+    .toggle::after{content:'';position:absolute;top:3px;left:3px;
+      width:20px;height:20px;border-radius:50%;background:#fff;
+      transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+    .toggle.on::after{left:23px}
+
+    /* ── PHOTOS SECTION ── */
+    #photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+    .photo-slot{
+      aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;
+      background:var(--bg);border:2px dashed var(--brd);
+      display:flex;align-items:center;justify-content:center;cursor:pointer;
+    }
+    .photo-slot img{width:100%;height:100%;object-fit:cover;display:block}
+    .photo-slot.has-photo{border-style:solid;border-color:transparent}
+    .photo-slot-icon{font-size:26px;color:#b2bec3}
+    .photo-slot-del{
+      position:absolute;top:5px;right:5px;
+      background:rgba(231,76,60,.85);color:#fff;
+      border-radius:50%;width:22px;height:22px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:13px;font-weight:700;cursor:pointer;z-index:2;
+    }
+    body.rtl .photo-slot-del{right:auto;left:5px}
+    .photo-main-badge{
+      position:absolute;bottom:5px;left:50%;transform:translateX(-50%);
+      background:rgba(108,92,231,.85);color:#fff;
+      border-radius:8px;padding:2px 8px;font-size:10px;font-weight:700;
+    }
+
+    /* ── RATING DISPLAY ── */
+    #rating-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;
+      background:#f8f4ff;border-radius:12px;padding:10px 12px}
+    .stars-disp{color:#f39c12;font-size:16px}
+    .rating-val{font-size:18px;font-weight:800;color:var(--pr)}
+    .rating-cnt{font-size:12px;color:var(--sub)}
+
+    /* ── ZODIAC PICKER ── */
+    .zodiac-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+    .zodiac-chip{
+      border:1.5px solid var(--brd);border-radius:12px;
+      padding:8px 4px;text-align:center;cursor:pointer;transition:all .15s;
+      background:#f7f8fa;
+    }
+    .zodiac-chip.active{background:var(--pr);border-color:var(--pr);color:#fff}
+    .zodiac-sign{font-size:20px;display:block;margin-bottom:2px}
+    .zodiac-name{font-size:10px;font-weight:600;color:var(--sub)}
+    .zodiac-chip.active .zodiac-name{color:rgba(255,255,255,.85)}
+
+    /* ── SAVE BUTTON (sticky bottom) ── */
+    #save-bar{
+      position:fixed;bottom:0;left:0;right:0;z-index:300;
+      background:rgba(255,255,255,.95);backdrop-filter:blur(12px);
+      padding:12px 16px;border-top:1px solid var(--brd);
+      display:flex;gap:10px;align-items:center;
+    }
+    #save-btn{
+      flex:1;padding:14px;
+      background:linear-gradient(135deg,var(--pr),var(--pk));
+      color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;
+      cursor:pointer;transition:opacity .15s;
+    }
+    #save-btn:disabled{opacity:.5}
+    #save-status{font-size:12px;color:var(--sub);text-align:center;flex-shrink:0;width:60px}
+
+    /* ── TOAST ── */
+    #toast{
+      position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(60px);
+      background:#2d3436;color:#fff;border-radius:12px;padding:10px 18px;
+      font-size:13px;font-weight:600;z-index:999;opacity:0;
+      transition:all .3s;pointer-events:none;white-space:nowrap;
+    }
+    #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+    /* ── LOADING ── */
+    #loading{text-align:center;padding:80px 20px;color:var(--sub)}
+    .spinner{width:36px;height:36px;border:3px solid var(--brd);
+      border-top-color:var(--pr);border-radius:50%;
+      animation:spin .7s linear infinite;margin:0 auto 12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── HIDDEN FILE INPUT ── */
+    #photo-file-input{display:none}
+  </style>
+</head>
+<body>
+
+<!-- STICKY HEADER -->
+<div id="top-header">
+  <div id="hdr-row">
+    <div id="hdr-avatar-wrap">
+      <img id="hdr-avatar" src="" alt="" style="display:none">
+      <div id="hdr-avatar-ph">👤</div>
+      <div id="hdr-avatar-edit" onclick="triggerPhotoUpload(-1)" title="Change main photo">📷</div>
+    </div>
+    <div id="hdr-info">
+      <div id="hdr-name">...</div>
+      <div id="hdr-handle">@username</div>
+    </div>
+  </div>
+  <div id="hdr-complete-row">
+    <span id="hdr-complete-label"></span>
+    <div id="hdr-complete-bar"><div id="hdr-complete-fill" style="width:0%"></div></div>
+    <span id="hdr-complete-pct">0%</span>
+  </div>
+  <div id="tab-bar">
+    <button class="tab-btn active" data-tab="photos">📸</button>
+    <button class="tab-btn" data-tab="basic">👤</button>
+    <button class="tab-btn" data-tab="contact">💌</button>
+    <button class="tab-btn" data-tab="looking">❤️</button>
+    <button class="tab-btn" data-tab="interests">🎯</button>
+    <button class="tab-btn" data-tab="education">🎓</button>
+    <button class="tab-btn" data-tab="location">📍</button>
+  </div>
+</div>
+
+<div id="loading"><div class="spinner"></div><div id="loading-text">Loading...</div></div>
+
+<!-- HIDDEN FILE INPUT -->
+<input type="file" id="photo-file-input" accept="image/*" capture="environment">
+
+<!-- ═══════════════ SECTION: PHOTOS ═══════════════ -->
+<div class="section" id="sec-photos" style="display:none">
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">📸</span><span class="pcard-hdr-title" id="lbl-photos-title"></span></div>
+    <div class="pcard-body">
+      <div id="photo-grid"></div>
+      <div style="font-size:12px;color:var(--sub);text-align:center" id="lbl-photos-hint"></div>
+    </div>
+  </div>
+
+  <!-- Rating display -->
+  <div id="rating-row" style="display:none">
+    <div class="stars-disp" id="rating-stars"></div>
+    <div class="rating-val" id="rating-val"></div>
+    <div class="rating-cnt" id="rating-cnt"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ SECTION: BASIC INFO ═══════════════ -->
+<div class="section" id="sec-basic" style="display:none">
+  <!-- Name -->
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">✍️</span><span class="pcard-hdr-title" id="lbl-name-title"></span></div>
+    <div class="pcard-body">
+      <div class="f-row">
+        <div>
+          <label class="f-label" id="lbl-first-name"></label>
+          <input class="f-input" id="f-first-name" type="text" maxlength="40">
+        </div>
+        <div>
+          <label class="f-label" id="lbl-last-name"></label>
+          <input class="f-input" id="f-last-name" type="text" maxlength="40">
+        </div>
+      </div>
+      <label class="f-label" id="lbl-bio"></label>
+      <textarea class="f-textarea" id="f-bio" maxlength="300" rows="4"></textarea>
+      <div class="f-char"><span id="bio-char">0</span>/300</div>
+    </div>
+  </div>
+
+  <!-- Gender + Birthdate -->
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">🎂</span><span class="pcard-hdr-title" id="lbl-bday-title"></span></div>
+    <div class="pcard-body">
+      <label class="f-label" id="lbl-gender"></label>
+      <div class="chip-grid" id="gender-chips">
+        <div class="chip radio" data-v="Male">👨 <span id="lbl-g-male"></span></div>
+        <div class="chip radio" data-v="Female">👩 <span id="lbl-g-female"></span></div>
+      </div>
+      <label class="f-label" id="lbl-birthdate"></label>
+      <input class="f-input" id="f-birthdate" type="date" max="">
+      <div id="zodiac-auto-row" style="margin-bottom:8px;font-size:12px;color:var(--pr);font-weight:600"></div>
+    </div>
+  </div>
+
+  <!-- Zodiac -->
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">⭐</span><span class="pcard-hdr-title" id="lbl-zodiac-title"></span></div>
+    <div class="pcard-body">
+      <div class="zodiac-grid" id="zodiac-grid"></div>
+    </div>
+  </div>
+
+  <!-- Social Status -->
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">💍</span><span class="pcard-hdr-title" id="lbl-social-title"></span></div>
+    <div class="pcard-body">
+      <div class="chip-grid" id="social-chips"></div>
+      <div class="toggle-row">
+        <span class="toggle-label" id="lbl-children"></span>
+        <div class="toggle" id="toggle-children"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SECTION: CONTACT ═══════════════ -->
+<div class="section" id="sec-contact" style="display:none">
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">📧</span><span class="pcard-hdr-title" id="lbl-contact-title"></span></div>
+    <div class="pcard-body">
+      <label class="f-label" id="lbl-email"></label>
+      <input class="f-input" id="f-email" type="email" maxlength="100">
+      <label class="f-label" id="lbl-phone-disp"></label>
+      <input class="f-input" id="f-phone" type="text" readonly style="opacity:.6;cursor:default">
+      <div style="font-size:11px;color:var(--sub);margin-top:-8px;margin-bottom:12px" id="lbl-phone-hint"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SECTION: LOOKING FOR ═══════════════ -->
+<div class="section" id="sec-looking" style="display:none">
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">❤️</span><span class="pcard-hdr-title" id="lbl-looking-title"></span></div>
+    <div class="pcard-body">
+      <div id="lbl-looking-hint" style="font-size:12px;color:var(--sub);margin-bottom:12px"></div>
+      <div class="chip-grid" id="purpose-chips"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SECTION: INTERESTS ═══════════════ -->
+<div class="section" id="sec-interests" style="display:none">
+  <!-- Hobbies -->
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">🎮</span><span class="pcard-hdr-title" id="lbl-hobbies-title"></span></div>
+    <div class="pcard-body">
+      <div class="chip-grid" id="hobbies-chips"></div>
+    </div>
+  </div>
+
+  <!-- Habits -->
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">🌟</span><span class="pcard-hdr-title" id="lbl-habits-title"></span></div>
+    <div class="pcard-body">
+      <div class="chip-grid" id="habits-chips"></div>
+    </div>
+  </div>
+
+  <!-- Personality -->
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">🧠</span><span class="pcard-hdr-title" id="lbl-personality-title"></span></div>
+    <div class="pcard-body">
+      <div class="chip-grid" id="personality-chips"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SECTION: EDUCATION ═══════════════ -->
+<div class="section" id="sec-education" style="display:none">
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">🎓</span><span class="pcard-hdr-title" id="lbl-edu-title"></span></div>
+    <div class="pcard-body">
+      <label class="f-label" id="lbl-edu-level"></label>
+      <select class="f-select" id="f-edu"></select>
+
+      <label class="f-label" id="lbl-profession"></label>
+      <input class="f-input" id="f-profession" type="text" maxlength="80">
+
+      <label class="f-label" id="lbl-university"></label>
+      <input class="f-input" id="f-university" type="text" maxlength="100">
+
+      <label class="f-label" id="lbl-school"></label>
+      <input class="f-input" id="f-school" type="text" maxlength="100">
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SECTION: LOCATION ═══════════════ -->
+<div class="section" id="sec-location" style="display:none">
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">🌍</span><span class="pcard-hdr-title" id="lbl-loc-title"></span></div>
+    <div class="pcard-body">
+      <label class="f-label" id="lbl-country"></label>
+      <input class="f-input" id="f-country" type="text" maxlength="60">
+
+      <label class="f-label" id="lbl-city"></label>
+      <input class="f-input" id="f-city" type="text" maxlength="60">
+
+      <label class="f-label" id="lbl-neighborhood"></label>
+      <input class="f-input" id="f-neighborhood" type="text" maxlength="60">
+    </div>
+  </div>
+</div>
+
+<!-- SAVE BAR -->
+<div id="save-bar" style="display:none">
+  <button id="save-btn"></button>
+  <div id="save-status"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+const params = new URLSearchParams(location.search);
+const uid    = params.get('uid') || '';
+const lang   = params.get('lang') || 'ar';
+const isRTL  = lang === 'ar';
+if (isRTL) document.body.classList.add('rtl');
+
+// ── Translations ─────────────────────────────────────────────
+const T = lang === 'ar' ? {
+  loading: 'جاري التحميل...',
+  complete_label: 'اكتمال الملف الشخصي',
+  tab_photos: '📸 صور',
+  tab_basic: '👤 عني',
+  tab_contact: '💌 تواصل',
+  tab_looking: '❤️ أبحث',
+  tab_interests: '🎯 اهتمامات',
+  tab_education: '🎓 تعليم',
+  tab_location: '📍 موقع',
+  photos_title: 'صور الملف الشخصي',
+  photos_hint: 'اضغط على أي مربع لإضافة صورة (حتى 9 صور)',
+  name_title: 'الاسم والنبذة',
+  first_name: 'الاسم الأول',
+  last_name: 'اسم العائلة',
+  bio: 'نبذة عني',
+  bio_ph: 'اكتب شيئاً عن نفسك...',
+  bday_title: 'الجنس وتاريخ الميلاد',
+  gender: 'الجنس',
+  g_male: 'ذكر',
+  g_female: 'أنثى',
+  birthdate: 'تاريخ الميلاد',
+  zodiac_title: 'البرج',
+  zodiac_auto: 'البرج المحسوب تلقائياً:',
+  social_title: 'الحالة الاجتماعية',
+  children: 'لديّ أطفال',
+  contact_title: 'معلومات التواصل',
+  email: 'البريد الإلكتروني',
+  phone: 'رقم الهاتف',
+  phone_hint: 'يُضاف من البوت عند مشاركة جهة الاتصال',
+  looking_title: 'ماذا تبحث عن؟',
+  looking_hint: 'يمكنك اختيار أكثر من خيار',
+  hobbies_title: 'الهوايات',
+  habits_title: 'العادات والطباع',
+  personality_title: 'الشخصية',
+  edu_title: 'التعليم والمهنة',
+  edu_level: 'المستوى التعليمي',
+  profession: 'المهنة / الوظيفة',
+  university: 'الجامعة',
+  school: 'المدرسة',
+  loc_title: 'الموقع الجغرافي',
+  country: 'الدولة',
+  city: 'المدينة',
+  neighborhood: 'الحي / المنطقة',
+  save: '💾 حفظ التغييرات',
+  saving: '⏳',
+  saved: '✅ تم الحفظ',
+  save_err: '❌ خطأ',
+  photo_main: 'رئيسية',
+  photo_add: '➕',
+  photo_del_confirm: 'حذف هذه الصورة؟',
+  rating_label: 'تقييمك من الآخرين',
+  max_photos: 'الحد الأقصى 9 صور',
+} : {
+  loading: 'Loading...',
+  complete_label: 'Profile completion',
+  tab_photos: '📸 Photos',
+  tab_basic: '👤 About',
+  tab_contact: '💌 Contact',
+  tab_looking: '❤️ Looking',
+  tab_interests: '🎯 Interests',
+  tab_education: '🎓 Education',
+  tab_location: '📍 Location',
+  photos_title: 'Profile Photos',
+  photos_hint: 'Tap any box to add a photo (up to 9 photos)',
+  name_title: 'Name & About',
+  first_name: 'First Name',
+  last_name: 'Last Name',
+  bio: 'About Me',
+  bio_ph: 'Write something about yourself...',
+  bday_title: 'Gender & Birthday',
+  gender: 'Gender',
+  g_male: 'Male',
+  g_female: 'Female',
+  birthdate: 'Date of Birth',
+  zodiac_title: 'Zodiac Sign',
+  zodiac_auto: 'Auto-calculated zodiac:',
+  social_title: 'Social Status',
+  children: 'I have children',
+  contact_title: 'Contact Info',
+  email: 'Email Address',
+  phone: 'Phone Number',
+  phone_hint: 'Added via bot when you share your contact',
+  looking_title: 'What are you looking for?',
+  looking_hint: 'You can select multiple options',
+  hobbies_title: 'Hobbies',
+  habits_title: 'Habits & Lifestyle',
+  personality_title: 'Personality',
+  edu_title: 'Education & Work',
+  edu_level: 'Education Level',
+  profession: 'Profession / Job',
+  university: 'University',
+  school: 'School',
+  loc_title: 'Location',
+  country: 'Country',
+  city: 'City',
+  neighborhood: 'Neighborhood / District',
+  save: '💾 Save Changes',
+  saving: '⏳',
+  saved: '✅ Saved',
+  save_err: '❌ Error',
+  photo_main: 'Main',
+  photo_add: '➕',
+  photo_del_confirm: 'Delete this photo?',
+  rating_label: 'Your rating',
+  max_photos: 'Maximum 9 photos allowed',
+};
+
+// ── Apply static labels ───────────────────────────────────────
+document.getElementById('loading-text').textContent       = T.loading;
+document.getElementById('hdr-complete-label').textContent = T.complete_label;
+document.getElementById('lbl-photos-title').textContent   = T.photos_title;
+document.getElementById('lbl-photos-hint').textContent    = T.photos_hint;
+document.getElementById('lbl-name-title').textContent     = T.name_title;
+document.getElementById('lbl-first-name').textContent     = T.first_name;
+document.getElementById('lbl-last-name').textContent      = T.last_name;
+document.getElementById('lbl-bio').textContent            = T.bio;
+document.getElementById('lbl-bday-title').textContent     = T.bday_title;
+document.getElementById('lbl-gender').textContent         = T.gender;
+document.getElementById('lbl-g-male').textContent         = T.g_male;
+document.getElementById('lbl-g-female').textContent       = T.g_female;
+document.getElementById('lbl-birthdate').textContent      = T.birthdate;
+document.getElementById('lbl-zodiac-title').textContent   = T.zodiac_title;
+document.getElementById('lbl-social-title').textContent   = T.social_title;
+document.getElementById('lbl-children').textContent       = T.children;
+document.getElementById('lbl-contact-title').textContent  = T.contact_title;
+document.getElementById('lbl-email').textContent          = T.email;
+document.getElementById('lbl-phone-disp').textContent     = T.phone;
+document.getElementById('lbl-phone-hint').textContent     = T.phone_hint;
+document.getElementById('lbl-looking-title').textContent  = T.looking_title;
+document.getElementById('lbl-looking-hint').textContent   = T.looking_hint;
+document.getElementById('lbl-hobbies-title').textContent  = T.hobbies_title;
+document.getElementById('lbl-habits-title').textContent   = T.habits_title;
+document.getElementById('lbl-personality-title').textContent = T.personality_title;
+document.getElementById('lbl-edu-title').textContent      = T.edu_title;
+document.getElementById('lbl-edu-level').textContent      = T.edu_level;
+document.getElementById('lbl-profession').textContent     = T.profession;
+document.getElementById('lbl-university').textContent     = T.university;
+document.getElementById('lbl-school').textContent         = T.school;
+document.getElementById('lbl-loc-title').textContent      = T.loc_title;
+document.getElementById('lbl-country').textContent        = T.country;
+document.getElementById('lbl-city').textContent           = T.city;
+document.getElementById('lbl-neighborhood').textContent   = T.neighborhood;
+document.getElementById('save-btn').textContent           = T.save;
+document.getElementById('f-bio').placeholder              = T.bio_ph;
+
+// ── Update tab labels ─────────────────────────────────────────
+const tabLabels = { photos: T.tab_photos, basic: T.tab_basic, contact: T.tab_contact,
+  looking: T.tab_looking, interests: T.tab_interests,
+  education: T.tab_education, location: T.tab_location };
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.textContent = tabLabels[btn.dataset.tab] || btn.textContent;
+});
+
+// ── Zodiac data ───────────────────────────────────────────────
+const ZODIACS = lang === 'ar' ? [
+  { v:'Aries',       s:'♈', n:'الحمل'   },
+  { v:'Taurus',      s:'♉', n:'الثور'   },
+  { v:'Gemini',      s:'♊', n:'الجوزاء' },
+  { v:'Cancer',      s:'♋', n:'السرطان' },
+  { v:'Leo',         s:'♌', n:'الأسد'   },
+  { v:'Virgo',       s:'♍', n:'السنبلة' },
+  { v:'Libra',       s:'♎', n:'الميزان' },
+  { v:'Scorpio',     s:'♏', n:'العقرب'  },
+  { v:'Sagittarius', s:'♐', n:'القوس'   },
+  { v:'Capricorn',   s:'♑', n:'الجدي'   },
+  { v:'Aquarius',    s:'♒', n:'الدلو'   },
+  { v:'Pisces',      s:'♓', n:'الحوت'   },
+] : [
+  { v:'Aries', s:'♈', n:'Aries' }, { v:'Taurus', s:'♉', n:'Taurus' },
+  { v:'Gemini', s:'♊', n:'Gemini' }, { v:'Cancer', s:'♋', n:'Cancer' },
+  { v:'Leo', s:'♌', n:'Leo' }, { v:'Virgo', s:'♍', n:'Virgo' },
+  { v:'Libra', s:'♎', n:'Libra' }, { v:'Scorpio', s:'♏', n:'Scorpio' },
+  { v:'Sagittarius', s:'♐', n:'Sagittarius' }, { v:'Capricorn', s:'♑', n:'Capricorn' },
+  { v:'Aquarius', s:'♒', n:'Aquarius' }, { v:'Pisces', s:'♓', n:'Pisces' },
+];
+
+// ── Social Status ─────────────────────────────────────────────
+const SOCIAL_STATUS = lang === 'ar' ? [
+  { v:'single',   l:'💚 أعزب/ة' },
+  { v:'married',  l:'💍 متزوج/ة' },
+  { v:'divorced', l:'💔 مطلق/ة' },
+  { v:'widowed',  l:'🖤 أرمل/ة' },
+] : [
+  { v:'single', l:'💚 Single' }, { v:'married', l:'💍 Married' },
+  { v:'divorced', l:'💔 Divorced' }, { v:'widowed', l:'🖤 Widowed' },
+];
+
+// ── Purpose ───────────────────────────────────────────────────
+const PURPOSES = lang === 'ar' ? [
+  { v:'marriage',     l:'💍 الزواج' },
+  { v:'relationship', l:'💑 علاقة جادة' },
+  { v:'friendship',   l:'👫 صداقة' },
+  { v:'coffee',       l:'☕ لقاء قهوة' },
+  { v:'dining',       l:'🍽️ تناول طعام' },
+  { v:'travel',       l:'✈️ سفر' },
+  { v:'cinema',       l:'🎬 سينما' },
+  { v:'outdoors',     l:'🌳 تنزه' },
+  { v:'hangout',      l:'👥 تعارف وتسلية' },
+] : [
+  { v:'marriage', l:'💍 Marriage' }, { v:'relationship', l:'💑 Serious Relationship' },
+  { v:'friendship', l:'👫 Friendship' }, { v:'coffee', l:'☕ Coffee Meetup' },
+  { v:'dining', l:'🍽️ Dining Out' }, { v:'travel', l:'✈️ Travel' },
+  { v:'cinema', l:'🎬 Cinema' }, { v:'outdoors', l:'🌳 Outdoor Walks' },
+  { v:'hangout', l:'👥 Social Fun' },
+];
+
+// ── Hobbies ───────────────────────────────────────────────────
+const HOBBIES = lang === 'ar' ? [
+  '📚 القراءة','🎮 الألعاب','🎵 الموسيقى','🎨 الرسم والفن',
+  '🏃 الرياضة','✈️ السفر','🍳 الطبخ','🎬 الأفلام',
+  '📷 التصوير','🌿 الطبيعة والمشي','🐾 الحيوانات',
+  '⚽ كرة القدم','🎤 الغناء','💻 التقنية والبرمجة',
+  '🤿 الغوص والسباحة','🧘 اليوغا والتأمل','🎲 ألعاب لوحية',
+  '🏖️ الشاطئ','🛒 التسوق','🎭 المسرح والفنون',
+  '📖 الروايات','🌆 المشي في المدن','🎸 الحفلات',
+  '🚴 ركوب الدراجات','🧗 التسلق',
+] : [
+  '📚 Reading','🎮 Gaming','🎵 Music','🎨 Art & Drawing',
+  '🏃 Sports','✈️ Travel','🍳 Cooking','🎬 Movies',
+  '📷 Photography','🌿 Nature & Hiking','🐾 Animals',
+  '⚽ Football','🎤 Singing','💻 Tech & Coding',
+  '🤿 Swimming & Diving','🧘 Yoga & Meditation','🎲 Board Games',
+  '🏖️ Beach','🛒 Shopping','🎭 Theatre & Arts',
+  '📖 Novels','🌆 City Walks','🎸 Concerts',
+  '🚴 Cycling','🧗 Climbing',
+];
+
+// ── Habits ────────────────────────────────────────────────────
+const HABITS = lang === 'ar' ? [
+  '☕ قهوة كل صباح','🌙 سهر متأخر','🌅 صحوة مبكرة',
+  '🏋️ رياضة منتظمة','🚭 لا أدخن','🥗 أكل صحي',
+  '📵 قليل السوشيال','📱 نشيط على السوشيال',
+  '🎧 بودكاست يومي','📚 قراءة يومية',
+  '🧹 منظم ونظيف','😄 متفائل دائماً',
+  '🙏 صلاة منتظمة','🌱 أحيا بشكل مستدام',
+  '🍷 اجتماعي في المناسبات','🏠 أفضل البيت',
+] : [
+  '☕ Morning coffee','🌙 Night owl','🌅 Early riser',
+  '🏋️ Regular exercise','🚭 Non-smoker','🥗 Healthy eating',
+  '📵 Low social media','📱 Active on social media',
+  '🎧 Daily podcast','📚 Daily reading',
+  '🧹 Organized & tidy','😄 Always positive',
+  '🙏 Regular prayer','🌱 Eco-friendly lifestyle',
+  '🍷 Social drinker','🏠 Homebody',
+];
+
+// ── Personality ───────────────────────────────────────────────
+const PERSONALITY = lang === 'ar' ? [
+  '🔥 متحمس ونشيط','😌 هادئ ومتزن','🎉 اجتماعي ومُقبل',
+  '🤔 مفكر وتحليلي','😄 مرح ومضحك','🎨 مبدع وفنان',
+  '🤝 متعاون وداعم','💪 طموح وهادف','💝 عاطفي ورومانسي',
+  '🎯 منظم ودقيق','🌟 قيادي','🦋 رقيق وحساس',
+  '🧠 ذكي وواعٍ','🌈 متفائل','🦁 شجاع ومقدام',
+  '🤫 خجول في البداية','🌙 غامض وعميق',
+] : [
+  '🔥 Enthusiastic','😌 Calm & Balanced','🎉 Social & Outgoing',
+  '🤔 Thoughtful & Analytical','😄 Funny & Playful','🎨 Creative & Artistic',
+  '🤝 Cooperative','💪 Ambitious','💝 Romantic & Emotional',
+  '🎯 Organized','🌟 Leader','🦋 Gentle & Sensitive',
+  '🧠 Intelligent','🌈 Optimistic','🦁 Brave & Bold',
+  '🤫 Shy at first','🌙 Mysterious & Deep',
+];
+
+// ── Education options ─────────────────────────────────────────
+const EDU_OPTIONS = lang === 'ar' ? [
+  ['', '— اختر —'],['none','بدون مؤهل'],['school','مرحلة ابتدائية / متوسطة'],
+  ['highschool','ثانوية عامة'],['diploma','دبلوم'],
+  ['bachelor','بكالوريوس'],['master','ماجستير'],['phd','دكتوراه'],
+] : [
+  ['','— Select —'],['none','No formal education'],['school','Primary / Middle school'],
+  ['highschool','High School'],['diploma','Diploma'],
+  ['bachelor','Bachelor\'s'],['master','Master\'s'],['phd','PhD'],
+];
+
+// ═══════════════════════════════════════════════════════════════
+// BUILD CHIP LISTS
+// ═══════════════════════════════════════════════════════════════
+function buildChips(containerId, items, selectedArr, colorCls, isRadio) {
+  const cont = document.getElementById(containerId);
+  cont.innerHTML = '';
+  items.forEach(item => {
+    const v = typeof item === 'object' ? item.v : item;
+    const l = typeof item === 'object' ? item.l : item;
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (isRadio ? ' radio' : '');
+    chip.textContent = l;
+    chip.dataset.v = v;
+    if (isRadio) {
+      if (selectedArr[0] === v) chip.classList.add('active');
+      chip.addEventListener('click', () => {
+        cont.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        selectedArr[0] = v;
+      });
+    } else {
+      if (selectedArr.includes(v)) chip.classList.add(colorCls);
+      chip.addEventListener('click', () => {
+        const idx = selectedArr.indexOf(v);
+        if (idx >= 0) { selectedArr.splice(idx,1); chip.classList.remove(colorCls); }
+        else { selectedArr.push(v); chip.classList.add(colorCls); }
+      });
+    }
+    cont.appendChild(chip);
+  });
+}
+
+// ── Build zodiac grid ─────────────────────────────────────────
+function buildZodiacGrid(selected) {
+  const grid = document.getElementById('zodiac-grid');
+  grid.innerHTML = '';
+  ZODIACS.forEach(z => {
+    const el = document.createElement('div');
+    el.className = 'zodiac-chip' + (selected[0] === z.v ? ' active' : '');
+    el.dataset.v = z.v;
+    el.innerHTML = `<span class="zodiac-sign">${z.s}</span><span class="zodiac-name">${z.n}</span>`;
+    el.addEventListener('click', () => {
+      grid.querySelectorAll('.zodiac-chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      selected[0] = z.v;
+    });
+    grid.appendChild(el);
+  });
+}
+
+// ── Build education dropdown ──────────────────────────────────
+function buildEduSelect(val) {
+  const sel = document.getElementById('f-edu');
+  sel.innerHTML = '';
+  EDU_OPTIONS.forEach(([v, l]) => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = l;
+    if (v === val) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+// ── Gender chips (radio) ──────────────────────────────────────
+let genderState = [''];
+function buildGenderChips(val) {
+  genderState = [val || ''];
+  const cont = document.getElementById('gender-chips');
+  cont.querySelectorAll('.chip').forEach(c => {
+    c.classList.remove('active');
+    if (c.dataset.v === val) c.classList.add('active');
+    c.addEventListener('click', () => {
+      cont.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+      genderState[0] = c.dataset.v;
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ZODIAC AUTO-CALCULATE FROM BIRTHDATE
+// ═══════════════════════════════════════════════════════════════
+function getZodiac(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  const m = d.getMonth() + 1, day = d.getDate();
+  if ((m===3&&day>=21)||(m===4&&day<=19)) return 'Aries';
+  if ((m===4&&day>=20)||(m===5&&day<=20)) return 'Taurus';
+  if ((m===5&&day>=21)||(m===6&&day<=20)) return 'Gemini';
+  if ((m===6&&day>=21)||(m===7&&day<=22)) return 'Cancer';
+  if ((m===7&&day>=23)||(m===8&&day<=22)) return 'Leo';
+  if ((m===8&&day>=23)||(m===9&&day<=22)) return 'Virgo';
+  if ((m===9&&day>=23)||(m===10&&day<=22)) return 'Libra';
+  if ((m===10&&day>=23)||(m===11&&day<=21)) return 'Scorpio';
+  if ((m===11&&day>=22)||(m===12&&day<=21)) return 'Sagittarius';
+  if ((m===12&&day>=22)||(m===1&&day<=19)) return 'Capricorn';
+  if ((m===1&&day>=20)||(m===2&&day<=18)) return 'Aquarius';
+  return 'Pisces';
+}
+
+document.getElementById('f-birthdate').addEventListener('change', function() {
+  const z = getZodiac(this.value);
+  if (!z) return;
+  const info = ZODIACS.find(x => x.v === z);
+  if (!info) return;
+  document.getElementById('zodiac-auto-row').textContent = `${T.zodiac_auto} ${info.s} ${info.n}`;
+  // Auto-select zodiac chip
+  zodiacState[0] = z;
+  document.querySelectorAll('.zodiac-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.v === z);
+  });
+});
+
+// ── Bio char counter ──────────────────────────────────────────
+document.getElementById('f-bio').addEventListener('input', function() {
+  document.getElementById('bio-char').textContent = this.value.length;
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PHOTO MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+let photosState = [];         // [{id, photo_url, order_num}] extra photos
+let mainPhotoUrl = null;
+let pendingPhotoSlot = -1;   // -1 = main photo
+const fileInput = document.getElementById('photo-file-input');
+
+function renderPhotoGrid() {
+  const grid = document.getElementById('photo-grid');
+  grid.innerHTML = '';
+  // Slot 0 = main photo
+  const slots = [{ id: -1, photo_url: mainPhotoUrl, is_main: true }, ...photosState];
+  for (let i = 0; i < 9; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'photo-slot';
+    if (slots[i]) {
+      const s = slots[i];
+      if (s.photo_url) {
+        slot.classList.add('has-photo');
+        const img = document.createElement('img');
+        img.src = s.photo_url;
+        img.onerror = () => { img.style.display='none'; slot.classList.remove('has-photo'); };
+        slot.appendChild(img);
+        if (s.is_main) {
+          const badge = document.createElement('div');
+          badge.className = 'photo-main-badge';
+          badge.textContent = T.photo_main;
+          slot.appendChild(badge);
+        } else {
+          const del = document.createElement('div');
+          del.className = 'photo-slot-del';
+          del.textContent = '✕';
+          del.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!confirm(T.photo_del_confirm)) return;
+            deleteExtraPhoto(s.id);
+          });
+          slot.appendChild(del);
+        }
+        slot.addEventListener('click', () => triggerPhotoUpload(s.is_main ? -1 : i));
+      } else {
+        const icon = document.createElement('div');
+        icon.className = 'photo-slot-icon';
+        icon.textContent = T.photo_add;
+        slot.appendChild(icon);
+        slot.addEventListener('click', () => triggerPhotoUpload(s.is_main ? -1 : i));
+      }
+    } else {
+      const icon = document.createElement('div');
+      icon.className = 'photo-slot-icon';
+      icon.textContent = T.photo_add;
+      slot.appendChild(icon);
+      slot.addEventListener('click', () => triggerPhotoUpload(i));
+    }
+    grid.appendChild(slot);
+  }
+}
+
+function triggerPhotoUpload(slotIdx) {
+  pendingPhotoSlot = slotIdx;
+  fileInput.value = '';
+  fileInput.click();
+}
+
+fileInput.addEventListener('change', async () => {
+  if (!fileInput.files.length) return;
+  const file = fileInput.files[0];
+  if (pendingPhotoSlot === -1) {
+    // Main photo not uploaded separately — show preview (main photo set via bot)
+    showToast(lang === 'ar' ? 'الصورة الرئيسية تُعدَّل عبر البوت' : 'Main photo is set via the bot');
+    return;
+  }
+  // Upload extra photo
+  const fd = new FormData();
+  fd.append('uid', uid);
+  fd.append('image', file);
+  try {
+    const res = await fetch('/api/profile/photo/add', { method:'POST', body:fd }).then(r=>r.json());
+    if (res.ok) {
+      photosState.push({ id: Date.now(), photo_url: res.photo_url, order_num: photosState.length });
+      renderPhotoGrid();
+      showToast('✅');
+      // reload to get proper id
+      loadProfile();
+    } else {
+      if (res.error === 'max_photos') showToast(T.max_photos);
+      else showToast(T.save_err);
+    }
+  } catch { showToast(T.save_err); }
+});
+
+async function deleteExtraPhoto(photoId) {
+  try {
+    const res = await fetch('/api/profile/photo/delete', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ uid, photo_id: photoId })
+    }).then(r=>r.json());
+    if (res.ok) {
+      photosState = photosState.filter(p => p.id !== photoId);
+      renderPhotoGrid();
+    } else showToast(T.save_err);
+  } catch { showToast(T.save_err); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let zodiacState     = [''];
+let socialState     = [''];
+let purposeState    = [];
+let hobbiesState    = [];
+let habitsState     = [];
+let personalityState= [];
+let hasChildren     = false;
+
+// ═══════════════════════════════════════════════════════════════
+// LOAD PROFILE
+// ═══════════════════════════════════════════════════════════════
+async function loadProfile() {
+  if (!uid) return;
+  try {
+    const res = await fetch(`/api/profile/${uid}`).then(r=>r.json());
+    if (!res.ok) { showToast(res.error || '?'); return; }
+    const p = res.profile;
+
+    // Header
+    const name = [p.first_name, p.last_name].filter(Boolean).join(' ') || p.username || '—';
+    document.getElementById('hdr-name').textContent    = name;
+    document.getElementById('hdr-handle').textContent  = p.username ? '@'+p.username : '';
+    const pct = p.profile_complete || 0;
+    document.getElementById('hdr-complete-fill').style.width = pct + '%';
+    document.getElementById('hdr-complete-pct').textContent  = pct + '%';
+
+    // Avatar
+    mainPhotoUrl = p.photo_url || null;
+    if (mainPhotoUrl) {
+      const img = document.getElementById('hdr-avatar');
+      img.src = mainPhotoUrl;
+      img.style.display = 'block';
+      document.getElementById('hdr-avatar-ph').style.display = 'none';
+    }
+
+    // Extra photos
+    photosState = p.extra_photos || [];
+    renderPhotoGrid();
+
+    // Rating
+    if (p.rating_count > 0) {
+      const rr = document.getElementById('rating-row');
+      rr.style.display = 'flex';
+      document.getElementById('rating-stars').textContent = '★'.repeat(Math.round(p.rating_avg)) + '☆'.repeat(5-Math.round(p.rating_avg));
+      document.getElementById('rating-val').textContent   = p.rating_avg;
+      document.getElementById('rating-cnt').textContent   = `(${p.rating_count} ${lang==='ar'?'تقييم':'reviews'})`;
+    }
+
+    // Basic fields
+    document.getElementById('f-first-name').value  = p.first_name  || '';
+    document.getElementById('f-last-name').value   = p.last_name   || '';
+    document.getElementById('f-bio').value         = p.bio         || '';
+    document.getElementById('bio-char').textContent= (p.bio||'').length;
+    document.getElementById('f-birthdate').value   = p.birthdate   || '';
+    document.getElementById('f-email').value       = p.email       || '';
+    document.getElementById('f-phone').value       = p.phone       || '';
+    document.getElementById('f-profession').value  = p.profession  || '';
+    document.getElementById('f-university').value  = p.university  || '';
+    document.getElementById('f-school').value      = p.school      || '';
+    document.getElementById('f-country').value     = p.country     || '';
+    document.getElementById('f-city').value        = p.city        || '';
+    document.getElementById('f-neighborhood').value= p.neighborhood|| '';
+
+    // Zodiac auto hint
+    if (p.birthdate) {
+      const z = getZodiac(p.birthdate);
+      if (z) {
+        const info = ZODIACS.find(x=>x.v===z);
+        if (info) document.getElementById('zodiac-auto-row').textContent = `${T.zodiac_auto} ${info.s} ${info.n}`;
+      }
+    }
+
+    // Education
+    buildEduSelect(p.education || '');
+
+    // Gender
+    buildGenderChips(p.gender || '');
+
+    // Zodiac
+    zodiacState = [p.zodiac || ''];
+    buildZodiacGrid(zodiacState);
+
+    // Social status
+    socialState = [p.social_status || ''];
+    buildChips('social-chips', SOCIAL_STATUS, socialState, 'sel-pink', true);
+
+    // Has children
+    hasChildren = p.has_children || false;
+    const tog = document.getElementById('toggle-children');
+    tog.classList.toggle('on', hasChildren);
+
+    // Purpose
+    purposeState = Array.isArray(p.purpose) ? [...p.purpose] : [];
+    buildChips('purpose-chips', PURPOSES, purposeState, 'sel-pink', false);
+
+    // Hobbies
+    hobbiesState = Array.isArray(p.hobbies) ? [...p.hobbies] : [];
+    buildChips('hobbies-chips', HOBBIES, hobbiesState, 'sel-purple', false);
+
+    // Habits
+    habitsState = Array.isArray(p.habits) ? [...p.habits] : [];
+    buildChips('habits-chips', HABITS, habitsState, 'sel-green', false);
+
+    // Personality
+    personalityState = Array.isArray(p.personality_traits) ? [...p.personality_traits] : [];
+    buildChips('personality-chips', PERSONALITY, personalityState, 'sel-orange', false);
+
+    // Show UI
+    document.getElementById('loading').style.display = 'none';
+    document.querySelectorAll('.section').forEach(s => { if(s.id==='sec-photos') s.classList.add('active'); });
+    document.getElementById('sec-photos').style.display = 'block';
+    document.getElementById('sec-photos').classList.add('active');
+    document.getElementById('save-bar').style.display = 'flex';
+
+  } catch(e) {
+    console.error(e);
+    showToast('Error');
+  }
+}
+
+// ── Children toggle ───────────────────────────────────────────
+document.getElementById('toggle-children').addEventListener('click', function() {
+  hasChildren = !hasChildren;
+  this.classList.toggle('on', hasChildren);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════
+const TAB_IDS = { photos:'sec-photos', basic:'sec-basic', contact:'sec-contact',
+  looking:'sec-looking', interests:'sec-interests', education:'sec-education', location:'sec-location' };
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Object.values(TAB_IDS).forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.style.display='none'; el.classList.remove('active'); }
+    });
+    const target = document.getElementById(TAB_IDS[btn.dataset.tab]);
+    if (target) { target.style.display='block'; target.classList.add('active'); }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SAVE
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('save-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('save-btn');
+  const st  = document.getElementById('save-status');
+  btn.disabled = true;
+  btn.textContent = T.saving;
+
+  const payload = {
+    uid,
+    first_name:         document.getElementById('f-first-name').value.trim(),
+    last_name:          document.getElementById('f-last-name').value.trim(),
+    bio:                document.getElementById('f-bio').value.trim(),
+    birthdate:          document.getElementById('f-birthdate').value,
+    email:              document.getElementById('f-email').value.trim(),
+    zodiac:             zodiacState[0] || '',
+    social_status:      socialState[0] || '',
+    has_children:       hasChildren,
+    education:          document.getElementById('f-edu').value,
+    profession:         document.getElementById('f-profession').value.trim(),
+    university:         document.getElementById('f-university').value.trim(),
+    school:             document.getElementById('f-school').value.trim(),
+    country:            document.getElementById('f-country').value.trim(),
+    city:               document.getElementById('f-city').value.trim(),
+    neighborhood:       document.getElementById('f-neighborhood').value.trim(),
+    hobbies:            hobbiesState,
+    habits:             habitsState,
+    personality_traits: personalityState,
+    purpose:            purposeState,
+  };
+  if (genderState[0]) payload.gender = genderState[0];
+
+  try {
+    const res = await fetch('/api/profile/save', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    }).then(r=>r.json());
+
+    if (res.ok) {
+      st.textContent = T.saved;
+      showToast(T.saved);
+      // Update completeness
+      loadProfile();
+    } else {
+      st.textContent = T.save_err;
+    }
+  } catch {
+    st.textContent = T.save_err;
+  }
+  btn.textContent = T.save;
+  btn.disabled = false;
+  setTimeout(() => { st.textContent = ''; }, 2500);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── MAX DATE for birthdate (18 years ago) ─────────────────────
+const today = new Date();
+today.setFullYear(today.getFullYear() - 13);
+document.getElementById('f-birthdate').max = today.toISOString().split('T')[0];
+
+// ── Start ────────────────────────────────────────────────────
+loadProfile();
+</script>
+</body>
+</html>

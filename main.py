@@ -28,6 +28,7 @@ from handlers import (
     show_nearby_stores,
     create_store_start,
     show_settings,
+    show_profile,
     show_map,
     show_users_list,
     handle_buttons,
@@ -143,6 +144,8 @@ def main():
         filters.TEXT & filters.Regex(btn_regex("stores_nearby")), show_nearby_stores))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("settings")), show_settings))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("profile")), show_profile))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("matches")), show_matches))
     app.add_handler(MessageHandler(

@@ -87,6 +87,10 @@ TEXTS = {
         "map_btn_open": "🗺️ فتح الخريطة",
         "map_no_location": "❌ شارك موقعك أولاً ثم افتح الخريطة.",
         "map_not_registered": "❌ يجب التسجيل أولاً.",
+        # Profile
+        "btn_profile": "👤 ملفي الشخصي",
+        "profile_tap": "👤 اضغط لفتح ملفك الشخصي",
+        "profile_btn_open": "👤 فتح الملف الشخصي",
         # Settings
         "btn_settings": "⚙️ الإعدادات",
         "settings_tap": "⚙️ اضغط لفتح صفحة الإعدادات",
@@ -274,6 +278,10 @@ TEXTS = {
         "map_btn_open": "🗺️ Open Map",
         "map_no_location": "❌ Please share your location first, then open the map.",
         "map_not_registered": "❌ Please register first.",
+        # Profile
+        "btn_profile": "👤 My Profile",
+        "profile_tap": "👤 Tap to open your profile",
+        "profile_btn_open": "👤 Open Profile",
         # Settings
         "btn_settings": "⚙️ Settings",
         "settings_tap": "⚙️ Tap to open the settings page",
@@ -410,6 +418,7 @@ ALL_BTN = {
     "create_store":   ["🛍️ إنشاء متجر",               "🛍️ Create Store"],
     "stores_nearby":  ["📍 المتاجر القريبة",            "📍 Stores Nearby"],
     "cancel_action":  ["❌ إلغاء",                     "❌ Cancel"],
+    "profile":        ["👤 ملفي الشخصي",               "👤 My Profile"],
     "settings":       ["⚙️ الإعدادات",                 "⚙️ Settings"],
     "room_chats":     ["💬 دردشة الغرف",               "💬 Room Chats"],
     "store_chats":    ["💬 دردشة المتاجر",              "💬 Store Chats"],

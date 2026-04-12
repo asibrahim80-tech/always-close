@@ -93,7 +93,7 @@ def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
         [KeyboardButton(T(lang, "btn_stores_nearby")),   KeyboardButton(T(lang, "btn_matches"))],
         [KeyboardButton(T(lang, "btn_requests")),        KeyboardButton(T(lang, "btn_hide"))],
         [KeyboardButton(T(lang, "btn_phone_toggle")),    KeyboardButton(T(lang, "btn_edit"))],
-        [KeyboardButton(T(lang, "btn_settings"))],
+        [KeyboardButton(T(lang, "btn_profile")),         KeyboardButton(T(lang, "btn_settings"))],
     ], resize_keyboard=True)
 
 
@@ -1370,6 +1370,25 @@ async def show_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton(
                 T(lang, "settings_btn_open"),
                 web_app=WebAppInfo(url=settings_url)
+            )
+        ]])
+    )
+
+
+# =========================================================
+# SHOW PROFILE
+# =========================================================
+
+async def show_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = get_lang(update, context)
+    tg_id = update.effective_user.id
+    profile_url = f"https://{DOMAIN}/profile?uid={tg_id}&lang={lang}"
+    await update.message.reply_text(
+        T(lang, "profile_tap"),
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                T(lang, "profile_btn_open"),
+                web_app=WebAppInfo(url=profile_url)
             )
         ]])
     )

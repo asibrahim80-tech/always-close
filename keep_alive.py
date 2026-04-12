@@ -91,6 +91,185 @@ def likes_page():
     return render_template("likes.html")
 
 
+@app.route('/profile')
+def profile_page():
+    return render_template("profile.html")
+
+
+# ── Profile: load ─────────────────────────────────────────────────────────
+@app.route('/api/profile/<int:telegram_id>')
+def api_profile_get(telegram_id):
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+
+        # Try full query (requires migrate_profile.sql to have been run)
+        try:
+            me = supabase.table("users_v1") \
+                .select("id,telegram_id,username,first_name,last_name,gender,birthdate,age,bio,email,phone,"
+                        "photo_url,zodiac,social_status,has_children,education,profession,university,"
+                        "school,country,city,neighborhood,hobbies,habits,personality_traits,purpose,"
+                        "is_visible,show_phone,profile_complete") \
+                .eq("telegram_id", telegram_id).execute()
+        except Exception:
+            # Fall back to base columns (migration not yet applied)
+            me = supabase.table("users_v1") \
+                .select("id,telegram_id,username,gender,birthdate,age,bio,phone,"
+                        "photo_url,is_visible,show_phone") \
+                .eq("telegram_id", telegram_id).execute()
+
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        u = me.data[0]
+        u["photo_url"] = _resolve_photo(u.get("photo_url"), BOT_TOKEN)
+
+        # Extra photos (table may not exist yet)
+        try:
+            photos = supabase.table("user_photos_v1") \
+                .select("id,photo_url,order_num") \
+                .eq("user_id", u["id"]) \
+                .order("order_num").execute()
+            u["extra_photos"] = photos.data or []
+        except Exception:
+            u["extra_photos"] = []
+
+        # Ratings count & avg
+        try:
+            ratings = supabase.table("user_ratings_v1") \
+                .select("stars") \
+                .eq("rated_user_id", u["id"]).execute()
+            if ratings.data:
+                stars = [r["stars"] for r in ratings.data]
+                u["rating_avg"]   = round(sum(stars)/len(stars), 1)
+                u["rating_count"] = len(stars)
+            else:
+                u["rating_avg"]   = 0
+                u["rating_count"] = 0
+        except Exception:
+            u["rating_avg"]   = 0
+            u["rating_count"] = 0
+
+        return jsonify({"ok": True, "profile": u})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+# ── Profile: save ─────────────────────────────────────────────────────────
+@app.route('/api/profile/save', methods=['POST'])
+def api_profile_save():
+    try:
+        from database import supabase
+        data = request.get_json(force=True)
+        uid  = data.get("uid")
+        if not uid:
+            return jsonify({"ok": False, "error": "no_uid"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+
+        ALLOWED = ["first_name","last_name","bio","email","zodiac",
+                   "social_status","has_children","education","profession",
+                   "university","school","country","city","neighborhood",
+                   "hobbies","habits","personality_traits","purpose"]
+        update = {k: data[k] for k in ALLOWED if k in data}
+
+        # birthdate → age + zodiac auto-calc
+        if "birthdate" in data and data["birthdate"]:
+            try:
+                from datetime import datetime
+                bd = datetime.strptime(data["birthdate"], "%Y-%m-%d")
+                today = datetime.today()
+                age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
+                update["birthdate"] = data["birthdate"]
+                update["age"] = max(0, age)
+            except Exception:
+                pass
+
+        # Compute completeness score
+        fields = ["bio","email","zodiac","social_status","education",
+                  "profession","country","city","hobbies","purpose"]
+        filled = sum(1 for f in fields if update.get(f) or me.data[0].get(f, None))
+        update["profile_complete"] = min(100, int(filled / len(fields) * 100))
+
+        supabase.table("users_v1").update(update).eq("telegram_id", uid).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+# ── Profile: add extra photo ──────────────────────────────────────────────
+@app.route('/api/profile/photo/add', methods=['POST'])
+def api_profile_photo_add():
+    try:
+        from database import supabase
+        uid = int(request.form.get("uid", 0))
+        f   = request.files.get("image")
+        if not f:
+            return jsonify({"ok": False, "error": "no_file"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        # Max 9 photos
+        existing = supabase.table("user_photos_v1").select("id", count="exact") \
+            .eq("user_id", my_id).execute()
+        if (existing.count or 0) >= 9:
+            return jsonify({"ok": False, "error": "max_photos"})
+
+        os.makedirs("static/profile_photos", exist_ok=True)
+        ext = (f.filename.rsplit(".", 1)[-1].lower()
+               if f.filename and "." in f.filename else "jpg")
+        if ext not in ("jpg", "jpeg", "png", "webp"):
+            ext = "jpg"
+        import uuid as _uuid
+        fname     = f"static/profile_photos/u{my_id}_{_uuid.uuid4().hex[:8]}.{ext}"
+        photo_url = f"/{fname}"
+        f.save(fname)
+
+        order_num = (existing.count or 0)
+        supabase.table("user_photos_v1").insert({
+            "user_id": my_id, "photo_url": photo_url, "order_num": order_num
+        }).execute()
+        return jsonify({"ok": True, "photo_url": photo_url})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+# ── Profile: delete extra photo ───────────────────────────────────────────
+@app.route('/api/profile/photo/delete', methods=['POST'])
+def api_profile_photo_delete():
+    try:
+        from database import supabase
+        data     = request.get_json(force=True)
+        uid      = data.get("uid")
+        photo_id = data.get("photo_id")
+        if not uid or not photo_id:
+            return jsonify({"ok": False, "error": "missing_params"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        row = supabase.table("user_photos_v1").select("id,photo_url,user_id") \
+            .eq("id", photo_id).execute()
+        if not row.data or row.data[0]["user_id"] != my_id:
+            return jsonify({"ok": False, "error": "forbidden"})
+
+        # Delete file
+        path = row.data[0]["photo_url"].lstrip("/")
+        if os.path.exists(path):
+            os.remove(path)
+
+        supabase.table("user_photos_v1").delete().eq("id", photo_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 @app.route('/api/notifications/<int:telegram_id>')
 def api_notifications(telegram_id):
     try:
