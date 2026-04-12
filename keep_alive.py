@@ -159,41 +159,98 @@ def api_profile_get(telegram_id):
 def api_profile_save():
     try:
         from database import supabase
+        from datetime import datetime as _dt
+
         data = request.get_json(force=True)
-        uid  = data.get("uid")
+        uid  = int(data.get("uid", 0))
         if not uid:
             return jsonify({"ok": False, "error": "no_uid"})
 
-        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
-        if not me.data:
+        # Fetch current row (all existing columns) for completeness calc
+        try:
+            cur = supabase.table("users_v1") \
+                .select("id,bio,email,zodiac,social_status,education,profession,"
+                        "country,city,hobbies,purpose,photo_url,gender,birthdate") \
+                .eq("telegram_id", uid).execute()
+        except Exception:
+            cur = supabase.table("users_v1").select("id,bio,email,gender,birthdate,city") \
+                .eq("telegram_id", uid).execute()
+
+        if not cur.data:
             return jsonify({"ok": False, "error": "not_found"})
+        current = cur.data[0]
 
-        ALLOWED = ["first_name","last_name","bio","email","zodiac",
-                   "social_status","has_children","education","profession",
-                   "university","school","country","city","neighborhood",
-                   "hobbies","habits","personality_traits","purpose"]
-        update = {k: data[k] for k in ALLOWED if k in data}
+        # ── Build update dict (new profile columns) ──────────────
+        NEW_COLS = ["first_name","last_name","bio","email","zodiac",
+                    "social_status","has_children","education","profession",
+                    "university","school","country","city","neighborhood",
+                    "hobbies","habits","personality_traits","purpose"]
+        BASE_COLS = ["bio","email","city","country","education","profession"]
 
-        # birthdate → age + zodiac auto-calc
+        update = {k: data[k] for k in NEW_COLS if k in data}
+
+        # gender (always exists)
+        if "gender" in data and data["gender"]:
+            update["gender"] = data["gender"]
+
+        # birthdate → age
         if "birthdate" in data and data["birthdate"]:
             try:
-                from datetime import datetime
-                bd = datetime.strptime(data["birthdate"], "%Y-%m-%d")
-                today = datetime.today()
+                bd = _dt.strptime(data["birthdate"], "%Y-%m-%d")
+                today = _dt.today()
                 age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
                 update["birthdate"] = data["birthdate"]
                 update["age"] = max(0, age)
             except Exception:
                 pass
 
-        # Compute completeness score
-        fields = ["bio","email","zodiac","social_status","education",
-                  "profession","country","city","hobbies","purpose"]
-        filled = sum(1 for f in fields if update.get(f) or me.data[0].get(f, None))
-        update["profile_complete"] = min(100, int(filled / len(fields) * 100))
+        # ── Completeness score (based on merged: current + incoming) ──
+        merged = {**current, **update}
+        score_fields = {
+            "bio":          lambda v: bool(v and len(str(v)) >= 10),
+            "email":        lambda v: bool(v),
+            "zodiac":       lambda v: bool(v),
+            "social_status":lambda v: bool(v),
+            "education":    lambda v: bool(v),
+            "profession":   lambda v: bool(v),
+            "country":      lambda v: bool(v),
+            "city":         lambda v: bool(v),
+            "hobbies":      lambda v: bool(v and len(v) >= 1),
+            "purpose":      lambda v: bool(v and len(v) >= 1),
+        }
+        filled = sum(1 for f, fn in score_fields.items() if fn(merged.get(f)))
+        # photo bonus
+        if merged.get("photo_url") or merged.get("gender"):
+            filled = min(filled + 1, len(score_fields))
+        update["profile_complete"] = min(100, int(filled / len(score_fields) * 100))
 
-        supabase.table("users_v1").update(update).eq("telegram_id", uid).execute()
-        return jsonify({"ok": True})
+        # ── Try full update (needs migrate_profile.sql) ──────────
+        try:
+            supabase.table("users_v1").update(update).eq("telegram_id", uid).execute()
+            return jsonify({"ok": True, "profile_complete": update["profile_complete"]})
+        except Exception as e1:
+            err_str = str(e1)
+            # If new columns don't exist yet, fall back to base columns only
+            if "does not exist" in err_str or "column" in err_str.lower():
+                base_update = {k: update[k] for k in BASE_COLS if k in update}
+                if "gender" in update:   base_update["gender"]    = update["gender"]
+                if "birthdate" in update: base_update["birthdate"] = update["birthdate"]
+                if "age" in update:       base_update["age"]        = update["age"]
+                if "profile_complete" in update:
+                    base_update["profile_complete"] = update["profile_complete"]
+                try:
+                    base_update.pop("profile_complete", None)  # may not exist yet
+                except Exception:
+                    pass
+                supabase.table("users_v1").update(base_update).eq("telegram_id", uid).execute()
+                return jsonify({
+                    "ok": True,
+                    "warning": "migration_pending",
+                    "profile_complete": update["profile_complete"],
+                    "saved_fields": list(base_update.keys()),
+                })
+            raise  # re-raise other errors
+
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
