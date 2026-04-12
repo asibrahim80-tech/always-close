@@ -865,10 +865,17 @@
         const bc = document.createElement('button');
         bc.style.cssText = 'flex:0 0 auto;padding:9px 14px;border-radius:11px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#0088cc,#006aad);color:#fff;display:flex;align-items:center;gap:5px;transition:opacity .1s';
         bc.textContent = T.btn_chat;
-        bc.addEventListener('click', () => {
-          if (window.Telegram?.WebApp?.sendData) {
-            window.Telegram.WebApp.sendData('room_chat_sel:' + r.id);
-          }
+        bc.addEventListener('click', async () => {
+          bc.disabled = true;
+          bc.style.opacity = '0.6';
+          try {
+            await fetch('/api/chat/room/join', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({uid: uid, room_id: r.id})
+            });
+          } catch(e) {}
+          if (window.Telegram?.WebApp?.close) window.Telegram.WebApp.close();
         });
         actions.appendChild(bc);
       } else {

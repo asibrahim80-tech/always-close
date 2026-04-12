@@ -1775,6 +1775,96 @@ def api_chat_upload():
         return jsonify({"ok": False, "error": str(e)})
 
 
+# ── Room chat: join via WebApp button ─────────────────────────────────────
+@app.route('/api/chat/room/join', methods=['POST'])
+def api_room_chat_join():
+    """Send a Telegram bot message to start a room chat session."""
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+        import httpx
+        data    = request.get_json(force=True)
+        uid     = int(data.get("uid", 0))
+        room_id = int(data.get("room_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+
+        room = supabase.table("rooms_v1").select("name").eq("id", room_id).execute()
+        room_name = room.data[0]["name"] if room.data else "?"
+
+        lang_row = supabase.table("users_v1").select("language").eq("telegram_id", uid).execute()
+        lang = (lang_row.data[0].get("language") or "ar") if lang_row.data else "ar"
+
+        text = (f"🏠 اضغط الزر للدخول إلى دردشة غرفة «{room_name}»"
+                if lang == "ar" else
+                f"🏠 Tap the button to join the group chat of room «{room_name}»")
+        btn_label = ("💬 دخول الدردشة" if lang == "ar" else "💬 Join Room Chat")
+
+        payload = {
+            "chat_id": uid,
+            "text": text,
+            "reply_markup": {
+                "inline_keyboard": [[
+                    {"text": btn_label, "callback_data": f"room_chat_sel:{room_id}"}
+                ]]
+            }
+        }
+        resp = httpx.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json=payload, timeout=10
+        )
+        return jsonify({"ok": resp.json().get("ok", False)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+# ── Store chat: join via WebApp button ─────────────────────────────────────
+@app.route('/api/chat/store/join', methods=['POST'])
+def api_store_chat_join():
+    """Send a Telegram bot message to start a store chat session."""
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+        import httpx
+        data     = request.get_json(force=True)
+        uid      = int(data.get("uid", 0))
+        store_id = int(data.get("store_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+
+        store = supabase.table("stores_v1").select("name").eq("id", store_id).execute()
+        store_name = store.data[0]["name"] if store.data else "?"
+
+        lang_row = supabase.table("users_v1").select("language").eq("telegram_id", uid).execute()
+        lang = (lang_row.data[0].get("language") or "ar") if lang_row.data else "ar"
+
+        text = (f"🏪 اضغط الزر للدخول إلى دردشة متجر «{store_name}»"
+                if lang == "ar" else
+                f"🏪 Tap the button to join the group chat of store «{store_name}»")
+        btn_label = ("💬 دخول الدردشة" if lang == "ar" else "💬 Join Store Chat")
+
+        payload = {
+            "chat_id": uid,
+            "text": text,
+            "reply_markup": {
+                "inline_keyboard": [[
+                    {"text": btn_label, "callback_data": f"store_chat_sel:{store_id}"}
+                ]]
+            }
+        }
+        resp = httpx.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json=payload, timeout=10
+        )
+        return jsonify({"ok": resp.json().get("ok", False)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 # ── Public chat: send message ──────────────────────────────────────────────
 @app.route('/api/chat/public/send', methods=['POST'])
 def api_public_send():
