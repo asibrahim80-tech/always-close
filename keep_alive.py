@@ -1728,6 +1728,378 @@ def api_update_location():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# CHAT SYSTEM
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/public-chat')
+def public_chat_page():
+    return render_template("public_chat.html")
+
+@app.route('/private-chat')
+def private_chat_page():
+    return render_template("private_chat.html")
+
+
+# ── Chat: upload file / image / voice ──────────────────────────────────────
+@app.route('/api/chat/upload', methods=['POST'])
+def api_chat_upload():
+    try:
+        import uuid as _uuid
+        uid       = int(request.form.get("uid", 0))
+        file_type = request.form.get("file_type", "file")
+        f         = request.files.get("file")
+        if not f:
+            return jsonify({"ok": False, "error": "no_file"})
+
+        if file_type == "voice":
+            folder, ext = "static/voice_msgs", "webm"
+        elif file_type == "image":
+            raw = (f.filename.rsplit(".", 1)[-1].lower()
+                   if f.filename and "." in f.filename else "jpg")
+            ext    = raw if raw in ("jpg","jpeg","png","webp","gif") else "jpg"
+            folder = "static/chat_imgs"
+        else:
+            raw    = (f.filename.rsplit(".", 1)[-1].lower()
+                      if f.filename and "." in f.filename else "bin")
+            ext    = raw[:8]
+            folder = "static/chat_files"
+
+        os.makedirs(folder, exist_ok=True)
+        fname    = f"{folder}/u{uid}_{_uuid.uuid4().hex[:8]}.{ext}"
+        file_url = f"/{fname}"
+        f.save(fname)
+        return jsonify({"ok": True, "file_url": file_url,
+                        "file_name": f.filename or f"file.{ext}"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+# ── Public chat: send message ──────────────────────────────────────────────
+@app.route('/api/chat/public/send', methods=['POST'])
+def api_public_send():
+    try:
+        from database import supabase
+        data = request.get_json(force=True)
+        uid  = int(data.get("uid", 0))
+
+        me = supabase.table("users_v1") \
+            .select("id,city,country") \
+            .eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my = me.data[0]
+
+        content = (data.get("content") or "").strip()
+        if not content and not data.get("file_url"):
+            return jsonify({"ok": False, "error": "empty"})
+
+        # Get location from user_locations_v1
+        my_lat, my_lng = None, None
+        try:
+            loc = supabase.table("user_locations_v1") \
+                .select("latitude,longitude") \
+                .eq("user_id", my["id"]).limit(1).execute()
+            if loc.data:
+                my_lat = float(loc.data[0]["latitude"])
+                my_lng = float(loc.data[0]["longitude"])
+        except Exception:
+            pass
+
+        row = {
+            "sender_id": my["id"],
+            "content":   content,
+            "msg_type":  data.get("msg_type", "text"),
+            "file_url":  data.get("file_url"),
+            "file_name": data.get("file_name"),
+            "duration":  data.get("duration"),
+            "lat":       my_lat,
+            "lng":       my_lng,
+            "city":      my.get("city"),
+            "country":   my.get("country"),
+        }
+        res = supabase.table("public_messages_v1").insert(row).execute()
+        new_id = res.data[0]["id"] if res.data else None
+        return jsonify({"ok": True, "id": new_id})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+# ── Public chat: fetch messages ────────────────────────────────────────────
+@app.route('/api/chat/public/messages')
+def api_public_messages():
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+
+        uid     = int(request.args.get("uid", 0))
+        radius  = request.args.get("radius", "all")   # 100m|500m|1km|10km|city|country|all
+        last_id = int(request.args.get("last_id", 0))
+
+        # Viewer info
+        me = supabase.table("users_v1") \
+            .select("id,city,country") \
+            .eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my     = me.data[0]
+
+        # Get viewer location from user_locations_v1
+        my_lat, my_lng = None, None
+        try:
+            loc = supabase.table("user_locations_v1") \
+                .select("latitude,longitude") \
+                .eq("user_id", my["id"]).limit(1).execute()
+            if loc.data:
+                my_lat = float(loc.data[0]["latitude"])
+                my_lng = float(loc.data[0]["longitude"])
+        except Exception:
+            pass
+
+        # Build query
+        q = supabase.table("public_messages_v1").select(
+            "id,sender_id,content,msg_type,file_url,file_name,duration,"
+            "lat,lng,city,country,created_at"
+        ).order("created_at", desc=True).limit(200)
+
+        if last_id:
+            q = q.gt("id", last_id)
+
+        # Server-side city/country filter
+        if radius == "city" and my.get("city"):
+            q = q.eq("city", my["city"])
+        elif radius == "country" and my.get("country"):
+            q = q.eq("country", my["country"])
+
+        msgs = q.execute()
+
+        # km radius mapping
+        radius_km = {"100m": 0.1, "500m": 0.5, "1km": 1.0, "10km": 10.0}.get(radius)
+
+        sender_cache = {}
+        result = []
+        for m in msgs.data:
+            if radius_km and my_lat and my_lng:
+                mlat = m.get("lat")
+                mlng = m.get("lng")
+                if not mlat or not mlng:
+                    continue
+                if _haversine(float(my_lat), float(my_lng),
+                               float(mlat), float(mlng)) > radius_km:
+                    continue
+
+            sid = m["sender_id"]
+            if sid not in sender_cache:
+                u = supabase.table("users_v1") \
+                    .select("id,telegram_id,username,first_name,photo_url") \
+                    .eq("id", sid).execute()
+                if u.data:
+                    d = u.data[0]
+                    sender_cache[sid] = {
+                        "tg_id":   d.get("telegram_id"),
+                        "name":    d.get("first_name") or d.get("username") or "مستخدم",
+                        "photo":   _resolve_photo(d.get("photo_url"), BOT_TOKEN),
+                    }
+                else:
+                    sender_cache[sid] = {"tg_id": None, "name": "مستخدم", "photo": None}
+            s = sender_cache[sid]
+
+            dist_str = None
+            if my_lat and my_lng and m.get("lat") and m.get("lng"):
+                d = _haversine(float(my_lat), float(my_lng),
+                                float(m["lat"]), float(m["lng"]))
+                dist_str = f"{int(d*1000)} م" if d < 1 else f"{round(d,1)} كم"
+
+            result.append({
+                "id":           m["id"],
+                "sender_id":    sid,
+                "sender_tg_id": s["tg_id"],
+                "sender_name":  s["name"],
+                "sender_photo": s["photo"],
+                "content":      m.get("content") or "",
+                "msg_type":     m.get("msg_type") or "text",
+                "file_url":     m.get("file_url"),
+                "file_name":    m.get("file_name"),
+                "duration":     m.get("duration"),
+                "distance":     dist_str,
+                "city":         m.get("city"),
+                "created_at":   m["created_at"],
+                "is_mine":      sid == my["id"],
+            })
+
+        result.sort(key=lambda x: x["created_at"])
+        return jsonify({"ok": True, "messages": result, "my_db_id": my["id"]})
+    except Exception as e:
+        err = str(e)
+        # Table doesn't exist yet — return empty gracefully
+        if "PGRST205" in err or "Could not find the table" in err:
+            return jsonify({"ok": True, "messages": [], "my_db_id": None,
+                            "_hint": "run_sql_migration"})
+        return jsonify({"ok": False, "error": err})
+
+
+# ── Private chat: send message ─────────────────────────────────────────────
+@app.route('/api/chat/private/send', methods=['POST'])
+def api_private_send():
+    try:
+        from database import supabase
+        data      = request.get_json(force=True)
+        uid       = int(data.get("uid", 0))
+        other_uid = int(data.get("other_uid", 0))
+
+        me    = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        other = supabase.table("users_v1").select("id").eq("telegram_id", other_uid).execute()
+        if not me.data or not other.data:
+            return jsonify({"ok": False, "error": "not_found"})
+
+        content = (data.get("content") or "").strip()
+        if not content and not data.get("file_url"):
+            return jsonify({"ok": False, "error": "empty"})
+
+        row = {
+            "sender_id":   me.data[0]["id"],
+            "receiver_id": other.data[0]["id"],
+            "content":     content,
+            "msg_type":    data.get("msg_type", "text"),
+            "file_url":    data.get("file_url"),
+            "file_name":   data.get("file_name"),
+            "duration":    data.get("duration"),
+        }
+        res = supabase.table("private_messages_v1").insert(row).execute()
+        return jsonify({"ok": True, "id": res.data[0]["id"] if res.data else None})
+    except Exception as e:
+        err = str(e)
+        if "PGRST205" in err or "Could not find the table" in err:
+            return jsonify({"ok": False, "error": "table_missing",
+                            "_hint": "run_sql_migration"})
+        return jsonify({"ok": False, "error": err})
+
+
+# ── Private chat: fetch messages ───────────────────────────────────────────
+@app.route('/api/chat/private/messages')
+def api_private_messages():
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+
+        uid       = int(request.args.get("uid", 0))
+        other_uid = int(request.args.get("other_uid", 0))
+        last_id   = int(request.args.get("last_id", 0))
+
+        me    = supabase.table("users_v1") \
+            .select("id,username,first_name,photo_url").eq("telegram_id", uid).execute()
+        other = supabase.table("users_v1") \
+            .select("id,username,first_name,photo_url").eq("telegram_id", other_uid).execute()
+        if not me.data or not other.data:
+            return jsonify({"ok": False, "error": "not_found"})
+
+        my_id    = me.data[0]["id"]
+        other_id = other.data[0]["id"]
+
+        # Mark incoming as read
+        try:
+            supabase.table("private_messages_v1") \
+                .update({"read_at": datetime.now(timezone.utc).isoformat()}) \
+                .eq("sender_id", other_id).eq("receiver_id", my_id) \
+                .is_("read_at", "null").execute()
+        except Exception:
+            pass
+
+        q = supabase.table("private_messages_v1").select(
+            "id,sender_id,receiver_id,content,msg_type,file_url,file_name,duration,read_at,created_at"
+        ).or_(
+            f"and(sender_id.eq.{my_id},receiver_id.eq.{other_id}),"
+            f"and(sender_id.eq.{other_id},receiver_id.eq.{my_id})"
+        ).order("created_at", desc=False).limit(100)
+
+        if last_id:
+            q = q.gt("id", last_id)
+
+        msgs = q.execute()
+        od   = other.data[0]
+        other_info = {
+            "telegram_id": other_uid,
+            "name":  od.get("first_name") or od.get("username") or "مستخدم",
+            "photo": _resolve_photo(od.get("photo_url"), BOT_TOKEN),
+        }
+
+        result = [{
+            "id":        m["id"],
+            "is_mine":   m["sender_id"] == my_id,
+            "content":   m.get("content") or "",
+            "msg_type":  m.get("msg_type") or "text",
+            "file_url":  m.get("file_url"),
+            "file_name": m.get("file_name"),
+            "duration":  m.get("duration"),
+            "read_at":   m.get("read_at"),
+            "created_at":m["created_at"],
+        } for m in msgs.data]
+
+        return jsonify({"ok": True, "messages": result,
+                        "other": other_info, "my_id": my_id})
+    except Exception as e:
+        err = str(e)
+        if "PGRST205" in err or "Could not find the table" in err:
+            od = other.data[0] if 'other' in dir() and other.data else {}
+            return jsonify({"ok": True, "messages": [], "other": {
+                "telegram_id": other_uid,
+                "name": od.get("first_name") or od.get("username") or "مستخدم",
+                "photo": None,
+            }, "my_id": None, "_hint": "run_sql_migration"})
+        return jsonify({"ok": False, "error": err})
+
+
+# ── Private chat: list conversations ──────────────────────────────────────
+@app.route('/api/chat/private/conversations')
+def api_private_conversations():
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+        uid = int(request.args.get("uid", 0))
+        me  = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        # Get all messages involving me, pick latest per partner
+        sent = supabase.table("private_messages_v1") \
+            .select("id,sender_id,receiver_id,content,msg_type,created_at,read_at") \
+            .or_(f"sender_id.eq.{my_id},receiver_id.eq.{my_id}") \
+            .order("created_at", desc=True).limit(500).execute()
+
+        seen = {}
+        for m in sent.data:
+            partner = m["receiver_id"] if m["sender_id"] == my_id else m["sender_id"]
+            if partner not in seen:
+                seen[partner] = m
+
+        result = []
+        for partner_id, last_msg in seen.items():
+            u = supabase.table("users_v1") \
+                .select("id,telegram_id,username,first_name,photo_url") \
+                .eq("id", partner_id).execute()
+            if not u.data:
+                continue
+            d = u.data[0]
+            unread = supabase.table("private_messages_v1") \
+                .select("id", count="exact") \
+                .eq("sender_id", partner_id).eq("receiver_id", my_id) \
+                .is_("read_at", "null").execute()
+            result.append({
+                "partner_tg_id": d.get("telegram_id"),
+                "partner_name":  d.get("first_name") or d.get("username") or "مستخدم",
+                "partner_photo": _resolve_photo(d.get("photo_url"), BOT_TOKEN),
+                "last_content":  last_msg.get("content") or f"[{last_msg.get('msg_type','file')}]",
+                "last_time":     last_msg["created_at"],
+                "unread":        unread.count or 0,
+                "is_mine":       last_msg["sender_id"] == my_id,
+            })
+        result.sort(key=lambda x: x["last_time"], reverse=True)
+        return jsonify({"ok": True, "conversations": result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 @app.route('/health')
 def health():
     return jsonify({

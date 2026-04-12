@@ -170,8 +170,9 @@ TEXTS = {
         "store_cancel": "❌ تم إلغاء إنشاء المتجر.",
         "nearby_stores": "📍 المتاجر القريبة:",
         # Chat system
-        "btn_room_chats":      "💬 دردشة الغرف",
-        "btn_store_chats":     "💬 دردشة المتاجر",
+        "btn_public_chat":     "💬 الدردشة العامة",
+        "btn_room_chats":      "🏠 دردشة الغرف",
+        "btn_store_chats":     "🏪 دردشة المتاجر",
         "btn_exit_chat":       "❌ خروج من الدردشة",
         "chat_select_room":    "🏠 اختر الغرفة للدردشة:",
         "chat_select_store":   "🏪 اختر المتجر للدردشة:",
@@ -361,8 +362,9 @@ TEXTS = {
         "store_cancel": "❌ Store creation cancelled.",
         "nearby_stores": "📍 Nearby Stores:",
         # Chat system
-        "btn_room_chats":      "💬 Room Chats",
-        "btn_store_chats":     "💬 Store Chats",
+        "btn_public_chat":     "💬 Public Chat",
+        "btn_room_chats":      "🏠 Room Chats",
+        "btn_store_chats":     "🏪 Store Chats",
         "btn_exit_chat":       "❌ Exit Chat",
         "chat_select_room":    "🏠 Choose a room to chat in:",
         "chat_select_store":   "🏪 Choose a store to chat in:",
@@ -423,6 +425,7 @@ ALL_BTN = {
     "room_chats":     ["💬 دردشة الغرف",               "💬 Room Chats"],
     "store_chats":    ["💬 دردشة المتاجر",              "💬 Store Chats"],
     "exit_chat":      ["❌ خروج من الدردشة",            "❌ Exit Chat"],
+    "public_chat":    ["💬 الدردشة العامة",              "💬 Public Chat"],
 }
 
 

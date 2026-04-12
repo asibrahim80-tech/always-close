@@ -88,6 +88,7 @@ def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
         [KeyboardButton(T(lang, "btn_map")),             KeyboardButton(T(lang, "btn_users_list"))],
         [KeyboardButton(T(lang, "btn_rooms_list")),      KeyboardButton(T(lang, "btn_create_room"))],
         [KeyboardButton(T(lang, "btn_stores_list")),     KeyboardButton(T(lang, "btn_create_store"))],
+        [KeyboardButton(T(lang, "btn_public_chat"))],
         [KeyboardButton(T(lang, "btn_room_chats")),      KeyboardButton(T(lang, "btn_store_chats"))],
         [KeyboardButton(T(lang, "btn_rooms_nearby")),    KeyboardButton(T(lang, "btn_view_nearby"))],
         [KeyboardButton(T(lang, "btn_stores_nearby")),   KeyboardButton(T(lang, "btn_matches"))],
@@ -1458,6 +1459,36 @@ def _exit_btn(lang: str) -> InlineKeyboardMarkup:
 # SHOW ROOM CHATS LIST
 # =========================================================
 
+async def show_public_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang  = get_lang(update, context)
+    tg_id = update.effective_user.id
+
+    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+    if not me.data:
+        await update.message.reply_text(T(lang, "register_first"))
+        return
+
+    chat_url = f"https://{DOMAIN}/public-chat?uid={tg_id}&lang={lang}"
+    label    = "💬 الدردشة العامة" if lang == "ar" else "💬 Public Chat"
+    hint     = (
+        "💬 انضم إلى الدردشة العامة مع من حولك!\n"
+        "📍 اختر نطاق المسافة لترى الرسائل القريبة منك\n"
+        "🖼️ يمكنك إرسال نصوص، صور، ملفات، رسائل صوتية وإيموجي\n"
+        "🔒 يمكنك التحول إلى محادثة خاصة مع أي مستخدم"
+        if lang == "ar" else
+        "💬 Join the public chat with people around you!\n"
+        "📍 Choose a radius to see nearby messages\n"
+        "🖼️ Send text, images, files, voice messages and emojis\n"
+        "🔒 You can switch to a private chat with any user"
+    )
+    await update.message.reply_text(
+        hint,
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(label, web_app=WebAppInfo(url=chat_url))
+        ]])
+    )
+
+
 async def show_room_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang  = get_lang(update, context)
     tg_id = update.effective_user.id
@@ -1701,6 +1732,10 @@ async def handle_text_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
     # If in any chat session → relay the text message
     if _in_any_chat(tg_id):
         await relay_any_message(update, context)
+        return
+
+    if text in ALL_BTN["public_chat"]:
+        await show_public_chat(update, context)
         return
 
     if text in ALL_BTN["room_chats"]:
