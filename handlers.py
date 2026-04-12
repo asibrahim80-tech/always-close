@@ -896,32 +896,38 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 context.user_data["current_index"] = new_idx
                 await send_profile_card(context, chat_id, users[new_idx], lang)
 
-        # ── Room chat select ──────────────────────────────
+        # ── Room chat select — open WebApp chat page ──────
         elif data.startswith("room_chat_sel:"):
-            room_id = int(data.split(":")[1])
-            _room_chat_sessions[telegram_id]  = room_id
-            _store_chat_sessions.pop(telegram_id, None)
-            _private_chats.pop(telegram_id, None)
-            room_res  = supabase.table("rooms_v1").select("name").eq("id", room_id).execute()
+            room_id  = int(data.split(":")[1])
+            room_res = supabase.table("rooms_v1").select("name").eq("id", room_id).execute()
             room_name = room_res.data[0]["name"] if room_res.data else "?"
+            chat_url  = f"https://{DOMAIN}/group-chat?uid={telegram_id}&type=room&id={room_id}&lang={lang}"
+            btn_label = ("💬 فتح دردشة الغرفة" if lang == "ar" else "💬 Open Room Chat")
+            txt = (f"🏠 دردشة غرفة «{room_name}»" if lang == "ar"
+                   else f"🏠 Room chat: «{room_name}»")
             await query.answer()
             await query.message.reply_text(
-                T(lang, "chat_room_joined", room_name),
-                reply_markup=_exit_btn(lang)
+                txt,
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton(btn_label, web_app=WebAppInfo(url=chat_url))
+                ]])
             )
 
-        # ── Store chat select ─────────────────────────────
+        # ── Store chat select — open WebApp chat page ─────
         elif data.startswith("store_chat_sel:"):
-            store_id = int(data.split(":")[1])
-            _store_chat_sessions[telegram_id] = store_id
-            _room_chat_sessions.pop(telegram_id, None)
-            _private_chats.pop(telegram_id, None)
+            store_id   = int(data.split(":")[1])
             store_res  = supabase.table("stores_v1").select("name").eq("id", store_id).execute()
             store_name = store_res.data[0]["name"] if store_res.data else "?"
+            chat_url   = f"https://{DOMAIN}/group-chat?uid={telegram_id}&type=store&id={store_id}&lang={lang}"
+            btn_label  = ("💬 فتح دردشة المتجر" if lang == "ar" else "💬 Open Store Chat")
+            txt = (f"🏪 دردشة متجر «{store_name}»" if lang == "ar"
+                   else f"🏪 Store chat: «{store_name}»")
             await query.answer()
             await query.message.reply_text(
-                T(lang, "chat_store_joined", store_name),
-                reply_markup=_exit_btn(lang)
+                txt,
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton(btn_label, web_app=WebAppInfo(url=chat_url))
+                ]])
             )
 
         # ── Start private chat ────────────────────────────
@@ -1546,8 +1552,9 @@ async def show_room_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for rid in room_ids:
         r = supabase.table("rooms_v1").select("id, name").eq("id", rid).execute()
         if r.data:
+            chat_url = f"https://{DOMAIN}/group-chat?uid={tg_id}&type=room&id={rid}&lang={lang}"
             buttons.append([InlineKeyboardButton(
-                f"🏠 {r.data[0]['name']}", callback_data=f"room_chat_sel:{rid}"
+                f"🏠 {r.data[0]['name']}", web_app=WebAppInfo(url=chat_url)
             )])
 
     await update.message.reply_text(
@@ -1580,8 +1587,9 @@ async def show_store_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for sid in store_ids:
         s = supabase.table("stores_v1").select("id, name").eq("id", sid).execute()
         if s.data:
+            chat_url = f"https://{DOMAIN}/group-chat?uid={tg_id}&type=store&id={sid}&lang={lang}"
             buttons.append([InlineKeyboardButton(
-                f"🏪 {s.data[0]['name']}", callback_data=f"store_chat_sel:{sid}"
+                f"🏪 {s.data[0]['name']}", web_app=WebAppInfo(url=chat_url)
             )])
 
     await update.message.reply_text(

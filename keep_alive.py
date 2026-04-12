@@ -1740,6 +1740,10 @@ def public_chat_page():
 def private_chat_page():
     return render_template("private_chat.html")
 
+@app.route('/group-chat')
+def group_chat_page():
+    return render_template("group_chat.html")
+
 
 # ── Chat: upload file / image / voice ──────────────────────────────────────
 @app.route('/api/chat/upload', methods=['POST'])
@@ -2186,6 +2190,166 @@ def api_private_conversations():
             })
         result.sort(key=lambda x: x["last_time"], reverse=True)
         return jsonify({"ok": True, "conversations": result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  GROUP CHAT  (rooms & stores web-based chat)
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/chat/group/info')
+def api_group_chat_info():
+    """Return group name, member count, and membership status."""
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+
+        uid   = int(request.args.get("uid", 0))
+        gtype = request.args.get("type", "room")
+        gid   = int(request.args.get("id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "user_not_found"})
+        my_id = me.data[0]["id"]
+
+        if gtype == "room":
+            grp = supabase.table("rooms_v1").select("id,name,created_by").eq("id", gid).execute()
+            if not grp.data:
+                return jsonify({"ok": False, "error": "room_not_found"})
+            grp_data = grp.data[0]
+            memb = supabase.table("room_members_v1").select("user_id").eq("room_id", gid).execute()
+            member_ids = [m["user_id"] for m in (memb.data or [])]
+            is_member = my_id in member_ids or grp_data.get("created_by") == my_id
+            count = len(member_ids)
+        else:
+            grp = supabase.table("stores_v1").select("id,name,created_by").eq("id", gid).execute()
+            if not grp.data:
+                return jsonify({"ok": False, "error": "store_not_found"})
+            grp_data = grp.data[0]
+            memb = supabase.table("store_members_v1").select("user_id").eq("store_id", gid).execute()
+            member_ids = [m["user_id"] for m in (memb.data or [])]
+            is_member = my_id in member_ids or grp_data.get("created_by") == my_id
+            count = len(member_ids)
+
+        return jsonify({
+            "ok": True,
+            "name": grp_data.get("name", ""),
+            "member_count": count,
+            "is_member": is_member,
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/chat/group/messages')
+def api_group_chat_messages():
+    """Return messages for a room or store chat."""
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+
+        uid     = int(request.args.get("uid", 0))
+        gtype   = request.args.get("type", "room")
+        gid     = int(request.args.get("id", 0))
+        last_id = int(request.args.get("last_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "user_not_found"})
+        my_id = me.data[0]["id"]
+
+        table = "room_messages_v1" if gtype == "room" else "store_messages_v1"
+        fk    = "room_id"           if gtype == "room" else "store_id"
+
+        try:
+            msgs = supabase.table(table) \
+                .select("id,sender_id,content,msg_type,file_url,file_name,duration,created_at") \
+                .eq(fk, gid) \
+                .gt("id", last_id) \
+                .order("id", desc=False) \
+                .limit(100).execute()
+        except Exception as ex:
+            if "PGRST205" in str(ex) or "does not exist" in str(ex).lower():
+                return jsonify({"ok": True, "messages": [], "my_db_id": my_id})
+            raise
+
+        result = []
+        for m in (msgs.data or []):
+            sender_id = m["sender_id"]
+            u = supabase.table("users_v1") \
+                .select("telegram_id,username,first_name,photo_url") \
+                .eq("id", sender_id).execute()
+            if not u.data:
+                continue
+            ud = u.data[0]
+            photo = _resolve_photo(ud.get("photo_url"), BOT_TOKEN)
+            result.append({
+                "id":           m["id"],
+                "sender_tg_id": str(ud.get("telegram_id", "")),
+                "sender_name":  ud.get("first_name") or ud.get("username") or "مستخدم",
+                "sender_photo": photo,
+                "content":      m.get("content") or "",
+                "msg_type":     m.get("msg_type") or "text",
+                "file_url":     m.get("file_url") or "",
+                "file_name":    m.get("file_name") or "",
+                "duration":     m.get("duration") or 0,
+                "created_at":   m["created_at"],
+                "is_mine":      sender_id == my_id,
+            })
+
+        return jsonify({"ok": True, "messages": result, "my_db_id": my_id})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/chat/group/send', methods=['POST'])
+def api_group_chat_send():
+    """Send a message to a room or store group chat."""
+    try:
+        from database import supabase
+
+        data    = request.get_json(force=True)
+        uid     = int(data.get("uid", 0))
+        gtype   = data.get("type", "room")
+        gid     = int(data.get("id", 0))
+        content = (data.get("content") or "").strip()
+        mtype   = data.get("msg_type", "text")
+        furl    = data.get("file_url", "")
+        fname   = data.get("file_name", "")
+        dur     = data.get("duration", 0)
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "user_not_found"})
+        my_id = me.data[0]["id"]
+
+        # Membership check
+        if gtype == "room":
+            grp = supabase.table("rooms_v1").select("created_by").eq("id", gid).execute()
+            creator = grp.data[0]["created_by"] if grp.data else None
+            memb = supabase.table("room_members_v1").select("user_id") \
+                .eq("room_id", gid).eq("user_id", my_id).execute()
+            is_member = bool(memb.data) or creator == my_id
+        else:
+            grp = supabase.table("stores_v1").select("created_by").eq("id", gid).execute()
+            creator = grp.data[0]["created_by"] if grp.data else None
+            memb = supabase.table("store_members_v1").select("user_id") \
+                .eq("store_id", gid).eq("user_id", my_id).execute()
+            is_member = bool(memb.data) or creator == my_id
+
+        if not is_member:
+            return jsonify({"ok": False, "error": "not_member"})
+
+        table = "room_messages_v1" if gtype == "room" else "store_messages_v1"
+        fk    = "room_id"           if gtype == "room" else "store_id"
+
+        row = {fk: gid, "sender_id": my_id, "content": content,
+               "msg_type": mtype, "file_url": furl, "file_name": fname, "duration": dur}
+        supabase.table(table).insert(row).execute()
+
+        return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
