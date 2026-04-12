@@ -177,6 +177,47 @@
     .zodiac-name{font-size:10px;font-weight:600;color:var(--sub)}
     .zodiac-chip.active .zodiac-name{color:rgba(255,255,255,.85)}
 
+    /* ── PRIVACY ACTION CARDS ── */
+    .priv-card{
+      background:var(--card);border-radius:16px;
+      box-shadow:0 1px 6px rgba(0,0,0,.07);
+      margin-bottom:12px;overflow:hidden;
+    }
+    .priv-card-hdr{
+      display:flex;align-items:center;gap:10px;
+      padding:14px 16px;border-bottom:1px solid var(--brd);
+    }
+    .priv-card-icon{font-size:20px}
+    .priv-card-title{font-size:14px;font-weight:700;color:var(--text);flex:1}
+    .priv-card-body{padding:14px 16px}
+    .priv-toggle-row{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:10px 0;border-bottom:1px solid var(--brd);
+    }
+    .priv-toggle-row:last-child{border-bottom:none;padding-bottom:0}
+    .priv-toggle-info{flex:1;padding-inline-end:12px}
+    .priv-toggle-label{font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px}
+    .priv-toggle-desc{font-size:12px;color:var(--sub);line-height:1.4}
+    .priv-toggle-status{
+      font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;
+      margin-top:4px;display:inline-block;
+    }
+    .priv-toggle-status.on{background:#e8f8f0;color:#00b894}
+    .priv-toggle-status.off{background:#ffeef5;color:#e84393}
+    .priv-edit-btn{
+      display:flex;align-items:center;gap:10px;padding:12px 16px;
+      cursor:pointer;transition:background .15s;border-radius:12px;
+      background:linear-gradient(135deg,rgba(108,92,231,.08),rgba(253,121,168,.08));
+      border:1.5px solid rgba(108,92,231,.15);text-decoration:none;
+      margin-bottom:12px;
+    }
+    .priv-edit-btn:active{opacity:.8}
+    .priv-edit-icon{font-size:22px;flex-shrink:0}
+    .priv-edit-text{flex:1}
+    .priv-edit-label{font-size:14px;font-weight:700;color:var(--pr)}
+    .priv-edit-sub{font-size:12px;color:var(--sub);margin-top:2px}
+    .priv-edit-arrow{font-size:16px;color:var(--pr)}
+
     /* ── TAB BADGE ── */
     .tab-btn{position:relative}
     .tab-done{
@@ -258,6 +299,7 @@
     <button class="tab-btn" data-tab="interests">🎯<span class="tab-done" id="tdone-interests"></span></button>
     <button class="tab-btn" data-tab="education">🎓<span class="tab-done" id="tdone-education"></span></button>
     <button class="tab-btn" data-tab="location">📍<span class="tab-done" id="tdone-location"></span></button>
+    <button class="tab-btn" data-tab="privacy">🔒</button>
   </div>
 </div>
 
@@ -431,6 +473,51 @@
   </div>
 </div>
 
+<!-- ═══════════════ SECTION: PRIVACY ═══════════════ -->
+<div class="section" id="sec-privacy" style="display:none">
+
+  <!-- Edit profile shortcut -->
+  <div class="priv-edit-btn" onclick="switchToTab('basic')">
+    <div class="priv-edit-icon">✏️</div>
+    <div class="priv-edit-text">
+      <div class="priv-edit-label" id="lbl-priv-edit-title"></div>
+      <div class="priv-edit-sub" id="lbl-priv-edit-sub"></div>
+    </div>
+    <div class="priv-edit-arrow">›</div>
+  </div>
+
+  <!-- Visibility & phone privacy card -->
+  <div class="priv-card">
+    <div class="priv-card-hdr">
+      <div class="priv-card-icon">🔒</div>
+      <div class="priv-card-title" id="lbl-priv-title"></div>
+    </div>
+    <div class="priv-card-body">
+
+      <!-- Account visibility -->
+      <div class="priv-toggle-row">
+        <div class="priv-toggle-info">
+          <div class="priv-toggle-label" id="lbl-priv-hide-label"></div>
+          <div class="priv-toggle-desc" id="lbl-priv-hide-desc"></div>
+          <span class="priv-toggle-status" id="priv-vis-status"></span>
+        </div>
+        <div class="toggle" id="toggle-visibility" onclick="toggleVisibility()"></div>
+      </div>
+
+      <!-- Phone visibility -->
+      <div class="priv-toggle-row">
+        <div class="priv-toggle-info">
+          <div class="priv-toggle-label" id="lbl-priv-phone-label"></div>
+          <div class="priv-toggle-desc" id="lbl-priv-phone-desc"></div>
+          <span class="priv-toggle-status" id="priv-phone-status"></span>
+        </div>
+        <div class="toggle" id="toggle-phone" onclick="togglePhone()"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <!-- SAVE BAR -->
 <div id="save-bar" style="display:none">
   <div id="save-hint"></div>
@@ -506,6 +593,18 @@ const T = lang === 'ar' ? {
   photo_del_confirm: 'حذف هذه الصورة؟',
   rating_label: 'تقييمك من الآخرين',
   max_photos: 'الحد الأقصى 9 صور',
+  tab_privacy: '🔒 خصوصية',
+  priv_edit_title: '✏️ تعديل بياناتي',
+  priv_edit_sub: 'انتقل إلى قسم المعلومات الأساسية لتعديل بياناتك',
+  priv_title: 'إعدادات الخصوصية',
+  priv_hide_label: 'إخفاء حسابي',
+  priv_hide_desc: 'عند التفعيل لن يظهر ملفك الشخصي للمستخدمين الآخرين',
+  priv_vis_on: '👁️ مرئي',
+  priv_vis_off: '👻 مخفي',
+  priv_phone_label: 'إظهار رقم هاتفي',
+  priv_phone_desc: 'السماح للآخرين برؤية رقم هاتفك في ملفك الشخصي',
+  priv_phone_on: '📞 مُظهر',
+  priv_phone_off: '🔕 مخفي',
 } : {
   loading: 'Loading...',
   complete_label: 'Profile completion',
@@ -559,6 +658,18 @@ const T = lang === 'ar' ? {
   photo_del_confirm: 'Delete this photo?',
   rating_label: 'Your rating',
   max_photos: 'Maximum 9 photos allowed',
+  tab_privacy: '🔒 Privacy',
+  priv_edit_title: '✏️ Edit My Profile',
+  priv_edit_sub: 'Go to Basic Info section to update your details',
+  priv_title: 'Privacy Settings',
+  priv_hide_label: 'Hide My Account',
+  priv_hide_desc: 'When enabled, your profile will not appear to other users',
+  priv_vis_on: '👁️ Visible',
+  priv_vis_off: '👻 Hidden',
+  priv_phone_label: 'Show My Phone Number',
+  priv_phone_desc: 'Allow others to see your phone number on your profile',
+  priv_phone_on: '📞 Shown',
+  priv_phone_off: '🔕 Hidden',
 };
 
 // ── Apply static labels ───────────────────────────────────────
@@ -602,10 +713,19 @@ document.getElementById('save-hint').textContent          = lang==='ar'
   ? '💡 زر الحفظ يحفظ بيانات جميع التبويبات دفعة واحدة'
   : '💡 Save button saves all tabs at once';
 
+// ── Privacy section labels ────────────────────────────────────
+document.getElementById('lbl-priv-edit-title').textContent  = T.priv_edit_title;
+document.getElementById('lbl-priv-edit-sub').textContent    = T.priv_edit_sub;
+document.getElementById('lbl-priv-title').textContent       = T.priv_title;
+document.getElementById('lbl-priv-hide-label').textContent  = T.priv_hide_label;
+document.getElementById('lbl-priv-hide-desc').textContent   = T.priv_hide_desc;
+document.getElementById('lbl-priv-phone-label').textContent = T.priv_phone_label;
+document.getElementById('lbl-priv-phone-desc').textContent  = T.priv_phone_desc;
+
 // ── Update tab labels ─────────────────────────────────────────
 const tabLabels = { photos: T.tab_photos, basic: T.tab_basic, contact: T.tab_contact,
   looking: T.tab_looking, interests: T.tab_interests,
-  education: T.tab_education, location: T.tab_location };
+  education: T.tab_education, location: T.tab_location, privacy: T.tab_privacy };
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.textContent = tabLabels[btn.dataset.tab] || btn.textContent;
 });
@@ -1066,6 +1186,9 @@ async function loadProfile() {
     personalityState = Array.isArray(p.personality_traits) ? [...p.personality_traits] : [];
     buildChips('personality-chips', PERSONALITY, personalityState, 'sel-orange', false);
 
+    // Privacy state
+    updatePrivacyUI(p.is_visible !== false, !!p.show_phone);
+
     // Show UI
     document.getElementById('loading').style.display = 'none';
     document.querySelectorAll('.section').forEach(s => { if(s.id==='sec-photos') s.classList.add('active'); });
@@ -1138,22 +1261,90 @@ document.getElementById('toggle-children').addEventListener('click', function() 
 });
 
 // ═══════════════════════════════════════════════════════════════
+// PRIVACY TOGGLES
+// ═══════════════════════════════════════════════════════════════
+let privIsVisible = true;
+let privShowPhone = false;
+
+function updatePrivacyUI(isVisible, showPhone) {
+  privIsVisible = isVisible;
+  privShowPhone = showPhone;
+
+  const togVis = document.getElementById('toggle-visibility');
+  const togPhn = document.getElementById('toggle-phone');
+  const visStatus = document.getElementById('priv-vis-status');
+  const phnStatus = document.getElementById('priv-phone-status');
+
+  // Account visibility toggle — ON means visible (not hidden)
+  togVis.classList.toggle('on', isVisible);
+  visStatus.textContent = isVisible ? T.priv_vis_on : T.priv_vis_off;
+  visStatus.className = 'priv-toggle-status ' + (isVisible ? 'on' : 'off');
+
+  // Phone visibility toggle
+  togPhn.classList.toggle('on', showPhone);
+  phnStatus.textContent = showPhone ? T.priv_phone_on : T.priv_phone_off;
+  phnStatus.className = 'priv-toggle-status ' + (showPhone ? 'on' : 'off');
+}
+
+async function toggleVisibility() {
+  if (!uid) return;
+  try {
+    const res = await fetch('/api/profile/toggle_visibility', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({uid})
+    }).then(r=>r.json());
+    if (res.ok) {
+      updatePrivacyUI(res.is_visible, privShowPhone);
+      showToast(res.is_visible
+        ? (lang==='ar' ? '👁️ حسابك مرئي الآن' : '👁️ Account is now visible')
+        : (lang==='ar' ? '👻 حسابك مخفي الآن' : '👻 Account is now hidden'));
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function togglePhone() {
+  if (!uid) return;
+  try {
+    const res = await fetch('/api/profile/toggle_phone', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({uid})
+    }).then(r=>r.json());
+    if (res.ok) {
+      updatePrivacyUI(privIsVisible, res.show_phone);
+      showToast(res.show_phone
+        ? (lang==='ar' ? '📞 رقمك مُظهر للآخرين' : '📞 Phone is now visible')
+        : (lang==='ar' ? '🔕 رقمك مخفي عن الآخرين' : '🔕 Phone is now hidden'));
+    }
+  } catch(e) { console.error(e); }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════════════════════════════
 const TAB_IDS = { photos:'sec-photos', basic:'sec-basic', contact:'sec-contact',
-  looking:'sec-looking', interests:'sec-interests', education:'sec-education', location:'sec-location' };
+  looking:'sec-looking', interests:'sec-interests', education:'sec-education',
+  location:'sec-location', privacy:'sec-privacy' };
+
+function switchToTab(tabName) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabName);
+  });
+  Object.values(TAB_IDS).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.display='none'; el.classList.remove('active'); }
+  });
+  const target = document.getElementById(TAB_IDS[tabName]);
+  if (target) {
+    target.style.display='block'; target.classList.add('active');
+    target.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  // Show/hide save bar
+  const savebar = document.getElementById('save-bar');
+  if (savebar) savebar.style.display = (tabName === 'privacy') ? 'none' : 'block';
+}
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    Object.values(TAB_IDS).forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.style.display='none'; el.classList.remove('active'); }
-    });
-    const target = document.getElementById(TAB_IDS[btn.dataset.tab]);
-    if (target) { target.style.display='block'; target.classList.add('active'); }
-  });
+  btn.addEventListener('click', () => switchToTab(btn.dataset.tab));
 });
 
 // ═══════════════════════════════════════════════════════════════

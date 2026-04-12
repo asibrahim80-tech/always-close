@@ -152,12 +152,6 @@ def main():
         filters.TEXT & filters.Regex(btn_regex("matches")), show_matches))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("requests")), show_requests))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("hide")), toggle_visibility))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("phone_toggle")), toggle_phone_visibility))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("edit_profile")), edit_profile))
     # WebApp sendData handler (chat button from rooms/stores page)
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
 

@@ -92,8 +92,7 @@ def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
         [KeyboardButton(T(lang, "btn_room_chats")),      KeyboardButton(T(lang, "btn_store_chats"))],
         [KeyboardButton(T(lang, "btn_rooms_nearby")),    KeyboardButton(T(lang, "btn_view_nearby"))],
         [KeyboardButton(T(lang, "btn_stores_nearby")),   KeyboardButton(T(lang, "btn_matches"))],
-        [KeyboardButton(T(lang, "btn_requests")),        KeyboardButton(T(lang, "btn_hide"))],
-        [KeyboardButton(T(lang, "btn_phone_toggle")),    KeyboardButton(T(lang, "btn_edit"))],
+        [KeyboardButton(T(lang, "btn_requests"))],
         [KeyboardButton(T(lang, "btn_profile")),         KeyboardButton(T(lang, "btn_settings"))],
     ], resize_keyboard=True)
 

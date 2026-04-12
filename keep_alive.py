@@ -154,6 +154,40 @@ def api_profile_get(telegram_id):
         return jsonify({"ok": False, "error": str(e)})
 
 
+# ── Profile: toggle account visibility ────────────────────────────────────
+@app.route('/api/profile/toggle_visibility', methods=['POST'])
+def api_toggle_visibility():
+    try:
+        from database import supabase
+        data = request.get_json(force=True)
+        uid  = int(data.get("uid", 0))
+        me = supabase.table("users_v1").select("id,is_visible").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        new_val = not me.data[0].get("is_visible", True)
+        supabase.table("users_v1").update({"is_visible": new_val}).eq("id", me.data[0]["id"]).execute()
+        return jsonify({"ok": True, "is_visible": new_val})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+# ── Profile: toggle phone visibility ──────────────────────────────────────
+@app.route('/api/profile/toggle_phone', methods=['POST'])
+def api_toggle_phone():
+    try:
+        from database import supabase
+        data = request.get_json(force=True)
+        uid  = int(data.get("uid", 0))
+        me = supabase.table("users_v1").select("id,show_phone").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        new_val = not me.data[0].get("show_phone", False)
+        supabase.table("users_v1").update({"show_phone": new_val}).eq("id", me.data[0]["id"]).execute()
+        return jsonify({"ok": True, "show_phone": new_val})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 # ── Profile: save ─────────────────────────────────────────────────────────
 @app.route('/api/profile/save', methods=['POST'])
 def api_profile_save():
