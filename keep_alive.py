@@ -157,6 +157,7 @@ def api_profile_get(telegram_id):
 # ── Profile: save ─────────────────────────────────────────────────────────
 @app.route('/api/profile/save', methods=['POST'])
 def api_profile_save():
+    import logging as _log
     try:
         from database import supabase
         from datetime import datetime as _dt
@@ -166,92 +167,145 @@ def api_profile_save():
         if not uid:
             return jsonify({"ok": False, "error": "no_uid"})
 
-        # Fetch current row (all existing columns) for completeness calc
+        # ── Fetch current row for completeness calc ────────────
+        SCALAR_SELECT = ("id,bio,email,zodiac,social_status,education,profession,"
+                         "country,city,hobbies,purpose,photo_url,gender,birthdate,"
+                         "profile_complete")
         try:
-            cur = supabase.table("users_v1") \
-                .select("id,bio,email,zodiac,social_status,education,profession,"
-                        "country,city,hobbies,purpose,photo_url,gender,birthdate") \
+            cur = supabase.table("users_v1").select(SCALAR_SELECT) \
                 .eq("telegram_id", uid).execute()
-        except Exception:
-            cur = supabase.table("users_v1").select("id,bio,email,gender,birthdate,city") \
+        except Exception as e_sel:
+            _log.warning(f"[profile/save] SELECT fallback: {e_sel}")
+            cur = supabase.table("users_v1") \
+                .select("id,bio,email,gender,birthdate,city,photo_url") \
                 .eq("telegram_id", uid).execute()
 
         if not cur.data:
             return jsonify({"ok": False, "error": "not_found"})
         current = cur.data[0]
 
-        # ── Build update dict (new profile columns) ──────────────
-        NEW_COLS = ["first_name","last_name","bio","email","zodiac",
-                    "social_status","has_children","education","profession",
-                    "university","school","country","city","neighborhood",
-                    "hobbies","habits","personality_traits","purpose"]
-        BASE_COLS = ["bio","email","city","country","education","profession"]
+        # ── Scalar fields (TEXT / BOOLEAN / INTEGER) ───────────
+        TEXT_COLS   = ["first_name","last_name","bio","email","zodiac",
+                       "social_status","education","profession",
+                       "university","school","country","city","neighborhood"]
+        ARRAY_COLS  = ["hobbies","habits","personality_traits","purpose"]
 
-        update = {k: data[k] for k in NEW_COLS if k in data}
+        scalar = {k: data[k] for k in TEXT_COLS if k in data}
 
-        # gender (always exists)
+        # has_children must be a real bool
+        if "has_children" in data:
+            scalar["has_children"] = bool(data["has_children"])
+
+        # gender
         if "gender" in data and data["gender"]:
-            update["gender"] = data["gender"]
+            scalar["gender"] = data["gender"]
 
         # birthdate → age
         if "birthdate" in data and data["birthdate"]:
             try:
                 bd = _dt.strptime(data["birthdate"], "%Y-%m-%d")
                 today = _dt.today()
-                age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
-                update["birthdate"] = data["birthdate"]
-                update["age"] = max(0, age)
+                age = (today.year - bd.year
+                       - ((today.month, today.day) < (bd.month, bd.day)))
+                scalar["birthdate"] = data["birthdate"]
+                scalar["age"] = max(0, age)
             except Exception:
                 pass
 
-        # ── Completeness score (based on merged: current + incoming) ──
-        merged = {**current, **update}
-        score_fields = {
-            "bio":          lambda v: bool(v and len(str(v)) >= 10),
-            "email":        lambda v: bool(v),
-            "zodiac":       lambda v: bool(v),
-            "social_status":lambda v: bool(v),
-            "education":    lambda v: bool(v),
-            "profession":   lambda v: bool(v),
-            "country":      lambda v: bool(v),
-            "city":         lambda v: bool(v),
-            "hobbies":      lambda v: bool(v and len(v) >= 1),
-            "purpose":      lambda v: bool(v and len(v) >= 1),
-        }
-        filled = sum(1 for f, fn in score_fields.items() if fn(merged.get(f)))
-        # photo bonus
-        if merged.get("photo_url") or merged.get("gender"):
-            filled = min(filled + 1, len(score_fields))
-        update["profile_complete"] = min(100, int(filled / len(score_fields) * 100))
+        # ── Array fields — convert empty list → None to avoid type errors ──
+        arrays = {}
+        for col in ARRAY_COLS:
+            if col in data:
+                val = data[col]
+                # Must be a list; send None for empty (clears the field gracefully)
+                if isinstance(val, list) and len(val) > 0:
+                    arrays[col] = val
+                elif isinstance(val, list) and len(val) == 0:
+                    arrays[col] = None   # PostgreSQL NULL for empty array
 
-        # ── Try full update (needs migrate_profile.sql) ──────────
+        # ── Completeness score ─────────────────────────────────
+        merged = {**current, **scalar, **arrays}
+        score_map = {
+            "bio":           lambda v: bool(v and len(str(v)) >= 10),
+            "email":         lambda v: bool(v),
+            "zodiac":        lambda v: bool(v),
+            "social_status": lambda v: bool(v),
+            "education":     lambda v: bool(v),
+            "profession":    lambda v: bool(v),
+            "country":       lambda v: bool(v),
+            "city":          lambda v: bool(v),
+            "hobbies":       lambda v: bool(v and len(v) >= 1),
+            "purpose":       lambda v: bool(v and len(v) >= 1),
+        }
+        filled = sum(1 for f, fn in score_map.items() if fn(merged.get(f)))
+        if merged.get("photo_url") or merged.get("gender"):
+            filled = min(filled + 1, len(score_map))
+        pct = min(100, int(filled / len(score_map) * 100))
+
+        # ── Step 1: Save scalar fields ─────────────────────────
+        saved_scalar = False
+        scalar_err   = None
         try:
-            supabase.table("users_v1").update(update).eq("telegram_id", uid).execute()
-            return jsonify({"ok": True, "profile_complete": update["profile_complete"]})
-        except Exception as e1:
-            err_str = str(e1)
-            # If new columns don't exist yet, fall back to base columns only
-            if "does not exist" in err_str or "column" in err_str.lower():
-                base_update = {k: update[k] for k in BASE_COLS if k in update}
-                if "gender" in update:   base_update["gender"]    = update["gender"]
-                if "birthdate" in update: base_update["birthdate"] = update["birthdate"]
-                if "age" in update:       base_update["age"]        = update["age"]
-                if "profile_complete" in update:
-                    base_update["profile_complete"] = update["profile_complete"]
-                try:
-                    base_update.pop("profile_complete", None)  # may not exist yet
-                except Exception:
-                    pass
-                supabase.table("users_v1").update(base_update).eq("telegram_id", uid).execute()
-                return jsonify({
-                    "ok": True,
-                    "warning": "migration_pending",
-                    "profile_complete": update["profile_complete"],
-                    "saved_fields": list(base_update.keys()),
-                })
-            raise  # re-raise other errors
+            scalar["profile_complete"] = pct
+            res = supabase.table("users_v1").update(scalar) \
+                .eq("telegram_id", uid).execute()
+            _log.info(f"[profile/save] scalar OK → {res.data}")
+            saved_scalar = True
+        except Exception as e_sc:
+            scalar_err = str(e_sc)
+            _log.error(f"[profile/save] scalar FAILED: {e_sc}")
+            # Try without profile_complete (column might not exist)
+            scalar.pop("profile_complete", None)
+            try:
+                supabase.table("users_v1").update(scalar) \
+                    .eq("telegram_id", uid).execute()
+                saved_scalar = True
+                _log.info("[profile/save] scalar OK (without profile_complete)")
+            except Exception as e_sc2:
+                scalar_err = str(e_sc2)
+                _log.error(f"[profile/save] scalar 2nd attempt FAILED: {e_sc2}")
+
+        # ── Step 2: Save array fields separately ───────────────
+        saved_arrays = False
+        array_err    = None
+        if arrays:
+            try:
+                res2 = supabase.table("users_v1").update(arrays) \
+                    .eq("telegram_id", uid).execute()
+                _log.info(f"[profile/save] arrays OK → {res2.data}")
+                saved_arrays = True
+            except Exception as e_arr:
+                array_err = str(e_arr)
+                _log.error(f"[profile/save] arrays FAILED: {e_arr}")
+                # Try each array column individually
+                for col, val in arrays.items():
+                    try:
+                        supabase.table("users_v1").update({col: val}) \
+                            .eq("telegram_id", uid).execute()
+                        _log.info(f"[profile/save] array col {col} OK individually")
+                        saved_arrays = True
+                    except Exception as e_col:
+                        _log.error(f"[profile/save] array col {col} FAILED: {e_col}")
+
+        if saved_scalar or saved_arrays:
+            return jsonify({
+                "ok": True,
+                "profile_complete": pct,
+                "saved_scalar": saved_scalar,
+                "saved_arrays": saved_arrays,
+                "array_err": array_err,
+                "scalar_err": scalar_err,
+            })
+        else:
+            return jsonify({
+                "ok": False,
+                "error": scalar_err or "unknown",
+                "array_err": array_err,
+            })
 
     except Exception as e:
+        import logging as _log2
+        _log2.error(f"[profile/save] outer exception: {e}")
         return jsonify({"ok": False, "error": str(e)})
 
 

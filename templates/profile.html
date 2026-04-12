@@ -982,9 +982,8 @@ async function loadProfile() {
     const name = [p.first_name, p.last_name].filter(Boolean).join(' ') || p.username || '—';
     document.getElementById('hdr-name').textContent    = name;
     document.getElementById('hdr-handle').textContent  = p.username ? '@'+p.username : '';
-    const pct = p.profile_complete || 0;
-    document.getElementById('hdr-complete-fill').style.width = pct + '%';
-    document.getElementById('hdr-complete-pct').textContent  = pct + '%';
+    // Compute completeness from actual fields (not DB value which may be wrong type)
+    // calcCompletion() will be called after all fields are populated below
 
     // Avatar
     mainPhotoUrl = p.photo_url || null;
