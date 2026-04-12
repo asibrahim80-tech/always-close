@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Always Close – Likes & Matches</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;min-height:100vh;padding-bottom:30px}
+    body.rtl{direction:rtl}
+
+    /* ── Header ── */
+    #header{
+      position:sticky;top:0;z-index:100;
+      background:linear-gradient(135deg,#c0392b 0%,#e74c3c 50%,#e67e22 100%);
+      padding:16px 16px 0;
+      box-shadow:0 2px 12px rgba(192,57,43,.3);
+    }
+    #header-top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+    #header-icon{font-size:26px;line-height:1}
+    #header-title{
+      font-size:19px;font-weight:800;color:#fff;flex:1;
+      text-shadow:0 1px 3px rgba(0,0,0,.2);
+    }
+    #header-count{
+      background:rgba(255,255,255,.25);
+      color:#fff;border-radius:20px;
+      padding:3px 10px;font-size:12px;font-weight:700;
+      backdrop-filter:blur(4px);
+    }
+
+    /* ── Filter chips ── */
+    #filter-scroll{
+      display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;
+      scrollbar-width:none;
+    }
+    #filter-scroll::-webkit-scrollbar{display:none}
+    .fchip{
+      flex-shrink:0;display:flex;align-items:center;gap:5px;
+      padding:7px 14px;border-radius:22px;border:none;
+      background:rgba(255,255,255,.2);color:#fff;
+      font-size:13px;font-weight:600;cursor:pointer;
+      transition:all .18s;backdrop-filter:blur(4px);
+      white-space:nowrap;
+    }
+    .fchip.active{background:#fff;color:#c0392b}
+    .fchip .chip-cnt{
+      background:rgba(255,255,255,.35);border-radius:10px;
+      padding:1px 6px;font-size:11px;font-weight:700;
+    }
+    .fchip.active .chip-cnt{background:#f5e6e6;color:#c0392b}
+    .fchip:active{opacity:.75}
+
+    /* ── Gender sub-chips ── */
+    #gender-bar{
+      background:#fff;padding:8px 12px 10px;
+      display:none;gap:8px;
+      border-bottom:1px solid #f0f0f0;
+    }
+    #gender-bar.visible{display:flex}
+    .gchip{
+      padding:5px 14px;border-radius:16px;border:1.5px solid #ddd;
+      background:#f7f7f7;color:#555;font-size:13px;font-weight:600;
+      cursor:pointer;transition:all .15s;
+    }
+    .gchip.active{background:#e74c3c;border-color:#e74c3c;color:#fff}
+
+    /* ── Loading ── */
+    #loading{text-align:center;padding:60px 20px;color:#999;font-size:14px}
+    .spinner{width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#e74c3c;
+      border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── Empty state ── */
+    #empty{
+      display:none;text-align:center;padding:70px 30px;
+    }
+    #empty .empty-icon{font-size:58px;margin-bottom:14px;line-height:1}
+    #empty .empty-title{font-size:16px;font-weight:700;color:#333;margin-bottom:6px}
+    #empty .empty-sub{font-size:13px;color:#999;line-height:1.5}
+
+    /* ── List ── */
+    #list{padding:12px 12px;display:flex;flex-direction:column;gap:0}
+
+    /* ── Section header ── */
+    .section-hdr{
+      display:flex;align-items:center;gap:8px;
+      padding:6px 4px 8px;margin-top:4px;
+    }
+    .section-hdr-icon{font-size:18px}
+    .section-hdr-text{font-size:13px;font-weight:700;color:#555;flex:1;letter-spacing:.3px;text-transform:uppercase}
+    .section-hdr-line{height:1px;flex:2;background:#e8e8e8}
+    .section-hdr-cnt{
+      background:#f0f0f0;color:#888;
+      border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;
+    }
+
+    /* ── Notification card ── */
+    .ncard{
+      background:#fff;border-radius:16px;
+      margin-bottom:10px;
+      box-shadow:0 1px 6px rgba(0,0,0,.07);
+      display:flex;align-items:center;gap:12px;
+      padding:12px 14px;
+      position:relative;overflow:hidden;
+      cursor:default;transition:transform .15s,box-shadow .15s;
+    }
+    .ncard:active{transform:scale(.98);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+    /* left accent stripe */
+    .ncard::before{
+      content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
+      border-radius:16px 0 0 16px;
+    }
+    body.rtl .ncard::before{left:auto;right:0;border-radius:0 16px 16px 0}
+    .ncard.match-card::before{background:linear-gradient(to bottom,#e74c3c,#e67e22)}
+    .ncard.like-card::before{background:linear-gradient(to bottom,#3498db,#2980b9)}
+    .ncard.room-card::before{background:linear-gradient(to bottom,#8e44ad,#6c3483)}
+    .ncard.store-card::before{background:linear-gradient(to bottom,#e67e22,#d35400)}
+
+    /* match glow */
+    .ncard.match-card{
+      background:linear-gradient(135deg,#fff8f7 0%,#fff 60%);
+      border:1px solid #fde8e8;
+    }
+
+    /* ── Avatar ── */
+    .nav-avatar{
+      width:50px;height:50px;border-radius:50%;object-fit:cover;flex-shrink:0;
+    }
+    .nav-avatar-placeholder{
+      width:50px;height:50px;border-radius:50%;flex-shrink:0;
+      display:flex;align-items:center;justify-content:center;
+      font-size:20px;font-weight:700;color:#fff;
+      background:linear-gradient(135deg,#bbb,#999);
+    }
+    .ncard.match-card .nav-avatar-placeholder{background:linear-gradient(135deg,#e74c3c,#e67e22)}
+    .ncard.like-card   .nav-avatar-placeholder{background:linear-gradient(135deg,#3498db,#2980b9)}
+    .ncard.room-card   .nav-avatar-placeholder{background:linear-gradient(135deg,#8e44ad,#6c3483)}
+    .ncard.store-card  .nav-avatar-placeholder{background:linear-gradient(135deg,#e67e22,#d35400)}
+
+    /* avatar ring for match */
+    .ncard.match-card .nav-avatar,
+    .ncard.match-card .nav-avatar-placeholder{
+      box-shadow:0 0 0 3px #e74c3c,0 0 0 5px rgba(231,76,60,.15);
+    }
+
+    /* ── Card body ── */
+    .nc-body{flex:1;min-width:0}
+    .nc-name-row{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+    .nc-name{font-size:15px;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+    .nc-gender{font-size:14px}
+    .nc-badge{
+      margin-left:auto;flex-shrink:0;
+      border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;
+    }
+    body.rtl .nc-badge{margin-left:0;margin-right:auto}
+    .badge-match{background:linear-gradient(135deg,#e74c3c,#e67e22);color:#fff}
+    .badge-like{background:#ebf5fb;color:#2980b9}
+    .badge-room{background:#f3e5f5;color:#7b1fa2}
+    .badge-store{background:#fef0e6;color:#e67e22}
+
+    .nc-sub{font-size:12px;color:#888;display:flex;align-items:center;gap:4px;margin-top:2px}
+    .nc-sub-icon{font-size:11px}
+    .nc-sub-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+    .nc-time{font-size:11px;color:#bbb;margin-top:4px}
+
+    /* ── Match sparkle badge ── */
+    .match-sparkle{
+      position:absolute;top:10px;right:12px;
+      font-size:15px;
+    }
+    body.rtl .match-sparkle{right:auto;left:12px}
+
+    /* ── Toast ── */
+    #toast{
+      position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);
+      background:#222;color:#fff;border-radius:14px;padding:10px 20px;
+      font-size:13px;font-weight:600;z-index:9999;
+      transition:transform .3s ease,opacity .3s;opacity:0;
+      pointer-events:none;white-space:nowrap;
+    }
+    #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  </style>
+</head>
+<body>
+<div id="header">
+  <div id="header-top">
+    <span id="header-icon">🔔</span>
+    <span id="header-title">Notifications</span>
+    <span id="header-count">0</span>
+  </div>
+  <div id="filter-scroll">
+    <button class="fchip active" data-f="all">🔔 <span class="fchip-lbl"></span><span class="chip-cnt" id="cnt-all">0</span></button>
+    <button class="fchip" data-f="match">🔥 <span class="fchip-lbl"></span><span class="chip-cnt" id="cnt-match">0</span></button>
+    <button class="fchip" data-f="people">💙 <span class="fchip-lbl"></span><span class="chip-cnt" id="cnt-people">0</span></button>
+    <button class="fchip" data-f="room">🚪 <span class="fchip-lbl"></span><span class="chip-cnt" id="cnt-room">0</span></button>
+    <button class="fchip" data-f="store">🏪 <span class="fchip-lbl"></span><span class="chip-cnt" id="cnt-store">0</span></button>
+  </div>
+</div>
+
+<div id="gender-bar">
+  <button class="gchip active" data-g="all" id="g-all">👥 <span id="g-all-lbl"></span></button>
+  <button class="gchip" data-g="Male" id="g-male">👨 <span id="g-male-lbl"></span></button>
+  <button class="gchip" data-g="Female" id="g-female">👩 <span id="g-female-lbl"></span></button>
+</div>
+
+<div id="loading"><div class="spinner"></div><div id="loading-text">Loading...</div></div>
+<div id="empty">
+  <div class="empty-icon" id="empty-icon">🔔</div>
+  <div class="empty-title" id="empty-title"></div>
+  <div class="empty-sub"  id="empty-sub"></div>
+</div>
+<div id="list"></div>
+<div id="toast"></div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const uid    = params.get('uid') || '';
+  const lang   = params.get('lang') || 'ar';
+  const isRTL  = lang === 'ar';
+  if (isRTL) document.body.classList.add('rtl');
+
+  // ── Translations ─────────────────────────────────────────────────────────
+  const T = lang === 'ar' ? {
+    page_title:   '🔔 الإشعارات',
+    page_icon:    '🔔',
+    filter_all:   'الكل',
+    filter_match: 'تطابق',
+    filter_people:'أشخاص',
+    filter_room:  'غرف',
+    filter_store: 'متاجر',
+    g_all:    'الكل',
+    g_male:   'ذكور',
+    g_female: 'إناث',
+    badge_match: '🔥 تطابق',
+    badge_like:  '💙 أعجبني',
+    badge_room:  '🚪 غرفة',
+    badge_store: '🏪 متجر',
+    sec_match:   'التطابقات',
+    sec_like:    'طلبات الإعجاب',
+    sec_room:    'الانضمام للغرف',
+    sec_store:   'متابعة المتاجر',
+    joined_room:  'انضم لغرفة',
+    followed_store: 'تابع متجر',
+    gender_male:   '👨',
+    gender_female: '👩',
+    time_now:    'الآن',
+    time_min:    'منذ دقيقة',
+    time_mins:   'منذ {n} دقائق',
+    time_hour:   'منذ ساعة',
+    time_hours:  'منذ {n} ساعات',
+    time_day:    'منذ يوم',
+    time_days:   'منذ {n} أيام',
+    empty_all_title:   'لا توجد إشعارات',
+    empty_all_sub:     'ستظهر هنا إشعارات الإعجابات والتطابقات والمزيد',
+    empty_match_title: 'لا يوجد تطابق بعد',
+    empty_match_sub:   'أرسل إعجابات لتحصل على تطابقات 🔥',
+    empty_like_title:  'لا توجد إعجابات بعد',
+    empty_like_sub:    'شارك أكثر لتجذب الاهتمام 💙',
+    empty_room_title:  'لا أحد انضم لغرفك',
+    empty_room_sub:    'أنشئ غرفة أو دعوة أشخاص',
+    empty_store_title: 'لا متابعين للمتاجر بعد',
+    empty_store_sub:   'أنشئ متجراً وابدأ البيع 🏪',
+    loading:  'جاري التحميل...',
+  } : {
+    page_title:   '🔔 Notifications',
+    page_icon:    '🔔',
+    filter_all:   'All',
+    filter_match: 'Matches',
+    filter_people:'People',
+    filter_room:  'Rooms',
+    filter_store: 'Stores',
+    g_all:    'All',
+    g_male:   'Male',
+    g_female: 'Female',
+    badge_match: '🔥 Match',
+    badge_like:  '💙 Like',
+    badge_room:  '🚪 Room',
+    badge_store: '🏪 Store',
+    sec_match:   'Matches',
+    sec_like:    'Like Requests',
+    sec_room:    'Room Joins',
+    sec_store:   'Store Follows',
+    joined_room:    'Joined room',
+    followed_store: 'Followed store',
+    gender_male:   '👨',
+    gender_female: '👩',
+    time_now:    'Just now',
+    time_min:    '1 min ago',
+    time_mins:   '{n} mins ago',
+    time_hour:   '1 hour ago',
+    time_hours:  '{n} hours ago',
+    time_day:    '1 day ago',
+    time_days:   '{n} days ago',
+    empty_all_title:   'No notifications yet',
+    empty_all_sub:     'Likes, matches, room joins and store follows will appear here',
+    empty_match_title: 'No matches yet',
+    empty_match_sub:   'Start liking people to get matches 🔥',
+    empty_like_title:  'No likes yet',
+    empty_like_sub:    'Be more active to attract attention 💙',
+    empty_room_title:  'No one joined your rooms',
+    empty_room_sub:    'Create rooms and invite people',
+    empty_store_title: 'No store followers yet',
+    empty_store_sub:   'Create a store and start selling 🏪',
+    loading:  'Loading...',
+  };
+
+  // ── Apply labels ─────────────────────────────────────────────────────────
+  document.getElementById('header-title').textContent   = T.page_title;
+  document.getElementById('header-icon').textContent    = T.page_icon;
+  document.getElementById('loading-text').textContent   = T.loading;
+  document.getElementById('g-all-lbl').textContent      = T.g_all;
+  document.getElementById('g-male-lbl').textContent     = T.g_male;
+  document.getElementById('g-female-lbl').textContent   = T.g_female;
+
+  const fchips = document.querySelectorAll('.fchip');
+  fchips.forEach(c => {
+    const f = c.dataset.f;
+    const lbl = c.querySelector('.fchip-lbl');
+    if (lbl) lbl.textContent = (T['filter_'+f] || f) + ' ';
+  });
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let allData = { matches: [], likes: [], room_joins: [], store_follows: [] };
+  let activeFilter = 'all';   // all | match | people | room | store
+  let activeGender = 'all';   // all | Male | Female
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function relTime(isoStr) {
+    if (!isoStr) return '';
+    const diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
+    if (diff < 60)  return T.time_now;
+    if (diff < 120) return T.time_min;
+    if (diff < 3600) return T.time_mins.replace('{n}', Math.floor(diff/60));
+    if (diff < 7200) return T.time_hour;
+    if (diff < 86400) return T.time_hours.replace('{n}', Math.floor(diff/3600));
+    if (diff < 172800) return T.time_day;
+    return T.time_days.replace('{n}', Math.floor(diff/86400));
+  }
+
+  function genderEmoji(g) {
+    if (g === 'Male')   return T.gender_male;
+    if (g === 'Female') return T.gender_female;
+    return '';
+  }
+
+  function initial(name) {
+    return (name || '?').charAt(0).toUpperCase();
+  }
+
+  function avatarEl(item, cls) {
+    if (item.photo_url) {
+      const img = document.createElement('img');
+      img.className = 'nav-avatar';
+      img.src = item.photo_url;
+      img.alt = '';
+      img.onerror = () => {
+        const ph = document.createElement('div');
+        ph.className = 'nav-avatar-placeholder';
+        ph.textContent = initial(item.username);
+        img.replaceWith(ph);
+      };
+      return img;
+    }
+    const ph = document.createElement('div');
+    ph.className = 'nav-avatar-placeholder';
+    ph.textContent = initial(item.username);
+    return ph;
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  // ── Build one notification card ───────────────────────────────────────────
+  function buildCard(item) {
+    const div = document.createElement('div');
+    let cardCls = 'ncard ';
+    let badge   = '';
+    let subIcon = '';
+    let subText = '';
+
+    if (item.type === 'match') {
+      cardCls += 'match-card';
+      badge    = T.badge_match;
+    } else if (item.type === 'like') {
+      cardCls += 'like-card';
+      badge    = T.badge_like;
+    } else if (item.type === 'room_join') {
+      cardCls += 'room-card';
+      badge    = T.badge_room;
+      subIcon  = '🚪';
+      subText  = `${T.joined_room}: ${item.room_name || ''}`;
+    } else if (item.type === 'store_follow') {
+      cardCls += 'store-card';
+      badge    = T.badge_store;
+      subIcon  = '🏪';
+      subText  = `${T.followed_store}: ${item.store_name || ''}`;
+    }
+
+    div.className = cardCls;
+
+    // Avatar
+    div.appendChild(avatarEl(item, cardCls));
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'nc-body';
+
+    // Name row
+    const nameRow = document.createElement('div');
+    nameRow.className = 'nc-name-row';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'nc-name';
+    nameSpan.textContent = item.username ? '@' + item.username : '—';
+    const gSpan = document.createElement('span');
+    gSpan.className = 'nc-gender';
+    gSpan.textContent = genderEmoji(item.gender);
+    const badgeEl = document.createElement('span');
+    badgeEl.className = 'nc-badge ' + (
+      item.type === 'match'       ? 'badge-match' :
+      item.type === 'like'        ? 'badge-like'  :
+      item.type === 'room_join'   ? 'badge-room'  : 'badge-store'
+    );
+    badgeEl.textContent = badge;
+    nameRow.appendChild(nameSpan);
+    nameRow.appendChild(gSpan);
+    nameRow.appendChild(badgeEl);
+    body.appendChild(nameRow);
+
+    // Sub-label
+    if (subText) {
+      const sub = document.createElement('div');
+      sub.className = 'nc-sub';
+      sub.innerHTML = `<span class="nc-sub-icon">${subIcon}</span><span class="nc-sub-text">${subText}</span>`;
+      body.appendChild(sub);
+    }
+
+    // Time
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'nc-time';
+    timeDiv.textContent = relTime(item.created_at);
+    body.appendChild(timeDiv);
+
+    div.appendChild(body);
+
+    // Match sparkle
+    if (item.type === 'match') {
+      const sp = document.createElement('span');
+      sp.className = 'match-sparkle';
+      sp.textContent = '✨';
+      div.appendChild(sp);
+    }
+
+    return div;
+  }
+
+  // ── Section header ─────────────────────────────────────────────────────────
+  function buildSectionHdr(icon, text, count) {
+    const div = document.createElement('div');
+    div.className = 'section-hdr';
+    div.innerHTML = `
+      <span class="section-hdr-icon">${icon}</span>
+      <span class="section-hdr-text">${text}</span>
+      <span class="section-hdr-line"></span>
+      <span class="section-hdr-cnt">${count}</span>`;
+    return div;
+  }
+
+  // ── Filter + render ───────────────────────────────────────────────────────
+  function getFiltered() {
+    const { matches, likes, room_joins, store_follows } = allData;
+
+    if (activeFilter === 'match') return { matches, likes: [], room_joins: [], store_follows: [] };
+    if (activeFilter === 'room')  return { matches: [], likes: [], room_joins, store_follows: [] };
+    if (activeFilter === 'store') return { matches: [], likes: [], room_joins: [], store_follows };
+    if (activeFilter === 'people') {
+      const filterPeople = list =>
+        activeGender === 'all' ? list
+        : list.filter(i => i.gender === activeGender);
+      return { matches: filterPeople(matches), likes: filterPeople(likes), room_joins: [], store_follows: [] };
+    }
+    // 'all'
+    return { matches, likes, room_joins, store_follows };
+  }
+
+  function render() {
+    const list    = document.getElementById('list');
+    const empty   = document.getElementById('empty');
+    const loading = document.getElementById('loading');
+    list.innerHTML = '';
+    loading.style.display = 'none';
+
+    const { matches, likes, room_joins, store_follows } = getFiltered();
+    const total = matches.length + likes.length + room_joins.length + store_follows.length;
+
+    document.getElementById('header-count').textContent = total;
+
+    if (total === 0) {
+      empty.style.display = 'block';
+      setEmptyState();
+      return;
+    }
+    empty.style.display = 'none';
+
+    function appendSection(items, icon, secText, sort) {
+      if (!items.length) return;
+      let sorted = sort ? [...items].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)) : items;
+      list.appendChild(buildSectionHdr(icon, secText, sorted.length));
+      sorted.forEach(item => list.appendChild(buildCard(item)));
+    }
+
+    if (activeFilter === 'all') {
+      // Merge everything and sort by time — smart unified feed
+      const allItems = [
+        ...matches.map(i=>({...i})),
+        ...likes.map(i=>({...i})),
+        ...room_joins.map(i=>({...i})),
+        ...store_follows.map(i=>({...i})),
+      ].sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+
+      allItems.forEach(item => list.appendChild(buildCard(item)));
+    } else {
+      appendSection(matches,      '🔥', T.sec_match, true);
+      appendSection(likes,        '💙', T.sec_like,  true);
+      appendSection(room_joins,   '🚪', T.sec_room,  true);
+      appendSection(store_follows,'🏪', T.sec_store, true);
+    }
+  }
+
+  function setEmptyState() {
+    const icons  = { all:'🔔', match:'🔥', people:'💙', room:'🚪', store:'🏪' };
+    const titles = {
+      all:    T.empty_all_title,
+      match:  T.empty_match_title,
+      people: T.empty_like_title,
+      room:   T.empty_room_title,
+      store:  T.empty_store_title,
+    };
+    const subs = {
+      all:    T.empty_all_sub,
+      match:  T.empty_match_sub,
+      people: T.empty_like_sub,
+      room:   T.empty_room_sub,
+      store:  T.empty_store_sub,
+    };
+    document.getElementById('empty-icon').textContent  = icons[activeFilter]  || '🔔';
+    document.getElementById('empty-title').textContent = titles[activeFilter] || '';
+    document.getElementById('empty-sub').textContent   = subs[activeFilter]   || '';
+  }
+
+  function updateCounts() {
+    const { matches, likes, room_joins, store_follows } = allData;
+    const people = matches.length + likes.length;
+    document.getElementById('cnt-all').textContent    = matches.length + likes.length + room_joins.length + store_follows.length;
+    document.getElementById('cnt-match').textContent  = matches.length;
+    document.getElementById('cnt-people').textContent = people;
+    document.getElementById('cnt-room').textContent   = room_joins.length;
+    document.getElementById('cnt-store').textContent  = store_follows.length;
+  }
+
+  // ── Filter chip click ──────────────────────────────────────────────────────
+  fchips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      fchips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeFilter = chip.dataset.f;
+      const gbar = document.getElementById('gender-bar');
+      if (activeFilter === 'people') {
+        gbar.classList.add('visible');
+      } else {
+        gbar.classList.remove('visible');
+      }
+      render();
+    });
+  });
+
+  // ── Gender sub-chip click ──────────────────────────────────────────────────
+  document.querySelectorAll('.gchip').forEach(gc => {
+    gc.addEventListener('click', () => {
+      document.querySelectorAll('.gchip').forEach(g => g.classList.remove('active'));
+      gc.classList.add('active');
+      activeGender = gc.dataset.g;
+      render();
+    });
+  });
+
+  // ── Load data ──────────────────────────────────────────────────────────────
+  async function loadData() {
+    if (!uid) return;
+    try {
+      const res = await fetch(`/api/notifications/${uid}`).then(r => r.json());
+      if (!res.ok) return;
+      allData = {
+        matches:       res.matches       || [],
+        likes:         res.likes         || [],
+        room_joins:    res.room_joins    || [],
+        store_follows: res.store_follows || [],
+      };
+      updateCounts();
+      render();
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  loadData();
+  setInterval(loadData, 15000);
+</script>
+</body>
+</html>

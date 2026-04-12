@@ -86,6 +86,125 @@ def stores_page():
     return render_template("stores.html")
 
 
+@app.route('/likes')
+def likes_page():
+    return render_template("likes.html")
+
+
+@app.route('/api/notifications/<int:telegram_id>')
+def api_notifications(telegram_id):
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+
+        me_res = supabase.table("users_v1").select("id").eq("telegram_id", telegram_id).execute()
+        if not me_res.data:
+            return jsonify({"ok": False, "error": "user not found"})
+        my_id = me_res.data[0]["id"]
+
+        # ── 1. Matches ─────────────────────────────────────────────
+        matches_res = supabase.table("matches_v1") \
+            .select("id, user1_id, user2_id, created_at") \
+            .or_(f"user1_id.eq.{my_id},user2_id.eq.{my_id}") \
+            .order("created_at", desc=True).execute()
+
+        match_rows = matches_res.data or []
+        match_partner_ids = []
+        match_created = {}
+        for m in match_rows:
+            other = m["user2_id"] if m["user1_id"] == my_id else m["user1_id"]
+            match_partner_ids.append(other)
+            match_created[other] = m["created_at"]
+
+        # ── 2. Likes (unmatched only) ───────────────────────────────
+        likes_res = supabase.table("likes_v1") \
+            .select("from_user_id, created_at") \
+            .eq("to_user_id", my_id) \
+            .order("created_at", desc=True).execute()
+
+        matched_set = set(match_partner_ids)
+        like_rows = [lk for lk in (likes_res.data or []) if lk["from_user_id"] not in matched_set]
+        like_ids = [lk["from_user_id"] for lk in like_rows]
+        like_created = {lk["from_user_id"]: lk["created_at"] for lk in like_rows}
+
+        # ── 3. Room joins (people who joined MY rooms) ──────────────
+        my_rooms_res = supabase.table("rooms_v1").select("id, name").eq("creator_id", my_id).execute()
+        my_rooms = {r["id"]: r["name"] for r in (my_rooms_res.data or [])}
+
+        room_join_rows = []
+        for room_id, room_name in my_rooms.items():
+            rm = supabase.table("room_members_v1") \
+                .select("user_id, created_at") \
+                .eq("room_id", room_id) \
+                .order("created_at", desc=True).execute()
+            for m in (rm.data or []):
+                if m["user_id"] != my_id:
+                    room_join_rows.append({**m, "room_id": room_id, "room_name": room_name})
+
+        rj_user_ids = list({r["user_id"] for r in room_join_rows})
+
+        # ── 4. Store follows (people who followed MY stores) ────────
+        my_stores_res = supabase.table("stores_v1").select("id, name").eq("creator_id", my_id).execute()
+        my_stores = {s["id"]: s["name"] for s in (my_stores_res.data or [])}
+
+        store_follow_rows = []
+        for store_id, store_name in my_stores.items():
+            sm = supabase.table("store_members_v1") \
+                .select("user_id, created_at") \
+                .eq("store_id", store_id) \
+                .order("created_at", desc=True).execute()
+            for f in (sm.data or []):
+                if f["user_id"] != my_id:
+                    store_follow_rows.append({**f, "store_id": store_id, "store_name": store_name})
+
+        sf_user_ids = list({f["user_id"] for f in store_follow_rows})
+
+        # ── Batch-fetch all users ────────────────────────────────────
+        all_user_ids = list(set(match_partner_ids + like_ids + rj_user_ids + sf_user_ids))
+        user_cache = {}
+        if all_user_ids:
+            u_res = supabase.table("users_v1") \
+                .select("id, username, gender, photo_url") \
+                .in_("id", all_user_ids).execute()
+            for u in (u_res.data or []):
+                photo = _resolve_photo(u.get("photo_url"), BOT_TOKEN)
+                user_cache[u["id"]] = {
+                    "username": u.get("username"),
+                    "gender":   u.get("gender"),
+                    "photo_url": photo,
+                }
+
+        def _udict(uid, type_, created_at, extra=None):
+            u = user_cache.get(uid, {})
+            d = {"type": type_, "user_id": uid,
+                 "username": u.get("username"),
+                 "gender":   u.get("gender"),
+                 "photo_url": u.get("photo_url"),
+                 "created_at": created_at}
+            if extra:
+                d.update(extra)
+            return d
+
+        matches      = [_udict(uid, "match",        match_created.get(uid))
+                        for uid in match_partner_ids if uid in user_cache]
+        likes        = [_udict(uid, "like",         like_created.get(uid))
+                        for uid in like_ids         if uid in user_cache]
+        room_joins   = [_udict(r["user_id"], "room_join",    r["created_at"],
+                               {"room_id": r["room_id"], "room_name": r["room_name"]})
+                        for r in room_join_rows if r["user_id"] in user_cache]
+        store_follows= [_udict(f["user_id"], "store_follow", f["created_at"],
+                               {"store_id": f["store_id"], "store_name": f["store_name"]})
+                        for f in store_follow_rows if f["user_id"] in user_cache]
+
+        return jsonify({"ok": True,
+                        "matches":       matches,
+                        "likes":         likes,
+                        "room_joins":    room_joins,
+                        "store_follows": store_follows})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 @app.route('/api/nearby/<int:telegram_id>')
 def api_nearby(telegram_id):
     try:

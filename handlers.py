@@ -988,26 +988,13 @@ async def show_matches(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(T(lang, "register_first"))
         return
 
-    my_id = me.data[0]["id"]
-
-    matches = supabase.table("matches_v1") \
-        .select("user1_id, user2_id") \
-        .or_(f"user1_id.eq.{my_id},user2_id.eq.{my_id}") \
-        .execute()
-
-    if not matches.data:
-        await update.message.reply_text(T(lang, "no_matches"))
-        return
-
-    text = T(lang, "matches_title")
-    for m in matches.data:
-        other_id = m["user2_id"] if m["user1_id"] == my_id else m["user1_id"]
-        other = supabase.table("users_v1").select("username").eq("id", other_id).execute()
-        if other.data:
-            uname = other.data[0].get("username") or T(lang, "unknown_label")
-            text += f"• @{uname}\n"
-
-    await update.message.reply_text(text)
+    likes_url = f"https://{DOMAIN}/likes?uid={telegram_id}&lang={lang}"
+    btn_label = "🔥 التطابقات والإشعارات" if lang == "ar" else "🔥 Matches & Notifications"
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton(btn_label, web_app=WebAppInfo(url=likes_url))
+    ]])
+    msg = "🔥 افتح صفحة التطابقات والإشعارات 👇" if lang == "ar" else "🔥 Open your matches & notifications 👇"
+    await update.message.reply_text(msg, reply_markup=keyboard)
 
 
 # =========================================================
@@ -1023,25 +1010,13 @@ async def show_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(T(lang, "register_first"))
         return
 
-    my_id = me.data[0]["id"]
-
-    likes = supabase.table("likes_v1") \
-        .select("from_user_id") \
-        .eq("to_user_id", my_id) \
-        .execute()
-
-    if not likes.data:
-        await update.message.reply_text(T(lang, "no_requests"))
-        return
-
-    text = T(lang, "requests_title")
-    for like in likes.data:
-        sender = supabase.table("users_v1").select("username").eq("id", like["from_user_id"]).execute()
-        if sender.data:
-            uname = sender.data[0].get("username") or T(lang, "unknown_label")
-            text += f"• @{uname}\n"
-
-    await update.message.reply_text(text)
+    likes_url = f"https://{DOMAIN}/likes?uid={telegram_id}&lang={lang}"
+    btn_label = "💙 الإعجابات والإشعارات" if lang == "ar" else "💙 Likes & Notifications"
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton(btn_label, web_app=WebAppInfo(url=likes_url))
+    ]])
+    msg = "💙 افتح صفحة الإعجابات والإشعارات 👇" if lang == "ar" else "💙 Open your likes & notifications 👇"
+    await update.message.reply_text(msg, reply_markup=keyboard)
 
 
 # =========================================================
