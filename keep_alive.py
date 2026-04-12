@@ -384,6 +384,201 @@ def api_notifications(telegram_id):
         return jsonify({"ok": False, "error": str(e)})
 
 
+# ══════════════════════════════════════════════════════════════════
+# SEND LIKE FROM WEBAPP
+# ══════════════════════════════════════════════════════════════════
+@app.route('/api/send_like', methods=['POST'])
+def api_send_like():
+    try:
+        from database import supabase
+        data      = request.get_json(force=True) or {}
+        from_uid  = int(data.get("from_uid", 0))
+        to_db_id  = int(data.get("to_user_id", 0))
+        if not from_uid or not to_db_id:
+            return jsonify({"ok": False, "error": "missing params"})
+
+        # Get sender's db id
+        me = supabase.table("users_v1").select("id").eq("telegram_id", from_uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "sender not found"})
+        my_db_id = me.data[0]["id"]
+
+        # Insert like (ignore duplicate)
+        try:
+            supabase.table("likes_v1").insert({
+                "from_user_id": my_db_id,
+                "to_user_id":   to_db_id
+            }).execute()
+        except Exception:
+            pass  # duplicate — already liked
+
+        # Check mutual like → create match
+        mutual = supabase.table("likes_v1") \
+            .select("id") \
+            .eq("from_user_id", to_db_id) \
+            .eq("to_user_id", my_db_id).execute()
+        if mutual.data:
+            exists = supabase.table("matches_v1") \
+                .select("id") \
+                .or_(f"user1_id.eq.{my_db_id},user2_id.eq.{my_db_id}") \
+                .or_(f"user1_id.eq.{to_db_id},user2_id.eq.{to_db_id}").execute()
+            if not exists.data:
+                supabase.table("matches_v1").insert({
+                    "user1_id": my_db_id, "user2_id": to_db_id
+                }).execute()
+            return jsonify({"ok": True, "status": "matched"})
+
+        return jsonify({"ok": True, "status": "liked"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+# ══════════════════════════════════════════════════════════════════
+# SMART MATCH API — compatibility scoring based on profile data
+# ══════════════════════════════════════════════════════════════════
+@app.route('/api/smart_matches/<int:telegram_id>')
+def api_smart_matches(telegram_id):
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+        from datetime import date
+
+        # ── Load my full profile ─────────────────────────────────
+        try:
+            me_res = supabase.table("users_v1") \
+                .select("id,gender,birthdate,age,city,country,hobbies,habits,"
+                        "personality_traits,purpose,zodiac,social_status") \
+                .eq("telegram_id", telegram_id).execute()
+        except Exception:
+            me_res = supabase.table("users_v1") \
+                .select("id,gender,birthdate,age,city,country") \
+                .eq("telegram_id", telegram_id).execute()
+
+        if not me_res.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        me = me_res.data[0]
+        my_id = me["id"]
+
+        # ── Users I already liked or matched ────────────────────
+        likes_sent = supabase.table("likes_v1") \
+            .select("to_user_id").eq("from_user_id", my_id).execute()
+        liked_ids = {r["to_user_id"] for r in (likes_sent.data or [])}
+
+        matches_res = supabase.table("matches_v1") \
+            .select("user1_id,user2_id") \
+            .or_(f"user1_id.eq.{my_id},user2_id.eq.{my_id}").execute()
+        matched_ids = set()
+        for m in (matches_res.data or []):
+            matched_ids.add(m["user1_id"])
+            matched_ids.add(m["user2_id"])
+        matched_ids.discard(my_id)
+
+        exclude_ids = liked_ids | matched_ids | {my_id}
+
+        # ── Fetch candidates (visible users with profiles) ───────
+        try:
+            cands_res = supabase.table("users_v1") \
+                .select("id,username,gender,birthdate,age,photo_url,city,country,"
+                        "hobbies,habits,personality_traits,purpose,zodiac,bio,social_status") \
+                .eq("is_visible", True).execute()
+        except Exception:
+            cands_res = supabase.table("users_v1") \
+                .select("id,username,gender,birthdate,age,photo_url,city,country,bio") \
+                .eq("is_visible", True).execute()
+
+        candidates = [u for u in (cands_res.data or []) if u["id"] not in exclude_ids]
+
+        # ── Scoring function ─────────────────────────────────────
+        def score_user(u):
+            score = 0
+            reasons = []
+
+            # 1. Shared purpose (25 pts) — most important
+            my_p = set(me.get("purpose") or [])
+            ur_p = set(u.get("purpose") or [])
+            shared_p = my_p & ur_p
+            if shared_p:
+                pts = min(len(shared_p), 3) * 8
+                score += pts
+                reasons.append(("purpose", list(shared_p)[:2]))
+
+            # 2. Shared hobbies (25 pts)
+            my_h = set(me.get("hobbies") or [])
+            ur_h = set(u.get("hobbies") or [])
+            shared_h = my_h & ur_h
+            if shared_h:
+                pts = min(len(shared_h), 5) * 5
+                score += pts
+                reasons.append(("hobbies", list(shared_h)[:3]))
+
+            # 3. Shared habits (15 pts)
+            my_hb = set(me.get("habits") or [])
+            ur_hb = set(u.get("habits") or [])
+            shared_hb = my_hb & ur_hb
+            if shared_hb:
+                pts = min(len(shared_hb), 3) * 5
+                score += pts
+                reasons.append(("habits", list(shared_hb)[:2]))
+
+            # 4. Same city (15 pts)
+            my_city = (me.get("city") or "").strip().lower()
+            ur_city = (u.get("city") or "").strip().lower()
+            if my_city and ur_city and my_city == ur_city:
+                score += 15
+                reasons.append(("city", my_city))
+
+            # 5. Same country (5 pts)
+            my_co = (me.get("country") or "").strip().lower()
+            ur_co = (u.get("country") or "").strip().lower()
+            if my_co and ur_co and my_co == ur_co and my_city != ur_city:
+                score += 5
+                reasons.append(("country", my_co))
+
+            # 6. Age proximity (10 pts)
+            my_age = me.get("age") or 0
+            ur_age = u.get("age") or 0
+            if my_age and ur_age:
+                diff = abs(my_age - ur_age)
+                if diff <= 2:   score += 10
+                elif diff <= 5: score += 7
+                elif diff <= 10:score += 4
+
+            # 7. Personality compatibility (5 pts)
+            my_pt = set(me.get("personality_traits") or [])
+            ur_pt = set(u.get("personality_traits") or [])
+            if my_pt & ur_pt:
+                score += 5
+                reasons.append(("personality", list(my_pt & ur_pt)[:1]))
+
+            return score, reasons
+
+        # ── Compute scores ───────────────────────────────────────
+        results = []
+        for u in candidates:
+            sc, reasons = score_user(u)
+            if sc < 10:  # minimum threshold
+                continue
+            photo = _resolve_photo(u.get("photo_url"), BOT_TOKEN)
+            results.append({
+                "user_id":   u["id"],
+                "username":  u.get("username"),
+                "gender":    u.get("gender"),
+                "age":       u.get("age"),
+                "photo_url": photo,
+                "city":      u.get("city"),
+                "bio":       (u.get("bio") or "")[:80],
+                "score":     min(sc, 100),
+                "reasons":   reasons,
+            })
+
+        # Sort by score descending, return top 30
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return jsonify({"ok": True, "matches": results[:30]})
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 @app.route('/api/nearby/<int:telegram_id>')
 def api_nearby(telegram_id):
     try:
