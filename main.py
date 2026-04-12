@@ -42,6 +42,7 @@ from handlers import (
     show_room_chats,
     show_store_chats,
     show_public_chat,
+    handle_web_app_data,
     exit_chat,
     relay_any_message,
 )
@@ -157,6 +158,9 @@ def main():
         filters.TEXT & filters.Regex(btn_regex("phone_toggle")), toggle_phone_visibility))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("edit_profile")), edit_profile))
+    # WebApp sendData handler (chat button from rooms/stores page)
+    app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
+
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("public_chat")), show_public_chat))
     app.add_handler(MessageHandler(

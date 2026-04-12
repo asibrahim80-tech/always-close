@@ -320,7 +320,7 @@
       any_mem:'أي عدد أعضاء', m1:'1+', m5:'5+', m10:'10+',
       loading:'جارٍ التحميل…', no_res:'لا توجد غرف', err:'❌ خطأ في التحميل',
       km:'كم', members:'عضو',
-      btn_map:'🗺️ خريطة', btn_join:'🚪 انضمام', btn_joined:'✅ منضم',
+      btn_map:'🗺️ خريطة', btn_join:'🚪 انضمام', btn_joined:'✅ منضم', btn_chat:'💬 دردشة',
       btn_delete:'🗑️ حذف', btn_add_img:'📷 إضافة', btn_change_img:'📷 تغيير', btn_del_img:'🗑️ صورة',
       btn_rate_members:'👥 تقييم الأعضاء',
       stats:n => `عدد الغرف: ${n}`,
@@ -355,7 +355,7 @@
       any_mem:'Any Members', m1:'1+', m5:'5+', m10:'10+',
       loading:'Loading…', no_res:'No rooms found', err:'❌ Error loading rooms',
       km:'km', members:'members',
-      btn_map:'🗺️ Map', btn_join:'🚪 Join', btn_joined:'✅ Joined',
+      btn_map:'🗺️ Map', btn_join:'🚪 Join', btn_joined:'✅ Joined', btn_chat:'💬 Chat',
       btn_delete:'🗑️ Delete', btn_add_img:'📷 Add', btn_change_img:'📷 Change', btn_del_img:'🗑️ Photo',
       btn_rate_members:'👥 Rate Members',
       stats:n => `${n} room${n===1?'':'s'} found`,
@@ -861,6 +861,16 @@
 
       if (r.is_member) {
         const bj = document.createElement('button'); bj.className = 'act-btn joined'; bj.textContent = T.btn_joined; bj.disabled = true; actions.appendChild(bj);
+        // Chat button — opens group chat for this room
+        const bc = document.createElement('button');
+        bc.style.cssText = 'flex:0 0 auto;padding:9px 14px;border-radius:11px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#0088cc,#006aad);color:#fff;display:flex;align-items:center;gap:5px;transition:opacity .1s';
+        bc.textContent = T.btn_chat;
+        bc.addEventListener('click', () => {
+          if (window.Telegram?.WebApp?.sendData) {
+            window.Telegram.WebApp.sendData('room_chat_sel:' + r.id);
+          }
+        });
+        actions.appendChild(bc);
       } else {
         const bj = document.createElement('button'); bj.className = 'act-btn join'; bj.textContent = T.btn_join;
         bj.addEventListener('click', () => joinRoom(r.id, bj)); actions.appendChild(bj);

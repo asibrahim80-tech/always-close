@@ -1459,6 +1459,43 @@ def _exit_btn(lang: str) -> InlineKeyboardMarkup:
 # SHOW ROOM CHATS LIST
 # =========================================================
 
+async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle data sent via tg.sendData() from WebApp buttons."""
+    data = update.message.web_app_data.data if update.message.web_app_data else ""
+    lang = get_lang(update, context)
+    tg_id = update.effective_user.id
+
+    if data.startswith("room_chat_sel:"):
+        try:
+            room_id = int(data.split(":")[1])
+        except (IndexError, ValueError):
+            return
+        _room_chat_sessions[tg_id]  = room_id
+        _store_chat_sessions.pop(tg_id, None)
+        _private_chats.pop(tg_id, None)
+        room_res  = supabase.table("rooms_v1").select("name").eq("id", room_id).execute()
+        room_name = room_res.data[0]["name"] if room_res.data else "?"
+        await update.message.reply_text(
+            T(lang, "chat_room_joined", room_name),
+            reply_markup=_exit_btn(lang)
+        )
+
+    elif data.startswith("store_chat_sel:"):
+        try:
+            store_id = int(data.split(":")[1])
+        except (IndexError, ValueError):
+            return
+        _store_chat_sessions[tg_id] = store_id
+        _room_chat_sessions.pop(tg_id, None)
+        _private_chats.pop(tg_id, None)
+        store_res  = supabase.table("stores_v1").select("name").eq("id", store_id).execute()
+        store_name = store_res.data[0]["name"] if store_res.data else "?"
+        await update.message.reply_text(
+            T(lang, "chat_store_joined", store_name),
+            reply_markup=_exit_btn(lang)
+        )
+
+
 async def show_public_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang  = get_lang(update, context)
     tg_id = update.effective_user.id

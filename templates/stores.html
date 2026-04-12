@@ -313,7 +313,7 @@
       nat_electronics:'📱 إلكترونيات', nat_beauty:'💄 جمال', nat_services:'🔧 خدمات', nat_other:'📦 أخرى',
       loading:'جارٍ التحميل…', no_res:'لا توجد متاجر', err:'❌ خطأ في التحميل',
       km:'كم', followers:'متابع',
-      btn_map:'🗺️ خريطة', btn_follow:'🔔 متابعة', btn_following:'✅ تتابع',
+      btn_map:'🗺️ خريطة', btn_follow:'🔔 متابعة', btn_following:'✅ تتابع', btn_chat:'💬 دردشة',
       btn_delete:'🗑️ حذف', btn_add_img:'📷 إضافة', btn_change_img:'📷 تغيير', btn_del_img:'🗑️ صورة',
       btn_rate_followers:'👥 تقييم المتابعين',
       stats:n => `عدد المتاجر: ${n}`,
@@ -349,7 +349,7 @@
       nat_electronics:'📱 Electronics', nat_beauty:'💄 Beauty', nat_services:'🔧 Services', nat_other:'📦 Other',
       loading:'Loading…', no_res:'No stores found', err:'❌ Error loading stores',
       km:'km', followers:'followers',
-      btn_map:'🗺️ Map', btn_follow:'🔔 Follow', btn_following:'✅ Following',
+      btn_map:'🗺️ Map', btn_follow:'🔔 Follow', btn_following:'✅ Following', btn_chat:'💬 Chat',
       btn_delete:'🗑️ Delete', btn_add_img:'📷 Add', btn_change_img:'📷 Change', btn_del_img:'🗑️ Photo',
       btn_rate_followers:'👥 Rate Followers',
       stats:n => `${n} store${n===1?'':'s'} found`,
@@ -754,6 +754,16 @@
 
       if (s.is_member) {
         const bf = document.createElement('button'); bf.className = 'act-btn following'; bf.textContent = T.btn_following; bf.disabled = true; actions.appendChild(bf);
+        // Chat button — opens group chat for this store
+        const bc = document.createElement('button');
+        bc.style.cssText = 'flex:0 0 auto;padding:9px 14px;border-radius:11px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#0088cc,#006aad);color:#fff;display:flex;align-items:center;gap:5px;transition:opacity .1s';
+        bc.textContent = T.btn_chat;
+        bc.addEventListener('click', () => {
+          if (window.Telegram?.WebApp?.sendData) {
+            window.Telegram.WebApp.sendData('store_chat_sel:' + s.id);
+          }
+        });
+        actions.appendChild(bc);
       } else {
         const bf = document.createElement('button'); bf.className = 'act-btn follow'; bf.textContent = T.btn_follow;
         bf.addEventListener('click', () => followStore(s.id, bf)); actions.appendChild(bf);
