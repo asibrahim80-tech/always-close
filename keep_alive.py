@@ -1154,6 +1154,36 @@ def api_room_rate():
         return jsonify({"ok": False, "error": str(e)})
 
 
+@app.route('/api/room/<int:room_id>/members')
+@limiter.limit('30 per minute')
+def api_room_members_peek(room_id):
+    try:
+        from database import supabase
+        members_res = supabase.table("room_members_v1") \
+            .select("user_id") \
+            .eq("room_id", room_id) \
+            .execute()
+        result = []
+        for m in (members_res.data or []):
+            uid = m["user_id"]
+            u = supabase.table("users_v1") \
+                .select("id, username, age, gender, photo_url, telegram_id") \
+                .eq("id", uid).execute()
+            if u.data:
+                row = u.data[0]
+                result.append({
+                    "id":        row.get("id"),
+                    "telegram_id": row.get("telegram_id"),
+                    "username":  row.get("username") or "User",
+                    "age":       row.get("age"),
+                    "gender":    row.get("gender"),
+                    "photo_url": row.get("photo_url") or "",
+                })
+        return jsonify({"ok": True, "members": result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 @app.route('/api/user/rate', methods=['POST'])
 @limiter.limit('20 per minute')
 def api_user_rate():
