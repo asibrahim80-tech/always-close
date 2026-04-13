@@ -1093,5 +1093,18 @@
     } catch { _emSave.textContent=T.edit_err||'❌'; setTimeout(()=>{ _emSave.disabled=false; _emSave.textContent=T.edit_save||'💾 Save'; },1500); }
   });
 </script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js')
+    .catch(e => console.warn('SW:', e));
+  // Save lang to sessionStorage so offline page can read it
+  try {
+    const p = new URLSearchParams(location.search);
+    const l = p.get('lang');
+    if (l) sessionStorage.setItem('ac_lang', l);
+  } catch(e){}
+}
+</script>
 </body>
 </html>

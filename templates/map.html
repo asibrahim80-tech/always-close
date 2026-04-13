@@ -1471,5 +1471,18 @@
   setInterval(loadRooms, 5000);
   setInterval(loadStores, 5000);
 </script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js')
+    .catch(e => console.warn('SW:', e));
+  // Save lang to sessionStorage so offline page can read it
+  try {
+    const p = new URLSearchParams(location.search);
+    const l = p.get('lang');
+    if (l) sessionStorage.setItem('ac_lang', l);
+  } catch(e){}
+}
+</script>
 </body>
 </html>
