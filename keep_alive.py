@@ -2418,17 +2418,33 @@ def api_group_chat_send():
 
 @app.route('/health')
 def health():
+    _raw = os.environ.get("REPLIT_DOMAINS", "")
+    used = (
+        os.environ.get("APP_DOMAIN", "").strip()
+        or (_raw.split(",")[0].strip() if _raw else "")
+        or os.environ.get("REPLIT_DEV_DOMAIN", "")
+    )
     return jsonify({
         "status": "ok",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "domain": used,
+        "REPLIT_DOMAINS": _raw,
+        "APP_DOMAIN": os.environ.get("APP_DOMAIN", ""),
+        "REPLIT_DEV_DOMAIN": os.environ.get("REPLIT_DEV_DOMAIN", ""),
+        "REPLIT_DEPLOYMENT": os.environ.get("REPLIT_DEPLOYMENT", ""),
     })
 
 
 def _self_ping_loop():
     """Ping our own /health every 4 minutes to prevent Replit from sleeping."""
-    domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
+    _raw = os.environ.get("REPLIT_DOMAINS", "")
+    domain = (
+        os.environ.get("APP_DOMAIN", "").strip()
+        or (_raw.split(",")[0].strip() if _raw else "")
+        or os.environ.get("REPLIT_DEV_DOMAIN", "")
+    )
     if not domain:
-        _ka_logger.warning("REPLIT_DEV_DOMAIN not set — self-ping disabled.")
+        _ka_logger.warning("No domain env var set — self-ping disabled.")
         return
     url = f"https://{domain}/health"
     _ka_logger.info(f"Self-ping started → {url}")

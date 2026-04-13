@@ -17,10 +17,14 @@ from lang import T, detect_lang, ALL_BTN
 
 logger = logging.getLogger(__name__)
 
-# Use REPLIT_DOMAINS (works in both dev and deployed production).
-# In production it contains the .replit.app domain; in dev it's the workspace URL.
+# Priority: APP_DOMAIN (manual override) → REPLIT_DOMAINS (runtime) → REPLIT_DEV_DOMAIN (dev)
 _raw_domains = os.environ.get("REPLIT_DOMAINS", "")
-DOMAIN = _raw_domains.split(",")[0].strip() if _raw_domains else os.environ.get("REPLIT_DEV_DOMAIN", "")
+DOMAIN = (
+    os.environ.get("APP_DOMAIN", "").strip()
+    or (_raw_domains.split(",")[0].strip() if _raw_domains else "")
+    or os.environ.get("REPLIT_DEV_DOMAIN", "")
+)
+logger.info(f"🌐 WebApp DOMAIN = {DOMAIN!r}  (APP_DOMAIN={os.environ.get('APP_DOMAIN')!r}, REPLIT_DOMAINS={_raw_domains!r})")
 
 
 # =========================================================
