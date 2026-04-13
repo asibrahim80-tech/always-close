@@ -168,6 +168,29 @@
       border:6px solid transparent;border-top:7px solid #e67e22;
     }
 
+    /* ── Location permission prompt ── */
+    #loc-prompt{
+      position:fixed;inset:0;z-index:4000;
+      display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.6);backdrop-filter:blur(6px);
+    }
+    #loc-prompt-card{
+      background:#1a1a2e;border:1px solid rgba(255,255,255,.15);
+      border-radius:24px;padding:32px 24px 28px;max-width:300px;width:90%;
+      text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);
+      animation:slideUp .3s ease;
+    }
+    #loc-prompt-icon{font-size:48px;margin-bottom:12px;animation:pulse 2s infinite}
+    #loc-prompt-title{font-size:18px;font-weight:700;color:#fff;margin-bottom:8px}
+    #loc-prompt-desc{font-size:13px;color:rgba(255,255,255,.65);line-height:1.6;margin-bottom:24px}
+    #loc-prompt-btn{
+      width:100%;padding:14px;border:none;border-radius:14px;cursor:pointer;
+      background:linear-gradient(135deg,#6c63ff,#9c59d1);
+      color:#fff;font-size:15px;font-weight:600;
+      box-shadow:0 4px 20px rgba(108,99,255,.4);
+    }
+    #loc-prompt-btn:active{transform:scale(.97)}
+
     /* ── Entity edit overlay ── */
     #entity-edit-overlay{
       position:fixed;inset:0;z-index:3100;display:none;
@@ -369,6 +392,16 @@
 <div id="gps-badge">
   <span id="gps-dot"></span>
   <span id="gps-lbl">GPS…</span>
+</div>
+
+<!-- ── Location permission prompt ── -->
+<div id="loc-prompt">
+  <div id="loc-prompt-card">
+    <div id="loc-prompt-icon">📍</div>
+    <div id="loc-prompt-title"></div>
+    <div id="loc-prompt-desc"></div>
+    <button id="loc-prompt-btn" onclick="window._mapRequestLoc()"></button>
+  </div>
 </div>
 
 <!-- ── Proximity bubble notifications ── -->
@@ -923,7 +956,7 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════
-  // LIVE GPS TRACKING — watchPosition
+  // LIVE GPS TRACKING — smart permission + watchPosition
   // ══════════════════════════════════════════════════════════════════════
   const gpsDot = document.getElementById('gps-dot');
   const gpsLbl = document.getElementById('gps-lbl');
@@ -931,8 +964,10 @@
   let lastSentLat   = null;
   let lastSentLng   = null;
   let lastSentTime  = 0;
-  const MIN_DIST_M  = 5;    // only send if moved ≥ 5 metres
-  const MIN_SEND_MS = 4000; // at most once every 4 seconds
+  let watchId       = null;
+  const MIN_DIST_M  = 5;
+  const MIN_SEND_MS = 4000;
+  const GPS_CACHE   = 'ac_last_gps_' + (uid || 'x');
 
   function metresToDeg(m) { return m / 111320; }
 
@@ -944,24 +979,41 @@
   }
 
   function setGpsUi(state, text) {
-    gpsDot.className = state;   // good | fair | bad | ''
+    gpsDot.className   = state;
     gpsLbl.textContent = text;
+  }
+
+  // ── Cache last position so map shows it immediately next open ─────────
+  function cacheGps(lat, lng) {
+    try { localStorage.setItem(GPS_CACHE, JSON.stringify({lat, lng, t: Date.now()})); }
+    catch(e) {}
+  }
+  function loadCachedGps() {
+    try {
+      const c = JSON.parse(localStorage.getItem(GPS_CACHE) || 'null');
+      // Use cached position only if < 10 minutes old
+      if (c && (Date.now() - c.t) < 600000) return c;
+    } catch(e) {}
+    return null;
   }
 
   function onGpsPosition(pos) {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
-    const acc = pos.coords.accuracy; // metres
+    const acc = pos.coords.accuracy;
 
-    // ── Update GPS accuracy badge ──
+    // Update GPS badge
     if      (acc <= 20)  setGpsUi('good', `±${Math.round(acc)}m`);
     else if (acc <= 100) setGpsUi('fair', `±${Math.round(acc)}m`);
     else                 setGpsUi('bad',  `±${Math.round(acc)}m`);
 
-    // ── Update gpsLatLng so recenter works ──
+    // Cache for next session
+    cacheGps(lat, lng);
+
+    // Update live position
     gpsLatLng = [lat, lng];
 
-    // ── If not joystick-roaming, always follow live GPS ──
+    // Follow GPS if not joystick-roaming
     if (!joystickRoaming && meMarker) {
       myLatLng = [lat, lng];
       meMarker.setLatLng(myLatLng);
@@ -969,18 +1021,15 @@
       refreshMeMarker();
     }
 
-    // ── Run proximity checks on GPS move ──
     runProximityChecks();
 
-    // ── Throttle server updates ──
+    // Throttle server updates
     const now = Date.now();
     if (now - lastSentTime < MIN_SEND_MS) return;
     if (!movedEnough(lat, lng)) return;
-
     lastSentLat  = lat;
     lastSentLng  = lng;
     lastSentTime = now;
-
     fetch('/api/update_location', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -990,21 +1039,83 @@
 
   function onGpsError(err) {
     setGpsUi('bad', lang === 'ar' ? 'GPS ✗' : 'GPS off');
+    // Show prompt button so user can retry
+    showLocPrompt();
   }
 
-  if (uid && navigator.geolocation) {
-    navigator.geolocation.watchPosition(
+  // ── Start watchPosition (called after permission confirmed) ───────────
+  function beginWatch() {
+    hideLocPrompt();
+    if (watchId !== null) return; // already watching
+    watchId = navigator.geolocation.watchPosition(
       onGpsPosition,
       onGpsError,
-      {
-        enableHighAccuracy: true,
-        timeout:            10000,
-        maximumAge:         0,      // always fresh position
-      }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
-  } else {
-    document.getElementById('gps-badge').style.display = 'none';
   }
+
+  // ── In-app location prompt overlay ───────────────────────────────────
+  function showLocPrompt() {
+    const p = document.getElementById('loc-prompt');
+    if (p) p.style.display = 'flex';
+  }
+  function hideLocPrompt() {
+    const p = document.getElementById('loc-prompt');
+    if (p) p.style.display = 'none';
+  }
+  window._mapRequestLoc = function() {
+    hideLocPrompt();
+    // This call triggers the browser permission dialog (once)
+    navigator.geolocation.getCurrentPosition(
+      pos => { onGpsPosition(pos); beginWatch(); },
+      err => {
+        setGpsUi('bad', lang === 'ar' ? 'مرفوض' : 'Denied');
+        showLocPrompt();
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  // ── Smart GPS initializer: check permission first ─────────────────────
+  function initGps() {
+    if (!uid || !navigator.geolocation) {
+      document.getElementById('gps-badge').style.display = 'none';
+      return;
+    }
+
+    // Immediately show cached position (if any) while waiting for GPS
+    const cached = loadCachedGps();
+    if (cached && !gpsLatLng) {
+      gpsLatLng = [cached.lat, cached.lng];
+    }
+
+    // Use Permissions API to check without triggering dialog
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' })
+        .then(perm => {
+          if (perm.state === 'granted') {
+            // Already allowed — start silently, no dialog
+            beginWatch();
+          } else if (perm.state === 'denied') {
+            setGpsUi('bad', lang === 'ar' ? 'الموقع مرفوض' : 'Location denied');
+          } else {
+            // 'prompt' — first time, show our in-app explanation first
+            showLocPrompt();
+          }
+          // React to permission changes (e.g. user enables from browser settings)
+          perm.onchange = () => {
+            if (perm.state === 'granted') { hideLocPrompt(); beginWatch(); }
+          };
+        })
+        .catch(() => beginWatch()); // Permissions API not available
+    } else {
+      // Fallback: just start (will trigger dialog if needed)
+      beginWatch();
+    }
+  }
+
+  // Boot GPS
+  initGps();
 
   // ══════════════════════════════════════════════════════════════════════
   // ENTITY EDIT SYSTEM (name / purpose / nature)
@@ -1462,6 +1573,17 @@
       });
     }
   }
+
+  // ── Location prompt labels ────────────────────────────────────────────
+  document.getElementById('loc-prompt-title').textContent = lang === 'ar'
+    ? '📍 تفعيل خدمة الموقع'
+    : '📍 Enable Location';
+  document.getElementById('loc-prompt-desc').textContent = lang === 'ar'
+    ? 'يحتاج Always Close إلى موقعك لعرضك على الخريطة وإيجاد المستخدمين القريبين منك. يُحفظ الإذن مرة واحدة فقط.'
+    : 'Always Close needs your location to show you on the map and find nearby users. Permission is saved once.';
+  document.getElementById('loc-prompt-btn').textContent = lang === 'ar'
+    ? '✅ السماح بالموقع'
+    : '✅ Allow Location';
 
   // ── Boot ──────────────────────────────────────────────────────────────
   loadData(true);
