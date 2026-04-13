@@ -99,12 +99,14 @@ def main():
     # Always start Flask (web server) so the port is served
     keep_alive()
 
-    # In the deployed (production) environment REPLIT_DEPLOYMENT is set.
-    # In the dev workspace it is NOT set, so we skip bot polling to avoid
-    # conflicting with the production instance.
-    is_production = os.environ.get("REPLIT_DEPLOYMENT") == "1"
+    # Determine if this is production.
+    # APP_DOMAIN is set only in the production environment (via Replit secrets/env).
+    # REPLIT_DEPLOYMENT can be "1" or truthy in production too — we check both.
+    _app_domain = os.environ.get("APP_DOMAIN", "").strip()
+    _replit_deploy = os.environ.get("REPLIT_DEPLOYMENT", "").strip()
+    is_production = bool(_app_domain) or bool(_replit_deploy)
     if not is_production:
-        logger.info("Development environment detected — Flask only. Bot polling runs in production.")
+        logger.info("Development environment — Flask only. Bot polling runs only in production.")
         while True:
             time.sleep(60)
 
