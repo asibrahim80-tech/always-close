@@ -2,7 +2,9 @@
 name = "python-template"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = [
+    {name = "Always Close", email = "dev@alwaysclose.app"}
+]
 requires-python = ">=3.11"
 dependencies = [
     "email-validator>=2.3.0",
