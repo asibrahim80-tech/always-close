@@ -87,6 +87,11 @@ def _release_lock():
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    from telegram.error import Conflict
+    if isinstance(context.error, Conflict):
+        logger.warning("Bot Conflict detected — another instance is running. Stopping polling here.")
+        # Signal the polling loop to stop by raising the error
+        raise context.error
     logger.error("Exception while handling an update:", exc_info=context.error)
 
 
@@ -94,11 +99,19 @@ def main():
     # Always start Flask (web server) so the port is served
     keep_alive()
 
+    # In the deployed (production) environment REPLIT_DEPLOYMENT is set.
+    # In the dev workspace it is NOT set, so we skip bot polling to avoid
+    # conflicting with the production instance.
+    is_production = os.environ.get("REPLIT_DEPLOYMENT") == "1"
+    if not is_production:
+        logger.info("Development environment detected — Flask only. Bot polling runs in production.")
+        while True:
+            time.sleep(60)
+
     # Only ONE instance should run the Telegram bot polling
     if not _acquire_lock():
         logger.info("Flask web server started. Bot polling is handled by the primary instance.")
         # Block forever so the process stays alive for the webview port
-        import time
         while True:
             time.sleep(60)
 
@@ -191,6 +204,7 @@ def main():
     logger.info("🚀 Always Close Bot Started...")
 
     # ── Polling with auto-reconnect ──────────────────────────────────────
+    from telegram.error import Conflict
     retry_delay = 5   # seconds between reconnect attempts
     while True:
         try:
@@ -200,6 +214,13 @@ def main():
                 poll_interval=1.0,
                 timeout=20,
             )
+        except Conflict:
+            # Another instance (e.g. deployed production server) owns polling.
+            # Release lock and serve only Flask.
+            logger.warning("Conflict detected — yielding bot polling to the other instance. Flask only.")
+            _release_lock()
+            while True:
+                time.sleep(60)
         except Exception as exc:
             logger.error(f"Bot polling crashed: {exc}. Reconnecting in {retry_delay}s…")
             time.sleep(retry_delay)
