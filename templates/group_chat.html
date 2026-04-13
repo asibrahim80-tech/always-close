@@ -132,6 +132,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 <!-- HEADER -->
 <div id="hdr">
+  <button id="back-btn" onclick="goBack()" style="background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px 6px;border-radius:10px;display:flex;align-items:center;flex-shrink:0;opacity:.85">&#8592;</button>
   <div id="hdr-icon">💬</div>
   <div id="hdr-info">
     <div id="hdr-name">جارٍ التحميل…</div>
@@ -239,7 +240,8 @@ const T = {
     img_lbl:'صورة', file_lbl:'ملف', placeholder:'اكتب رسالة…',
     new_msgs:'⬇ رسائل جديدة', today:'اليوم', yesterday:'أمس',
     no_mic:'لا يمكن الوصول للميكروفون',
-    room_icon:'🏠', store_icon:'🏪',
+    room_icon:'🚪', store_icon:'🏪',
+    back:'‹ الغرف', back_store:'‹ المتاجر',
   },
   en: {
     loading:'Loading…', empty:'No messages yet\nBe the first to start the chat!',
@@ -247,10 +249,11 @@ const T = {
     nm_title:'Access Denied', nm_txt:'You must be a member of this room to chat.',
     nm_txt_store:'You must follow this store to chat.',
     priv_chat:'💬 Private Chat', close:'Close',
+    back:'‹ Rooms', back_store:'‹ Stores',
     img_lbl:'Image', file_lbl:'File', placeholder:'Type a message…',
     new_msgs:'⬇ New messages', today:'Today', yesterday:'Yesterday',
     no_mic:'Cannot access microphone',
-    room_icon:'🏠', store_icon:'🏪',
+    room_icon:'🚪', store_icon:'🏪',
   }
 }[lang] || {loading:'…',members:'',followers:'',live:'',nm_title:'',nm_txt:'',nm_txt_store:'',priv_chat:'',close:'',img_lbl:'',file_lbl:'',placeholder:'',new_msgs:'',today:'',yesterday:'',room_icon:'🏠',store_icon:'🏪'};
 
@@ -265,6 +268,19 @@ document.getElementById('lbl-close').textContent    = T.close;
 document.getElementById('msg-input').placeholder    = T.placeholder;
 document.getElementById('scroll-btn').textContent   = T.new_msgs;
 document.getElementById('hdr-icon').textContent     = gtype === 'store' ? T.store_icon : T.room_icon;
+// Back button label
+const backBtn = document.getElementById('back-btn');
+backBtn.title = gtype === 'store' ? (T.back_store||'‹') : (T.back||'‹');
+// Flip arrow for LTR
+if (!isRTL) backBtn.textContent = '→';
+
+// ── goBack: rooms list → bot menu (not straight to bot) ──────────────
+function goBack() {
+  const listPage = gtype === 'store'
+    ? `/stores?uid=${uid}&lang=${lang}`
+    : `/rooms?uid=${uid}&lang=${lang}`;
+  window.location.href = listPage;
+}
 
 // ══════════════════════════════════════
 // STATE

@@ -214,7 +214,10 @@
 <body>
 
 <div id="header">
-  <h1>🏪 <span id="title-text">Stores List</span></h1>
+  <h1>
+    <button onclick="if(window.Telegram?.WebApp?.close)Telegram.WebApp.close();else window.history.back();" style="background:none;border:none;font-size:20px;cursor:pointer;padding:2px 6px;border-radius:8px;color:#e67e22;display:flex;align-items:center;flex-shrink:0" title="رجوع / Back">✕</button>
+    🏪 <span id="title-text">Stores List</span>
+  </h1>
   <div id="sort-row">
     <button class="sort-chip active" data-sort="distance" id="chip-dist">📍 Closest</button>
     <button class="sort-chip"        data-sort="followers" id="chip-fol">👥 Popular</button>
