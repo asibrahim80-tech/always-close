@@ -136,36 +136,56 @@
       will-change:transform;
     }
 
-    /* ── Room pin ── */
-    .room-pin{
-      background:linear-gradient(135deg,#7c3aed,#5b21b6);
+    /* ── Room pin (emoji pin style) ── */
+    .room-pin-wrap{display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none}
+    .room-pin-icon{
+      width:52px;height:52px;
+      background:linear-gradient(145deg,#7c3aed,#5b21b6);
       border:3px solid #fff;
-      border-radius:16px;padding:8px 16px;
-      color:#fff;font-size:15px;font-weight:800;
-      white-space:nowrap;
-      box-shadow:0 4px 18px rgba(124,58,237,.6),0 2px 5px rgba(0,0,0,.3);
-      cursor:pointer;user-select:none;
-      display:flex;align-items:center;gap:6px;
-      letter-spacing:.2px;
+      border-radius:16px;
+      box-shadow:0 5px 16px rgba(124,58,237,.55),0 2px 5px rgba(0,0,0,.25);
+      display:flex;align-items:center;justify-content:center;
+      font-size:28px;line-height:1;position:relative;
     }
-    .room-pin::after{
-      content:'';position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);
-      border:6px solid transparent;border-top:7px solid #7c3aed;
+    .room-pin-icon::after{
+      content:'';position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);
+      border:8px solid transparent;border-top:10px solid #5b21b6;
     }
-    .store-pin{
-      background:linear-gradient(135deg,#e67e22,#c0392b);
+    .room-pin-label{
+      margin-top:12px;
+      background:rgba(255,255,255,.93);
+      color:#4c1d95;
+      font-size:11px;font-weight:700;
+      border-radius:8px;padding:2px 8px;
+      white-space:nowrap;max-width:110px;
+      overflow:hidden;text-overflow:ellipsis;
+      box-shadow:0 1px 5px rgba(0,0,0,.18);
+    }
+
+    /* ── Store pin (emoji pin style) ── */
+    .store-pin-wrap{display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none}
+    .store-pin-icon{
+      width:52px;height:52px;
+      background:linear-gradient(145deg,#e67e22,#c0392b);
       border:3px solid #fff;
-      border-radius:16px;padding:8px 16px;
-      color:#fff;font-size:15px;font-weight:800;
-      white-space:nowrap;
-      box-shadow:0 4px 18px rgba(230,126,34,.6),0 2px 5px rgba(0,0,0,.3);
-      cursor:pointer;user-select:none;
-      display:flex;align-items:center;gap:6px;
-      position:relative;letter-spacing:.2px;
+      border-radius:16px;
+      box-shadow:0 5px 16px rgba(230,126,34,.55),0 2px 5px rgba(0,0,0,.25);
+      display:flex;align-items:center;justify-content:center;
+      font-size:28px;line-height:1;position:relative;
     }
-    .store-pin::after{
-      content:'';position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);
-      border:6px solid transparent;border-top:7px solid #e67e22;
+    .store-pin-icon::after{
+      content:'';position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);
+      border:8px solid transparent;border-top:10px solid #c0392b;
+    }
+    .store-pin-label{
+      margin-top:12px;
+      background:rgba(255,255,255,.93);
+      color:#922b21;
+      font-size:11px;font-weight:700;
+      border-radius:8px;padding:2px 8px;
+      white-space:nowrap;max-width:110px;
+      overflow:hidden;text-overflow:ellipsis;
+      box-shadow:0 1px 5px rgba(0,0,0,.18);
     }
 
     /* ── Location permission prompt ── */
@@ -831,15 +851,14 @@
   // ── Room markers ──────────────────────────────────────────────────────
   const roomMarkers = {};
 
-  const DOOR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="2" width="18" height="20" rx="2"/><path d="M9 12h.01"/><line x1="9" y1="2" x2="9" y2="22"/></svg>`;
-
   function makeRoomIcon(name, icon) {
-    const el = document.createElement('div');
-    el.className = 'room-pin';
-    el.style.position = 'relative';
-    const iconHtml = (icon && icon !== '🏠') ? `<span style="font-size:16px">${icon}</span>` : DOOR_SVG;
-    el.innerHTML = `${iconHtml} <span>${name}</span>`;
-    return L.divIcon({ html: el.outerHTML, className: '', iconAnchor: [0, 32] });
+    const emoji = (icon && icon !== '🏠') ? icon : '🚪';
+    const label = name.length > 14 ? name.slice(0,13) + '…' : name;
+    const html = `<div class="room-pin-wrap">
+      <div class="room-pin-icon">${emoji}</div>
+      <div class="room-pin-label">${label}</div>
+    </div>`;
+    return L.divIcon({ html, className: '', iconAnchor: [26, 74] });
   }
 
   function loadRooms() {
@@ -886,7 +905,7 @@
               <div style="font-size:11px;opacity:.6;margin-bottom:8px">👥 ${members} &nbsp;${dist ? '📍 ' + dist : ''}</div>
               <div style="display:flex;gap:6px">
                 <button onclick="openMapCatalog('room',${r.id},'${r.name.replace(/'/g,"\\'")}',${JSON.stringify(lang==='ar'?{service:'🛎️ خدمات',event:'🎉 فعاليات',meeting:'📅 اجتماعات',offer:'🎁 عروض',info:'ℹ️ معلومات',contact:'📞 تواصل',hours:'🕐 مواعيد'}:{service:'🛎️ Services',event:'🎉 Events',meeting:'📅 Meetings',offer:'🎁 Offers',info:'ℹ️ Info',contact:'📞 Contact',hours:'🕐 Hours'})});" style="flex:1;padding:8px 4px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">📋 ${lang==='ar'?'الكتالوج':'Catalog'}</button>
-                ${r.is_creator ? `<button onclick="openIconPicker('room',${r.id},'${(r.icon||'🏠')}')" style="padding:8px 9px;background:#f3f0ff;border:1.5px solid #c4b5fd;border-radius:10px;font-size:15px;cursor:pointer" title="${lang==='ar'?'تغيير الأيقونة':'Change Icon'}">🎨</button>` : ''}
+                ${r.is_creator ? `<button onclick="openIconPicker('room',${r.id},'${(r.icon&&r.icon!=='🏠'?r.icon:'🚪')}')" style="padding:8px 9px;background:#f3f0ff;border:1.5px solid #c4b5fd;border-radius:10px;font-size:15px;cursor:pointer" title="${lang==='ar'?'تغيير الأيقونة':'Change Icon'}">🎨</button>` : ''}
                 ${r.is_creator ? `<button onclick="openEntityEdit('room',${r.id},'${r.name.replace(/'/g,"\\'")}','${(r.purpose||'').replace(/'/g,"\\'")}','${(r.nature||'').replace(/'/g,"\\'")}');" style="padding:8px 9px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;font-size:15px;cursor:pointer" title="${lang==='ar'?'تعديل':'Edit'}">✏️</button>` : ''}
               </div>
             </div>
@@ -901,10 +920,13 @@
   const storeMarkers = {};
 
   function makeStoreIcon(name, icon) {
-    const el = document.createElement('div');
-    el.className = 'store-pin';
-    el.innerHTML = `${icon||'🏪'} ${name}`;
-    return L.divIcon({ html: el.outerHTML, className: '', iconAnchor: [0, 32] });
+    const emoji = (icon && icon !== '🏪') ? icon : '🏪';
+    const label = name.length > 14 ? name.slice(0,13) + '…' : name;
+    const html = `<div class="store-pin-wrap">
+      <div class="store-pin-icon">${emoji}</div>
+      <div class="store-pin-label">${label}</div>
+    </div>`;
+    return L.divIcon({ html, className: '', iconAnchor: [26, 74] });
   }
 
   function loadStores() {
