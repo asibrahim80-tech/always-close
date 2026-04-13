@@ -1539,6 +1539,36 @@ def api_store_rate():
         return jsonify({"ok": False, "error": str(e)})
 
 
+@app.route('/api/store/<int:store_id>/members')
+@limiter.limit('30 per minute')
+def api_store_members_peek(store_id):
+    try:
+        from database import supabase
+        members_res = supabase.table("store_members_v1") \
+            .select("user_id") \
+            .eq("store_id", store_id) \
+            .execute()
+        result = []
+        for m in (members_res.data or []):
+            uid = m["user_id"]
+            u = supabase.table("users_v1") \
+                .select("id, username, age, gender, photo_url, telegram_id") \
+                .eq("id", uid).execute()
+            if u.data:
+                row = u.data[0]
+                result.append({
+                    "id":          row.get("id"),
+                    "telegram_id": row.get("telegram_id"),
+                    "username":    row.get("username") or "User",
+                    "age":         row.get("age"),
+                    "gender":      row.get("gender"),
+                    "photo_url":   row.get("photo_url") or "",
+                })
+        return jsonify({"ok": True, "members": result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 @app.route('/api/store/<int:store_id>/members/<int:telegram_id>')
 def api_store_members(store_id, telegram_id):
     try:
