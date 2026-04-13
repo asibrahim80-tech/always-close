@@ -1,4 +1,5 @@
 from flask import Flask, render_template, jsonify, request
+from flask_limiter import Limiter
 from threading import Thread
 from math import radians, sin, cos, sqrt, atan2
 from datetime import datetime, timezone
@@ -7,9 +8,24 @@ import os
 import time
 import logging
 
+from security import sanitize_text, sanitize_int, get_remote_addr
+
 _ka_logger = logging.getLogger("keep_alive")
 
 app = Flask(__name__)
+
+# ── Rate Limiting ─────────────────────────────────────────────────────────────
+limiter = Limiter(
+    key_func=get_remote_addr,
+    app=app,
+    default_limits=["200 per minute"],          # global: max 200 req/min per IP
+    storage_uri="memory://",
+)
+
+@app.errorhandler(429)
+def rate_limit_handler(e):
+    return jsonify({"ok": False, "error": "too_many_requests",
+                    "message": "طلبات كثيرة جداً، انتظر لحظة / Too many requests"}), 429
 
 # Simple in-memory photo URL cache  {file_id: photo_url}
 _photo_cache = {}
@@ -156,6 +172,7 @@ def api_profile_get(telegram_id):
 
 # ── Profile: toggle account visibility ────────────────────────────────────
 @app.route('/api/profile/toggle_visibility', methods=['POST'])
+@limiter.limit("10 per minute")
 def api_toggle_visibility():
     try:
         from database import supabase
@@ -173,6 +190,7 @@ def api_toggle_visibility():
 
 # ── Profile: toggle phone visibility ──────────────────────────────────────
 @app.route('/api/profile/toggle_phone', methods=['POST'])
+@limiter.limit("10 per minute")
 def api_toggle_phone():
     try:
         from database import supabase
@@ -190,6 +208,7 @@ def api_toggle_phone():
 
 # ── Profile: save ─────────────────────────────────────────────────────────
 @app.route('/api/profile/save', methods=['POST'])
+@limiter.limit("20 per minute")
 def api_profile_save():
     import logging as _log
     try:
@@ -345,6 +364,7 @@ def api_profile_save():
 
 # ── Profile: add extra photo ──────────────────────────────────────────────
 @app.route('/api/profile/photo/add', methods=['POST'])
+@limiter.limit('10 per minute')
 def api_profile_photo_add():
     try:
         from database import supabase
@@ -385,6 +405,7 @@ def api_profile_photo_add():
 
 # ── Profile: delete extra photo ───────────────────────────────────────────
 @app.route('/api/profile/photo/delete', methods=['POST'])
+@limiter.limit('20 per minute')
 def api_profile_photo_delete():
     try:
         from database import supabase
@@ -533,6 +554,7 @@ def api_notifications(telegram_id):
 # SEND LIKE FROM WEBAPP
 # ══════════════════════════════════════════════════════════════════
 @app.route('/api/send_like', methods=['POST'])
+@limiter.limit("30 per minute")
 def api_send_like():
     try:
         from database import supabase
@@ -1094,6 +1116,7 @@ def api_room_image_delete():
 
 
 @app.route('/api/room/rate', methods=['POST'])
+@limiter.limit('20 per minute')
 def api_room_rate():
     try:
         from database import supabase
@@ -1132,6 +1155,7 @@ def api_room_rate():
 
 
 @app.route('/api/user/rate', methods=['POST'])
+@limiter.limit('20 per minute')
 def api_user_rate():
     try:
         from database import supabase
@@ -1450,6 +1474,7 @@ def api_store_image_delete():
 
 
 @app.route('/api/store/rate', methods=['POST'])
+@limiter.limit('20 per minute')
 def api_store_rate():
     try:
         from database import supabase
@@ -1905,6 +1930,7 @@ def api_store_chat_join():
 
 # ── Public chat: send message ──────────────────────────────────────────────
 @app.route('/api/chat/public/send', methods=['POST'])
+@limiter.limit('30 per minute')
 def api_public_send():
     try:
         from database import supabase
@@ -2068,6 +2094,7 @@ def api_public_messages():
 
 # ── Private chat: send message ─────────────────────────────────────────────
 @app.route('/api/chat/private/send', methods=['POST'])
+@limiter.limit('30 per minute')
 def api_private_send():
     try:
         from database import supabase
@@ -2339,6 +2366,7 @@ def api_group_chat_messages():
 
 
 @app.route('/api/chat/group/send', methods=['POST'])
+@limiter.limit('30 per minute')
 def api_group_chat_send():
     """Send a message to a room or store group chat."""
     try:
