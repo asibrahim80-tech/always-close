@@ -282,6 +282,9 @@
       <option value="5">≤ 5 km</option>
       <option value="10">≤ 10 km</option>
       <option value="50">≤ 50 km</option>
+      <option value="100">≤ 100 km</option>
+      <option value="200">≤ 200 km</option>
+      <option value="500">≤ 500 km</option>
     </select>
     <select id="sel-mem">
       <option value="">Any Members</option>
@@ -372,7 +375,7 @@
     ar:{
       title:'قائمة الغرف',
       sort_dist:'📍 الأقرب', sort_mem:'👥 الأكثر أعضاء', sort_rat:'⭐ الأعلى تقييماً', sort_new:'🕒 الأحدث',
-      any_dist:'أي مسافة', d05:'≤ 500 م', d1:'≤ 1 كم', d5:'≤ 5 كم', d10:'≤ 10 كم', d50:'≤ 50 كم',
+      any_dist:'أي مسافة', d05:'≤ 500 م', d1:'≤ 1 كم', d5:'≤ 5 كم', d10:'≤ 10 كم', d50:'≤ 50 كم', d100:'≤ 100 كم', d200:'≤ 200 كم', d500:'≤ 500 كم',
       any_mem:'أي عدد أعضاء', m1:'1+', m5:'5+', m10:'10+',
       loading:'جارٍ التحميل…', no_res:'لا توجد غرف', err:'❌ خطأ في التحميل',
       km:'كم', members:'عضو',
@@ -407,7 +410,7 @@
     en:{
       title:'Rooms List',
       sort_dist:'📍 Closest', sort_mem:'👥 Most Members', sort_rat:'⭐ Top Rated', sort_new:'🕒 Newest',
-      any_dist:'Any Distance', d05:'≤ 500 m', d1:'≤ 1 km', d5:'≤ 5 km', d10:'≤ 10 km', d50:'≤ 50 km',
+      any_dist:'Any Distance', d05:'≤ 500 m', d1:'≤ 1 km', d5:'≤ 5 km', d10:'≤ 10 km', d50:'≤ 50 km', d100:'≤ 100 km', d200:'≤ 200 km', d500:'≤ 500 km',
       any_mem:'Any Members', m1:'1+', m5:'5+', m10:'10+',
       loading:'Loading…', no_res:'No rooms found', err:'❌ Error loading rooms',
       km:'km', members:'members',
@@ -455,14 +458,10 @@
   selDist.options[0].text = T.any_dist; selDist.options[1].text = T.d05;
   selDist.options[2].text = T.d1;       selDist.options[3].text = T.d5;
   selDist.options[4].text = T.d10;      selDist.options[5].text = T.d50;
+  selDist.options[6].text = T.d100;     selDist.options[7].text = T.d200;
+  selDist.options[8].text = T.d500;
   selMem.options[0].text  = T.any_mem;  selMem.options[1].text  = T.m1;
   selMem.options[2].text  = T.m5;       selMem.options[3].text  = T.m10;
-
-  // Auto-apply nearby filter when opened via "Nearby Rooms" button
-  const _urlParams = new URLSearchParams(window.location.search);
-  if (_urlParams.get('nearby') === '1') {
-    document.getElementById('sel-dist').value = '5';
-  }
 
   let allRooms   = [];
   let activeSort = 'distance';
