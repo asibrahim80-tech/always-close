@@ -796,7 +796,7 @@
   function render() {
     const distLimit = selDist.value ? parseFloat(selDist.value) : null;
     let filtered = allStores.filter(s => {
-      if (distLimit !== null && s.distance != null && s.distance > distLimit) return false;
+      if (distLimit !== null && (s.distance == null || s.distance > distLimit)) return false;
       if (activeNat && !matchNat(s.nature, activeNat)) return false;
       return true;
     });

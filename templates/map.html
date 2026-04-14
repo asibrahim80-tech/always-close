@@ -136,56 +136,58 @@
       will-change:transform;
     }
 
-    /* ── Room pin (emoji pin style) ── */
+    /* ── Room pin (white circle, emoji visible) ── */
     .room-pin-wrap{display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none}
     .room-pin-icon{
-      width:52px;height:52px;
-      background:linear-gradient(145deg,#7c3aed,#5b21b6);
-      border:3px solid #fff;
-      border-radius:16px;
-      box-shadow:0 5px 16px rgba(124,58,237,.55),0 2px 5px rgba(0,0,0,.25);
+      width:54px;height:54px;
+      background:#fff;
+      border:3.5px solid #7c3aed;
+      border-radius:50%;
+      box-shadow:0 4px 14px rgba(124,58,237,.4),0 2px 6px rgba(0,0,0,.2);
       display:flex;align-items:center;justify-content:center;
-      font-size:28px;line-height:1;position:relative;
+      font-size:30px;line-height:1;position:relative;
     }
     .room-pin-icon::after{
-      content:'';position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);
-      border:8px solid transparent;border-top:10px solid #5b21b6;
+      content:'';position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);
+      border:7px solid transparent;border-top:12px solid #7c3aed;
     }
     .room-pin-label{
-      margin-top:12px;
-      background:rgba(255,255,255,.93);
+      margin-top:14px;
+      background:rgba(255,255,255,.95);
       color:#4c1d95;
       font-size:11px;font-weight:700;
-      border-radius:8px;padding:2px 8px;
+      border-radius:8px;padding:2px 9px;
       white-space:nowrap;max-width:110px;
       overflow:hidden;text-overflow:ellipsis;
-      box-shadow:0 1px 5px rgba(0,0,0,.18);
+      box-shadow:0 1px 5px rgba(0,0,0,.15);
+      border:1px solid rgba(124,58,237,.2);
     }
 
-    /* ── Store pin (emoji pin style) ── */
+    /* ── Store pin (white circle, emoji visible) ── */
     .store-pin-wrap{display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none}
     .store-pin-icon{
-      width:52px;height:52px;
-      background:linear-gradient(145deg,#e67e22,#c0392b);
-      border:3px solid #fff;
-      border-radius:16px;
-      box-shadow:0 5px 16px rgba(230,126,34,.55),0 2px 5px rgba(0,0,0,.25);
+      width:54px;height:54px;
+      background:#fff;
+      border:3.5px solid #e67e22;
+      border-radius:50%;
+      box-shadow:0 4px 14px rgba(230,126,34,.4),0 2px 6px rgba(0,0,0,.2);
       display:flex;align-items:center;justify-content:center;
-      font-size:28px;line-height:1;position:relative;
+      font-size:30px;line-height:1;position:relative;
     }
     .store-pin-icon::after{
-      content:'';position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);
-      border:8px solid transparent;border-top:10px solid #c0392b;
+      content:'';position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);
+      border:7px solid transparent;border-top:12px solid #e67e22;
     }
     .store-pin-label{
-      margin-top:12px;
-      background:rgba(255,255,255,.93);
+      margin-top:14px;
+      background:rgba(255,255,255,.95);
       color:#922b21;
       font-size:11px;font-weight:700;
-      border-radius:8px;padding:2px 8px;
+      border-radius:8px;padding:2px 9px;
       white-space:nowrap;max-width:110px;
       overflow:hidden;text-overflow:ellipsis;
-      box-shadow:0 1px 5px rgba(0,0,0,.18);
+      box-shadow:0 1px 5px rgba(0,0,0,.15);
+      border:1px solid rgba(230,126,34,.2);
     }
 
     /* ── Location permission prompt ── */
@@ -1069,8 +1071,12 @@
   }
 
   // ── Start watchPosition (called after permission confirmed) ───────────
+  const LOC_GRANTED_KEY = 'always_close_loc_granted_v1';
+
   function beginWatch() {
     hideLocPrompt();
+    // Remember that user granted permission so we skip prompt next time
+    try { localStorage.setItem(LOC_GRANTED_KEY, '1'); } catch(e){}
     if (watchId !== null) return; // already watching
     watchId = navigator.geolocation.watchPosition(
       onGpsPosition,
@@ -1095,7 +1101,8 @@
       pos => { onGpsPosition(pos); beginWatch(); },
       err => {
         setGpsUi('bad', lang === 'ar' ? 'مرفوض' : 'Denied');
-        showLocPrompt();
+        // Only show prompt again if not previously granted
+        try { if (!localStorage.getItem(LOC_GRANTED_KEY)) showLocPrompt(); } catch(e){ showLocPrompt(); }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
@@ -1112,6 +1119,14 @@
     const cached = loadCachedGps();
     if (cached && !gpsLatLng) {
       gpsLatLng = [cached.lat, cached.lng];
+    }
+
+    // ── Check localStorage first (persists across Telegram sessions) ──
+    let prevGranted = false;
+    try { prevGranted = localStorage.getItem(LOC_GRANTED_KEY) === '1'; } catch(e){}
+    if (prevGranted) {
+      beginWatch();
+      return;
     }
 
     // Use Permissions API to check without triggering dialog

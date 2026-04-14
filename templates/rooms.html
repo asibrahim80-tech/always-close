@@ -868,8 +868,8 @@
     const memMin    = selMem.value  ? parseInt(selMem.value)    : null;
 
     let filtered = allRooms.filter(r => {
-      if (distLimit !== null && r.distance != null && r.distance > distLimit) return false;
-      if (memMin    !== null && r.members < memMin)                           return false;
+      if (distLimit !== null && (r.distance == null || r.distance > distLimit)) return false;
+      if (memMin    !== null && r.members < memMin)                             return false;
       return true;
     });
 
