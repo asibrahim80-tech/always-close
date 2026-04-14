@@ -345,18 +345,9 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
                 return
             creator_id = me.data[0]["id"]
 
-            # Look up creator's last known location
-            room_lat, room_lng = None, None
-            try:
-                loc = supabase.table("user_locations_v1") \
-                    .select("latitude, longitude") \
-                    .eq("user_id", creator_id) \
-                    .limit(1).execute()
-                if loc.data:
-                    room_lat = float(loc.data[0]["latitude"])
-                    room_lng = float(loc.data[0]["longitude"])
-            except Exception:
-                pass
+            # Use location snapshotted at creation start (fixed, not re-read)
+            room_lat = context.user_data.get("room_lat")
+            room_lng = context.user_data.get("room_lng")
 
             # Build room record
             room_record = {
@@ -492,16 +483,9 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
                 return
             creator_id = me.data[0]["id"]
 
-            store_lat, store_lng = None, None
-            try:
-                loc = supabase.table("user_locations_v1") \
-                    .select("latitude, longitude") \
-                    .eq("user_id", creator_id).limit(1).execute()
-                if loc.data:
-                    store_lat = float(loc.data[0]["latitude"])
-                    store_lng = float(loc.data[0]["longitude"])
-            except Exception:
-                pass
+            # Use location snapshotted at creation start (fixed, not re-read)
+            store_lat = context.user_data.get("store_lat")
+            store_lng = context.user_data.get("store_lng")
 
             store_record = {
                 "name":       store_name,
@@ -1360,9 +1344,25 @@ async def create_store_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except Exception:
         pass
 
-    context.user_data["step"] = "create_store_name"
+    # ── Snapshot user location NOW (fixed for the store's lifetime) ──
+    snap_lat, snap_lng = None, None
+    try:
+        loc = supabase.table("user_locations_v1") \
+            .select("latitude, longitude") \
+            .eq("user_id", creator_id).limit(1).execute()
+        if loc.data:
+            snap_lat = float(loc.data[0]["latitude"])
+            snap_lng = float(loc.data[0]["longitude"])
+    except Exception:
+        pass
+
+    context.user_data["step"]       = "create_store_name"
+    context.user_data["store_lat"]  = snap_lat
+    context.user_data["store_lng"]  = snap_lng
+
+    loc_note = T(lang, "store_loc_snapshot") if snap_lat is not None else T(lang, "store_no_location")
     await update.message.reply_text(
-        T(lang, "create_store_ask_name"),
+        loc_note + T(lang, "create_store_ask_name"),
         reply_markup=ReplyKeyboardMarkup(
             [[T(lang, "btn_cancel_action")]], resize_keyboard=True
         )
@@ -1431,9 +1431,25 @@ async def create_room_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
 
-    context.user_data["step"] = "create_room_name"
+    # ── Snapshot user location NOW (fixed for the room's lifetime) ──
+    snap_lat, snap_lng = None, None
+    try:
+        loc = supabase.table("user_locations_v1") \
+            .select("latitude, longitude") \
+            .eq("user_id", creator_id).limit(1).execute()
+        if loc.data:
+            snap_lat = float(loc.data[0]["latitude"])
+            snap_lng = float(loc.data[0]["longitude"])
+    except Exception:
+        pass
+
+    context.user_data["step"]      = "create_room_name"
+    context.user_data["room_lat"]  = snap_lat
+    context.user_data["room_lng"]  = snap_lng
+
+    loc_note = T(lang, "room_loc_snapshot") if snap_lat is not None else T(lang, "room_no_location")
     await update.message.reply_text(
-        T(lang, "create_room_ask_name"),
+        loc_note + T(lang, "create_room_ask_name"),
         reply_markup=ReplyKeyboardMarkup(
             [[T(lang, "btn_cancel_action")]], resize_keyboard=True
         )
