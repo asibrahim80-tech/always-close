@@ -832,6 +832,12 @@ async def relay_any_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg   = update.message
     lang  = get_lang(update, context)
 
+    # ── Not in any chat → restore main keyboard ───────────
+    if not _in_any_chat(tg_id):
+        kb_msg = "القائمة 👇" if lang == "ar" else "Menu 👇"
+        await msg.reply_text(kb_msg, reply_markup=main_keyboard(lang, tg_id))
+        return
+
     user_obj      = update.effective_user
     display_name  = f"@{user_obj.username}" if user_obj.username else (user_obj.full_name or "?")
 
@@ -956,7 +962,8 @@ async def handle_text_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     # Catch-all: unknown message → restore main keyboard
+    kb_msg = "القائمة 👇" if lang == "ar" else "Menu 👇"
     await update.message.reply_text(
-        "👋",
+        kb_msg,
         reply_markup=main_keyboard(lang, update.effective_user.id)
     )
