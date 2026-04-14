@@ -39,8 +39,6 @@ from handlers import (
     edit_profile,
     handle_edit_choice,
     handle_text_buttons,
-    show_room_chats,
-    show_store_chats,
     show_public_chat,
     handle_web_app_data,
     exit_chat,
@@ -172,10 +170,6 @@ def main():
 
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("public_chat")), show_public_chat))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("room_chats")), show_room_chats))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("store_chats")), show_store_chats))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("exit_chat")), exit_chat))
 

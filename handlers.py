@@ -96,7 +96,6 @@ def main_keyboard(lang: str) -> ReplyKeyboardMarkup:
         [KeyboardButton(T(lang, "btn_rooms_list")),      KeyboardButton(T(lang, "btn_create_room"))],
         [KeyboardButton(T(lang, "btn_stores_list")),     KeyboardButton(T(lang, "btn_create_store"))],
         [KeyboardButton(T(lang, "btn_public_chat"))],
-        [KeyboardButton(T(lang, "btn_room_chats")),      KeyboardButton(T(lang, "btn_store_chats"))],
         [KeyboardButton(T(lang, "btn_rooms_nearby")),    KeyboardButton(T(lang, "btn_view_nearby"))],
         [KeyboardButton(T(lang, "btn_stores_nearby")),   KeyboardButton(T(lang, "btn_matches"))],
         [KeyboardButton(T(lang, "btn_requests"))],
@@ -1552,72 +1551,6 @@ async def show_public_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def show_room_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    lang  = get_lang(update, context)
-    tg_id = update.effective_user.id
-
-    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
-    if not me.data:
-        await update.message.reply_text(T(lang, "register_first"))
-        return
-    my_id = me.data[0]["id"]
-
-    memb = supabase.table("room_members_v1").select("room_id").eq("user_id", my_id).execute()
-    room_ids = [m["room_id"] for m in (memb.data or [])]
-    if not room_ids:
-        await update.message.reply_text(T(lang, "chat_no_rooms"))
-        return
-
-    buttons = []
-    for rid in room_ids:
-        r = supabase.table("rooms_v1").select("id, name").eq("id", rid).execute()
-        if r.data:
-            chat_url = f"https://{DOMAIN}/group-chat?uid={tg_id}&type=room&id={rid}&lang={lang}"
-            buttons.append([InlineKeyboardButton(
-                f"🏠 {r.data[0]['name']}", web_app=WebAppInfo(url=chat_url)
-            )])
-
-    await update.message.reply_text(
-        T(lang, "chat_select_room"),
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
-
-
-# =========================================================
-# SHOW STORE CHATS LIST
-# =========================================================
-
-async def show_store_chats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    lang  = get_lang(update, context)
-    tg_id = update.effective_user.id
-
-    me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
-    if not me.data:
-        await update.message.reply_text(T(lang, "register_first"))
-        return
-    my_id = me.data[0]["id"]
-
-    memb = supabase.table("store_members_v1").select("store_id").eq("user_id", my_id).execute()
-    store_ids = [m["store_id"] for m in (memb.data or [])]
-    if not store_ids:
-        await update.message.reply_text(T(lang, "chat_no_stores"))
-        return
-
-    buttons = []
-    for sid in store_ids:
-        s = supabase.table("stores_v1").select("id, name").eq("id", sid).execute()
-        if s.data:
-            chat_url = f"https://{DOMAIN}/group-chat?uid={tg_id}&type=store&id={sid}&lang={lang}"
-            buttons.append([InlineKeyboardButton(
-                f"🏪 {s.data[0]['name']}", web_app=WebAppInfo(url=chat_url)
-            )])
-
-    await update.message.reply_text(
-        T(lang, "chat_select_store"),
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
-
-
 # =========================================================
 # EXIT CHAT
 # =========================================================
@@ -1825,14 +1758,6 @@ async def handle_text_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     if text in ALL_BTN["public_chat"]:
         await show_public_chat(update, context)
-        return
-
-    if text in ALL_BTN["room_chats"]:
-        await show_room_chats(update, context)
-        return
-
-    if text in ALL_BTN["store_chats"]:
-        await show_store_chats(update, context)
         return
 
     if text in ALL_BTN["rooms_nearby"]:
