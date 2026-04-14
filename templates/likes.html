@@ -914,7 +914,14 @@
     }
   }
 
-  loadData();
+  loadData().then(() => {
+    // Auto-activate filter from URL param (e.g. ?tab=requests)
+    const _tab = new URLSearchParams(location.search).get('tab');
+    if (_tab) {
+      const target = document.querySelector(`.fchip[data-f="${_tab}"]`);
+      if (target) target.click();
+    }
+  });
   setInterval(loadData, 15000);
 </script>
 

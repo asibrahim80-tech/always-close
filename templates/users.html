@@ -199,6 +199,11 @@
   selDist.options[2].text = T.d5;       selDist.options[3].text = T.d10;
   selDist.options[4].text = T.d50;
 
+  // Auto-apply nearby filter when opened via "Nearby Users" button
+  if (new URLSearchParams(location.search).get('nearby') === '1') {
+    document.getElementById('sel-dist').value = '5';
+  }
+
   let allUsers    = [];
   let activeGender = '';
   let activeSort   = 'distance';

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Always Close – Create Store</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;min-height:100vh;padding-bottom:40px}
+    body.rtl{direction:rtl}
+
+    #header{
+      background:linear-gradient(135deg,#b7600a 0%,#e67e22 50%,#f39c12 100%);
+      padding:20px 16px 24px;
+      position:relative;
+      box-shadow:0 4px 16px rgba(183,96,10,.3);
+    }
+    #header-top{display:flex;align-items:center;gap:12px}
+    #header-icon{font-size:32px}
+    #header-title{font-size:22px;font-weight:800;color:#fff;flex:1;text-shadow:0 1px 3px rgba(0,0,0,.2)}
+    #header-sub{font-size:13px;color:rgba(255,255,255,.8);margin-top:4px}
+
+    #form-wrap{padding:16px}
+
+    .card{background:#fff;border-radius:18px;box-shadow:0 2px 10px rgba(0,0,0,.08);padding:20px;margin-bottom:14px}
+
+    .field-label{font-size:13px;font-weight:700;color:#b7600a;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+
+    input[type=text], textarea{
+      width:100%;padding:12px 14px;border-radius:12px;
+      border:1.5px solid #f0ddc0;font-size:15px;
+      outline:none;transition:border-color .2s,box-shadow .2s;
+      color:#222;background:#fafafa;font-family:inherit;resize:none;
+    }
+    input[type=text]:focus, textarea:focus{
+      border-color:#e67e22;box-shadow:0 0 0 3px rgba(230,126,34,.12);
+      background:#fff;
+    }
+    textarea{height:80px;line-height:1.5}
+
+    .nature-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .nat-btn{
+      padding:10px 8px;border-radius:12px;border:1.5px solid #f0ddc0;
+      background:#fafafa;font-size:13px;font-weight:600;color:#555;
+      cursor:pointer;text-align:center;transition:all .15s;
+    }
+    .nat-btn.selected{background:#e67e22;border-color:#e67e22;color:#fff}
+    .nat-btn:active{opacity:.75}
+
+    .exp-row{display:flex;flex-wrap:wrap;gap:8px}
+    .exp-btn{
+      padding:8px 14px;border-radius:20px;border:1.5px solid #f0ddc0;
+      background:#fafafa;font-size:13px;font-weight:600;color:#555;
+      cursor:pointer;transition:all .15s;white-space:nowrap;
+    }
+    .exp-btn.selected{background:#e67e22;border-color:#e67e22;color:#fff}
+    .exp-btn:active{opacity:.75}
+
+    #submit-btn{
+      width:100%;padding:16px;border-radius:16px;border:none;
+      background:linear-gradient(135deg,#b7600a,#e67e22);
+      color:#fff;font-size:16px;font-weight:800;cursor:pointer;
+      letter-spacing:.3px;box-shadow:0 4px 16px rgba(230,126,34,.35);
+      transition:opacity .15s,transform .1s;
+    }
+    #submit-btn:active{opacity:.85;transform:scale(.98)}
+    #submit-btn:disabled{opacity:.55;cursor:not-allowed}
+
+    #status{
+      margin-top:12px;padding:12px 16px;border-radius:12px;
+      font-size:14px;font-weight:600;text-align:center;display:none;
+    }
+    #status.ok{background:#e8f8f0;color:#1e8449}
+    #status.err{background:#fde8e8;color:#c0392b}
+
+    .char-count{font-size:11px;color:#aaa;text-align:right;margin-top:4px}
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div id="header-top">
+    <span id="header-icon">🏪</span>
+    <div>
+      <div id="header-title"></div>
+      <div id="header-sub"></div>
+    </div>
+  </div>
+</div>
+
+<div id="form-wrap">
+
+  <div class="card">
+    <div class="field-label">📝 <span id="lbl-name"></span></div>
+    <input type="text" id="inp-name" maxlength="60">
+    <div class="char-count"><span id="cnt-name">0</span>/60</div>
+  </div>
+
+  <div class="card">
+    <div class="field-label">💬 <span id="lbl-purpose"></span></div>
+    <textarea id="inp-purpose" maxlength="200"></textarea>
+    <div class="char-count"><span id="cnt-purpose">0</span>/200</div>
+  </div>
+
+  <div class="card">
+    <div class="field-label">🏷️ <span id="lbl-nature"></span></div>
+    <div class="nature-grid" id="nature-grid"></div>
+  </div>
+
+  <div class="card">
+    <div class="field-label">⏳ <span id="lbl-expires"></span></div>
+    <div class="exp-row" id="expires-row"></div>
+  </div>
+
+  <button id="submit-btn"></button>
+  <div id="status"></div>
+</div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  const params = new URLSearchParams(location.search);
+  const uid  = parseInt(params.get('uid') || '0');
+  const lang = params.get('lang') || 'ar';
+  const isAr = lang === 'ar';
+
+  if (isAr) document.body.classList.add('rtl');
+
+  const T = {
+    title:      isAr ? 'إنشاء متجر' : 'Create Store',
+    sub:        isAr ? 'أنشئ متجراً قريباً منك' : 'Create a store near you',
+    lbl_name:   isAr ? 'اسم المتجر' : 'Store Name',
+    lbl_purpose:isAr ? 'وصف المتجر' : 'Store Description',
+    lbl_nature: isAr ? 'نوع المتجر' : 'Store Type',
+    lbl_expires:isAr ? 'مدة المتجر' : 'Store Duration',
+    submit:     isAr ? '✅ إنشاء المتجر' : '✅ Create Store',
+    success:    isAr ? '🎉 تم إنشاء المتجر بنجاح!' : '🎉 Store created successfully!',
+    err_name:   isAr ? 'يرجى إدخال اسم المتجر' : 'Please enter a store name',
+    err_nature: isAr ? 'يرجى اختيار نوع المتجر' : 'Please select a store type',
+    err_expires:isAr ? 'يرجى اختيار مدة المتجر' : 'Please select a duration',
+    err_limit:  isAr ? 'وصلت للحد الأقصى (3 متاجر)' : 'You reached the limit (3 stores)',
+    err_reg:    isAr ? 'يجب التسجيل أولاً' : 'You need to register first',
+    err_gen:    isAr ? 'حدث خطأ، حاول مرة أخرى' : 'An error occurred, try again',
+    natures: [
+      {val:'🛒 بقالة',           label: isAr?'🛒 بقالة':'🛒 Grocery'},
+      {val:'🍔 مطعم / طعام',    label: isAr?'🍔 مطعم / طعام':'🍔 Restaurant / Food'},
+      {val:'👕 ملابس',           label: isAr?'👕 ملابس':'👕 Clothing'},
+      {val:'📱 إلكترونيات',     label: isAr?'📱 إلكترونيات':'📱 Electronics'},
+      {val:'💄 جمال وعناية',    label: isAr?'💄 جمال وعناية':'💄 Beauty & Care'},
+      {val:'🔧 خدمات',           label: isAr?'🔧 خدمات':'🔧 Services'},
+      {val:'📦 أخرى',            label: isAr?'📦 أخرى':'📦 Other'},
+    ],
+    expires: [
+      {val:'1d', label: isAr?'⏰ يوم واحد':'⏰ 1 Day'},
+      {val:'3d', label: isAr?'📅 3 أيام':'📅 3 Days'},
+      {val:'1w', label: isAr?'🗓️ أسبوع':'🗓️ 1 Week'},
+      {val:'1m', label: isAr?'📆 شهر':'📆 1 Month'},
+      {val:'',   label: isAr?'♾️ دائم':'♾️ Forever'},
+    ],
+  };
+
+  document.getElementById('header-title').textContent  = T.title;
+  document.getElementById('header-sub').textContent    = T.sub;
+  document.getElementById('lbl-name').textContent      = T.lbl_name;
+  document.getElementById('lbl-purpose').textContent   = T.lbl_purpose;
+  document.getElementById('lbl-nature').textContent    = T.lbl_nature;
+  document.getElementById('lbl-expires').textContent   = T.lbl_expires;
+  document.getElementById('submit-btn').textContent    = T.submit;
+  document.getElementById('inp-name').placeholder      = T.lbl_name;
+  document.getElementById('inp-purpose').placeholder   = T.lbl_purpose;
+
+  // Char counters
+  document.getElementById('inp-name').addEventListener('input', function(){
+    document.getElementById('cnt-name').textContent = this.value.length;
+  });
+  document.getElementById('inp-purpose').addEventListener('input', function(){
+    document.getElementById('cnt-purpose').textContent = this.value.length;
+  });
+
+  // Nature buttons
+  let selectedNature = '';
+  const natGrid = document.getElementById('nature-grid');
+  T.natures.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'nat-btn';
+    btn.textContent = n.label;
+    btn.dataset.val = n.val;
+    btn.addEventListener('click', () => {
+      natGrid.querySelectorAll('.nat-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedNature = n.val;
+    });
+    natGrid.appendChild(btn);
+  });
+
+  // Expires buttons
+  let selectedExpires = null;
+  const expRow = document.getElementById('expires-row');
+  T.expires.forEach(e => {
+    const btn = document.createElement('button');
+    btn.className = 'exp-btn';
+    btn.textContent = e.label;
+    btn.dataset.val = e.val;
+    btn.addEventListener('click', () => {
+      expRow.querySelectorAll('.exp-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedExpires = e.val;
+    });
+    expRow.appendChild(btn);
+  });
+
+  function showStatus(msg, ok) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = ok ? 'ok' : 'err';
+    el.style.display = 'block';
+  }
+
+  document.getElementById('submit-btn').addEventListener('click', async () => {
+    const name    = document.getElementById('inp-name').value.trim();
+    const purpose = document.getElementById('inp-purpose').value.trim();
+
+    if (!name) { showStatus(T.err_name, false); return; }
+    if (!selectedNature) { showStatus(T.err_nature, false); return; }
+    if (selectedExpires === null) { showStatus(T.err_expires, false); return; }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳';
+
+    try {
+      const res = await fetch('/api/store/create', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({uid, name, purpose, nature: selectedNature, expires: selectedExpires}),
+      }).then(r => r.json());
+
+      if (res.ok) {
+        showStatus(T.success, true);
+        setTimeout(() => {
+          if (window.Telegram?.WebApp) window.Telegram.WebApp.close();
+        }, 1500);
+      } else {
+        const errMap = {limit_reached: T.err_limit, not_registered: T.err_reg};
+        showStatus(errMap[res.error] || T.err_gen, false);
+        btn.disabled = false;
+        btn.textContent = T.submit;
+      }
+    } catch(e) {
+      showStatus(T.err_gen, false);
+      btn.disabled = false;
+      btn.textContent = T.submit;
+    }
+  });
+
+  if (window.Telegram?.WebApp) {
+    window.Telegram.WebApp.ready();
+    window.Telegram.WebApp.expand();
+  }
+</script>
+</body>
+</html>

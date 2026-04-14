@@ -458,6 +458,12 @@
   selMem.options[0].text  = T.any_mem;  selMem.options[1].text  = T.m1;
   selMem.options[2].text  = T.m5;       selMem.options[3].text  = T.m10;
 
+  // Auto-apply nearby filter when opened via "Nearby Rooms" button
+  const _urlParams = new URLSearchParams(window.location.search);
+  if (_urlParams.get('nearby') === '1') {
+    document.getElementById('sel-dist').value = '5';
+  }
+
   let allRooms   = [];
   let activeSort = 'distance';
   let uploadTargetRoomId = null;

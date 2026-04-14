@@ -458,6 +458,12 @@
   selDist.options[2].text = T.d1;       selDist.options[3].text = T.d5;
   selDist.options[4].text = T.d10;      selDist.options[5].text = T.d50;
 
+  // Auto-apply nearby filter when opened via "Nearby Stores" button
+  const _urlParams = new URLSearchParams(window.location.search);
+  if (_urlParams.get('nearby') === '1') {
+    document.getElementById('sel-dist').value = '5';
+  }
+
   let allStores  = [];
   let activeSort = 'distance';
   let activeNat  = '';

@@ -2,7 +2,7 @@ from flask import Flask, render_template, jsonify, request
 from flask_limiter import Limiter
 from threading import Thread
 from math import radians, sin, cos, sqrt, atan2
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import httpx
 import os
 import time
@@ -97,9 +97,19 @@ def rooms_page():
     return render_template("rooms.html")
 
 
+@app.route('/create-room')
+def create_room_page():
+    return render_template("create_room.html")
+
+
 @app.route('/stores')
 def stores_page():
     return render_template("stores.html")
+
+
+@app.route('/create-store')
+def create_store_page():
+    return render_template("create_store.html")
 
 
 @app.route('/likes')
@@ -978,6 +988,61 @@ def api_rooms(telegram_id):
         return jsonify({"rooms": [], "error": str(e)})
 
 
+@app.route('/api/room/create', methods=['POST'])
+def api_room_create():
+    try:
+        from database import supabase
+        data    = request.get_json(force=True)
+        uid     = int(data.get("uid", 0))
+        name    = sanitize_text(data.get("name", ""), 60)
+        purpose = sanitize_text(data.get("purpose", ""), 200)
+        nature  = sanitize_text(data.get("nature", ""), 40)
+        expires = data.get("expires", "")
+
+        if not uid or not name:
+            return jsonify({"ok": False, "error": "missing_fields"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_registered"})
+        creator_id = me.data[0]["id"]
+
+        existing = supabase.table("rooms_v1").select("id", count="exact") \
+            .eq("created_by", creator_id).execute()
+        if (existing.count or 0) >= 3:
+            return jsonify({"ok": False, "error": "limit_reached"})
+
+        loc = supabase.table("user_locations_v1").select("latitude,longitude") \
+            .eq("user_id", creator_id).limit(1).execute()
+
+        expires_map = {"1d": timedelta(days=1), "3d": timedelta(days=3),
+                       "1w": timedelta(weeks=1), "1m": timedelta(days=30)}
+        expires_at = None
+        if expires in expires_map:
+            expires_at = (datetime.utcnow() + expires_map[expires]).isoformat()
+
+        record = {"name": name, "created_by": creator_id,
+                  "purpose": purpose, "nature": nature}
+        if loc.data:
+            record["latitude"]  = loc.data[0]["latitude"]
+            record["longitude"] = loc.data[0]["longitude"]
+        if expires_at:
+            record["expires_at"] = expires_at
+
+        result = supabase.table("rooms_v1").insert(record).execute()
+        if result.data:
+            room_id = result.data[0]["id"]
+            try:
+                supabase.table("room_members_v1").insert(
+                    {"room_id": room_id, "user_id": creator_id}).execute()
+            except Exception:
+                pass
+            return jsonify({"ok": True, "room_id": room_id})
+        return jsonify({"ok": False, "error": "create_failed"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 @app.route('/api/room/join', methods=['POST'])
 def api_room_join():
     try:
@@ -1384,6 +1449,61 @@ def api_stores(telegram_id):
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)})
+
+
+@app.route('/api/store/create', methods=['POST'])
+def api_store_create():
+    try:
+        from database import supabase
+        data    = request.get_json(force=True)
+        uid     = int(data.get("uid", 0))
+        name    = sanitize_text(data.get("name", ""), 60)
+        purpose = sanitize_text(data.get("purpose", ""), 200)
+        nature  = sanitize_text(data.get("nature", ""), 40)
+        expires = data.get("expires", "")
+
+        if not uid or not name:
+            return jsonify({"ok": False, "error": "missing_fields"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_registered"})
+        creator_id = me.data[0]["id"]
+
+        existing = supabase.table("stores_v1").select("id", count="exact") \
+            .eq("created_by", creator_id).execute()
+        if (existing.count or 0) >= 3:
+            return jsonify({"ok": False, "error": "limit_reached"})
+
+        loc = supabase.table("user_locations_v1").select("latitude,longitude") \
+            .eq("user_id", creator_id).limit(1).execute()
+
+        expires_map = {"1d": timedelta(days=1), "3d": timedelta(days=3),
+                       "1w": timedelta(weeks=1), "1m": timedelta(days=30)}
+        expires_at = None
+        if expires in expires_map:
+            expires_at = (datetime.utcnow() + expires_map[expires]).isoformat()
+
+        record = {"name": name, "created_by": creator_id,
+                  "purpose": purpose, "nature": nature}
+        if loc.data:
+            record["latitude"]  = loc.data[0]["latitude"]
+            record["longitude"] = loc.data[0]["longitude"]
+        if expires_at:
+            record["expires_at"] = expires_at
+
+        result = supabase.table("stores_v1").insert(record).execute()
+        if result.data:
+            store_id = result.data[0]["id"]
+            try:
+                supabase.table("store_members_v1").insert(
+                    {"store_id": store_id, "user_id": creator_id}).execute()
+            except Exception:
+                pass
+            return jsonify({"ok": True, "store_id": store_id})
+        return jsonify({"ok": False, "error": "create_failed"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 
 @app.route('/api/store/join', methods=['POST'])

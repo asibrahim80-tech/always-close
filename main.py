@@ -20,26 +20,12 @@ from handlers import (
     start,
     handle_contact,
     handle_location,
-    show_nearby,
-    show_nearby_rooms,
-    show_rooms_list,
-    create_room_start,
-    show_stores_list,
-    show_nearby_stores,
-    create_store_start,
-    show_settings,
-    show_profile,
-    show_map,
-    show_users_list,
     handle_buttons,
-    show_matches,
-    show_requests,
     toggle_visibility,
     toggle_phone_visibility,
     edit_profile,
     handle_edit_choice,
     handle_text_buttons,
-    show_public_chat,
     handle_web_app_data,
     exit_chat,
     relay_any_message,
@@ -138,38 +124,9 @@ def main():
     # Inline Buttons
     app.add_handler(CallbackQueryHandler(handle_buttons))
 
-    # Main Menu Buttons (Arabic & English)
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("map")), show_map))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("users_list")), show_users_list))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("view_nearby")), show_nearby))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("rooms_nearby")), show_nearby_rooms))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("rooms_list")), show_rooms_list))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("create_room")), create_room_start))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("stores_list")), show_stores_list))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("create_store")), create_store_start))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("stores_nearby")), show_nearby_stores))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("settings")), show_settings))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("profile")), show_profile))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("matches")), show_matches))
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("requests")), show_requests))
     # WebApp sendData handler (chat button from rooms/stores page)
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
 
-    app.add_handler(MessageHandler(
-        filters.TEXT & filters.Regex(btn_regex("public_chat")), show_public_chat))
     app.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(btn_regex("exit_chat")), exit_chat))
 
