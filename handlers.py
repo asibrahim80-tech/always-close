@@ -242,23 +242,6 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(T(lang, "updated"), reply_markup=main_keyboard(lang))
         return
 
-    elif step == "create_room_ask_location":
-        # User sent text instead of location — only handle cancel
-        if text in ALL_BTN.get("cancel_action", []):
-            context.user_data.clear()
-            context.user_data["lang"] = lang
-            await update.message.reply_text(T(lang, "room_cancel"), reply_markup=main_keyboard(lang))
-        # Otherwise re-prompt (don't advance without a real GPS fix)
-        else:
-            await update.message.reply_text(
-                T(lang, "create_room_ask_location"),
-                reply_markup=ReplyKeyboardMarkup([
-                    [KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
-                    [T(lang, "btn_cancel_action")],
-                ], resize_keyboard=True, one_time_keyboard=True)
-            )
-        return
-
     elif step == "create_room_name":
         if text in ALL_BTN.get("cancel_action", []):
             context.user_data.clear()
@@ -401,21 +384,6 @@ async def handle_profile_steps(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     # ── Store creation steps ──────────────────────────────────────────────────
-
-    elif step == "create_store_ask_location":
-        if text in ALL_BTN.get("cancel_action", []):
-            context.user_data.clear()
-            context.user_data["lang"] = lang
-            await update.message.reply_text(T(lang, "store_cancel"), reply_markup=main_keyboard(lang))
-        else:
-            await update.message.reply_text(
-                T(lang, "create_store_ask_location"),
-                reply_markup=ReplyKeyboardMarkup([
-                    [KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
-                    [T(lang, "btn_cancel_action")],
-                ], resize_keyboard=True, one_time_keyboard=True)
-            )
-        return
 
     elif step == "create_store_name":
         if text in ALL_BTN.get("cancel_action", []):
@@ -669,33 +637,6 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         loc_data["user_id"] = user_id
         supabase.table("user_locations_v1").insert(loc_data).execute()
-
-    # ── If user is in room/store creation flow, capture location and advance ──
-    step = context.user_data.get("step")
-
-    if step == "create_room_ask_location":
-        context.user_data["room_lat"] = lat
-        context.user_data["room_lng"] = lon
-        context.user_data["step"]     = "create_room_name"
-        await update.message.reply_text(
-            T(lang, "create_room_ask_name"),
-            reply_markup=ReplyKeyboardMarkup(
-                [[T(lang, "btn_cancel_action")]], resize_keyboard=True
-            )
-        )
-        return
-
-    if step == "create_store_ask_location":
-        context.user_data["store_lat"] = lat
-        context.user_data["store_lng"] = lon
-        context.user_data["step"]      = "create_store_name"
-        await update.message.reply_text(
-            T(lang, "create_store_ask_name"),
-            reply_markup=ReplyKeyboardMarkup(
-                [[T(lang, "btn_cancel_action")]], resize_keyboard=True
-            )
-        )
-        return
 
     await update.message.reply_text(T(lang, "location_updated"))
 
@@ -1403,15 +1344,27 @@ async def create_store_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except Exception:
         pass
 
-    # ── Ask for LIVE location first (step 0 of creation) ──
-    context.user_data["step"]           = "create_store_ask_location"
-    context.user_data["store_creator"]  = creator_id
+    # ── Snapshot the auto-updated location silently (no extra step) ──
+    snap_lat, snap_lng = None, None
+    try:
+        loc = supabase.table("user_locations_v1") \
+            .select("latitude, longitude") \
+            .eq("user_id", creator_id).limit(1).execute()
+        if loc.data:
+            snap_lat = float(loc.data[0]["latitude"])
+            snap_lng = float(loc.data[0]["longitude"])
+    except Exception:
+        pass
+
+    context.user_data["step"]      = "create_store_name"
+    context.user_data["store_lat"] = snap_lat
+    context.user_data["store_lng"] = snap_lng
+
     await update.message.reply_text(
-        T(lang, "create_store_ask_location"),
-        reply_markup=ReplyKeyboardMarkup([
-            [KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
-            [T(lang, "btn_cancel_action")],
-        ], resize_keyboard=True, one_time_keyboard=True)
+        T(lang, "create_store_ask_name"),
+        reply_markup=ReplyKeyboardMarkup(
+            [[T(lang, "btn_cancel_action")]], resize_keyboard=True
+        )
     )
 
 
@@ -1477,15 +1430,27 @@ async def create_room_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
 
-    # ── Ask for LIVE location first (step 0 of creation) ──
-    context.user_data["step"]          = "create_room_ask_location"
-    context.user_data["room_creator"]  = creator_id
+    # ── Snapshot the auto-updated location silently (no extra step) ──
+    snap_lat, snap_lng = None, None
+    try:
+        loc = supabase.table("user_locations_v1") \
+            .select("latitude, longitude") \
+            .eq("user_id", creator_id).limit(1).execute()
+        if loc.data:
+            snap_lat = float(loc.data[0]["latitude"])
+            snap_lng = float(loc.data[0]["longitude"])
+    except Exception:
+        pass
+
+    context.user_data["step"]     = "create_room_name"
+    context.user_data["room_lat"] = snap_lat
+    context.user_data["room_lng"] = snap_lng
+
     await update.message.reply_text(
-        T(lang, "create_room_ask_location"),
-        reply_markup=ReplyKeyboardMarkup([
-            [KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
-            [T(lang, "btn_cancel_action")],
-        ], resize_keyboard=True, one_time_keyboard=True)
+        T(lang, "create_room_ask_name"),
+        reply_markup=ReplyKeyboardMarkup(
+            [[T(lang, "btn_cancel_action")]], resize_keyboard=True
+        )
     )
 
 

@@ -98,8 +98,6 @@ TEXTS = {
         # Rooms nearby & create
         "btn_rooms_nearby": "📍 الغرف القريبة",
         "btn_create_room": "🏠 إنشاء غرفة",
-        "create_room_ask_location": "📍 شارك موقعك الحالي لتثبيت الغرفة على الخريطة بدقة:",
-        "btn_share_location":       "📍 مشاركة موقعي الحالي",
         "create_room_ask_name": "🏠 اكتب اسم الغرفة:",
         "create_room_ask_purpose": "📝 اكتب هدف أو وصف الغرفة:",
         "room_created": "✅ تم إنشاء الغرفة بنجاح!\n🏠 الاسم: {}\n📝 الهدف: {}",
@@ -156,7 +154,6 @@ TEXTS = {
         "stores_list_no_location": "❌ شارك موقعك أولاً ثم افتح قائمة المتاجر.",
         "stores_list_not_registered": "❌ يجب التسجيل أولاً.",
         "store_limit_reached": "❌ وصلت للحد الأقصى (3 متاجر). احذف متجراً أولاً.",
-        "create_store_ask_location": "📍 شارك موقعك الحالي لتثبيت المتجر على الخريطة بدقة:",
         "create_store_ask_name": "🏪 اكتب اسم المتجر:",
         "create_store_ask_purpose": "📝 اكتب وصف أو هدف المتجر:",
         "create_store_ask_nature": "🏷️ اختر نوع المتجر:",
@@ -293,8 +290,6 @@ TEXTS = {
         # Rooms nearby & create
         "btn_rooms_nearby": "📍 Rooms Nearby",
         "btn_create_room": "🏠 Create Room",
-        "create_room_ask_location": "📍 Share your current location to pin the room accurately on the map:",
-        "btn_share_location":       "📍 Share My Current Location",
         "create_room_ask_name": "🏠 Enter a name for your room:",
         "create_room_ask_purpose": "📝 Describe the purpose of your room:",
         "room_created": "✅ Room created!\n🏠 Name: {}\n📝 Purpose: {}",
@@ -351,7 +346,6 @@ TEXTS = {
         "stores_list_no_location": "❌ Please share your location first, then open the stores list.",
         "stores_list_not_registered": "❌ Please register first.",
         "store_limit_reached": "❌ You've reached the max limit (3 stores). Delete a store first.",
-        "create_store_ask_location": "📍 Share your current location to pin the store accurately on the map:",
         "create_store_ask_name": "🏪 Enter a name for your store:",
         "create_store_ask_purpose": "📝 Describe your store (what do you sell?):",
         "create_store_ask_nature": "🏷️ Choose the store type:",
