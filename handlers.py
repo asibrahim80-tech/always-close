@@ -95,29 +95,25 @@ def main_keyboard(lang: str, tg_id: int = 0) -> ReplyKeyboardMarkup:
 
     if tg_id:
         return ReplyKeyboardMarkup([
-            [KeyboardButton(T(lang, "btn_share_phone"), request_contact=True),
-             KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
-            [KeyboardButton(T(lang, "btn_map"),           web_app=wb("/map")),
-             KeyboardButton(T(lang, "btn_public_chat"),   web_app=wb("/public-chat"))],
-            [KeyboardButton(T(lang, "btn_users_list"),    web_app=wb("/users")),
-             KeyboardButton(T(lang, "btn_view_nearby"),   web_app=wb("/users?nearby=1"))],
-            [KeyboardButton(T(lang, "btn_objects_list"),  web_app=wb("/objects")),
-             KeyboardButton(T(lang, "btn_create_object"), web_app=wb("/create-object"))],
-            [KeyboardButton(T(lang, "btn_matches"),       web_app=wb("/likes")),
-             KeyboardButton(T(lang, "btn_requests"),      web_app=wb("/likes?tab=people"))],
-            [KeyboardButton(T(lang, "btn_profile"),       web_app=wb("/profile")),
-             KeyboardButton(T(lang, "btn_settings"),      web_app=wb("/settings"))],
+            [KeyboardButton(T(lang, "btn_profile"),          web_app=wb("/profile")),
+             KeyboardButton(T(lang, "btn_settings"),         web_app=wb("/settings"))],
+            [KeyboardButton(T(lang, "btn_map"),              web_app=wb("/map")),
+             KeyboardButton(T(lang, "btn_public_chat"),      web_app=wb("/public-chat"))],
+            [KeyboardButton(T(lang, "btn_users_list"),       web_app=wb("/users")),
+             KeyboardButton(T(lang, "btn_view_nearby"),      web_app=wb("/users?nearby=1"))],
+            [KeyboardButton(T(lang, "btn_objects_list"),     web_app=wb("/objects")),
+             KeyboardButton(T(lang, "btn_create_object"),    web_app=wb("/create-object"))],
+            [KeyboardButton(T(lang, "btn_matches_requests"), web_app=wb("/likes"))],
         ], resize_keyboard=True)
 
     # Fallback (no tg_id yet — first interaction before registration)
     return ReplyKeyboardMarkup([
-        [KeyboardButton(T(lang, "btn_share_phone"), request_contact=True),
-         KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
-        [KeyboardButton(T(lang, "btn_map")),          KeyboardButton(T(lang, "btn_public_chat"))],
-        [KeyboardButton(T(lang, "btn_users_list")),   KeyboardButton(T(lang, "btn_view_nearby"))],
-        [KeyboardButton(T(lang, "btn_objects_list")), KeyboardButton(T(lang, "btn_create_object"))],
-        [KeyboardButton(T(lang, "btn_matches")),      KeyboardButton(T(lang, "btn_requests"))],
-        [KeyboardButton(T(lang, "btn_profile")),      KeyboardButton(T(lang, "btn_settings"))],
+        [KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
+        [KeyboardButton(T(lang, "btn_profile")),       KeyboardButton(T(lang, "btn_settings"))],
+        [KeyboardButton(T(lang, "btn_map")),           KeyboardButton(T(lang, "btn_public_chat"))],
+        [KeyboardButton(T(lang, "btn_users_list")),    KeyboardButton(T(lang, "btn_view_nearby"))],
+        [KeyboardButton(T(lang, "btn_objects_list")),  KeyboardButton(T(lang, "btn_create_object"))],
+        [KeyboardButton(T(lang, "btn_matches_requests"))],
     ], resize_keyboard=True)
 
 

@@ -122,6 +122,21 @@ def create_object_page():
     return render_template("create_object.html")
 
 
+@app.route('/manage-objects')
+def manage_objects_page():
+    return render_template("manage_objects.html")
+
+
+@app.route('/object-chat')
+def object_chat_page():
+    return render_template("object_chat.html")
+
+
+@app.route('/feedback')
+def feedback_page():
+    return render_template("feedback.html")
+
+
 @app.route('/likes')
 def likes_page():
     return render_template("likes.html")
