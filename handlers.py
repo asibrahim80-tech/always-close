@@ -101,10 +101,8 @@ def main_keyboard(lang: str, tg_id: int = 0) -> ReplyKeyboardMarkup:
              KeyboardButton(T(lang, "btn_public_chat"),   web_app=wb("/public-chat"))],
             [KeyboardButton(T(lang, "btn_users_list"),    web_app=wb("/users")),
              KeyboardButton(T(lang, "btn_view_nearby"),   web_app=wb("/users?nearby=1"))],
-            [KeyboardButton(T(lang, "btn_rooms_list"),    web_app=wb("/rooms")),
-             KeyboardButton(T(lang, "btn_stores_list"),   web_app=wb("/stores"))],
-            [KeyboardButton(T(lang, "btn_create_room"),   web_app=wb("/create-room")),
-             KeyboardButton(T(lang, "btn_create_store"),  web_app=wb("/create-store"))],
+            [KeyboardButton(T(lang, "btn_objects_list"),  web_app=wb("/objects")),
+             KeyboardButton(T(lang, "btn_create_object"), web_app=wb("/create-object"))],
             [KeyboardButton(T(lang, "btn_matches"),       web_app=wb("/likes")),
              KeyboardButton(T(lang, "btn_requests"),      web_app=wb("/likes?tab=people"))],
             [KeyboardButton(T(lang, "btn_profile"),       web_app=wb("/profile")),
@@ -117,8 +115,7 @@ def main_keyboard(lang: str, tg_id: int = 0) -> ReplyKeyboardMarkup:
          KeyboardButton(T(lang, "btn_share_location"), request_location=True)],
         [KeyboardButton(T(lang, "btn_map")),          KeyboardButton(T(lang, "btn_public_chat"))],
         [KeyboardButton(T(lang, "btn_users_list")),   KeyboardButton(T(lang, "btn_view_nearby"))],
-        [KeyboardButton(T(lang, "btn_rooms_list")),   KeyboardButton(T(lang, "btn_stores_list"))],
-        [KeyboardButton(T(lang, "btn_create_room")),  KeyboardButton(T(lang, "btn_create_store"))],
+        [KeyboardButton(T(lang, "btn_objects_list")), KeyboardButton(T(lang, "btn_create_object"))],
         [KeyboardButton(T(lang, "btn_matches")),      KeyboardButton(T(lang, "btn_requests"))],
         [KeyboardButton(T(lang, "btn_profile")),      KeyboardButton(T(lang, "btn_settings"))],
     ], resize_keyboard=True)
@@ -586,6 +583,20 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ]])
             )
 
+        # ── Object chat select ────────────────────────────
+        elif data.startswith("object_chat_sel:"):
+            object_id = int(data.split(":")[1])
+            _object_chat_sessions[telegram_id] = object_id
+            _room_chat_sessions.pop(telegram_id, None)
+            _store_chat_sessions.pop(telegram_id, None)
+            _private_chats.pop(telegram_id, None)
+            obj_res  = supabase.table("objects_v1").select("name").eq("id", object_id).execute()
+            obj_name = obj_res.data[0]["name"] if obj_res.data else "?"
+            txt = (f"🗂️ دردشة كيان «{obj_name}»" if lang == "ar"
+                   else f"🗂️ Entity chat: «{obj_name}»")
+            await query.answer()
+            await query.message.reply_text(txt, reply_markup=_exit_btn(lang))
+
         # ── Start private chat ────────────────────────────
         elif data.startswith("priv_chat:"):
             target_tg_id = int(data.split(":")[1])
@@ -597,8 +608,10 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _private_chats[target_tg_id] = telegram_id
             _room_chat_sessions.pop(telegram_id, None)
             _store_chat_sessions.pop(telegram_id, None)
+            _object_chat_sessions.pop(telegram_id, None)
             _room_chat_sessions.pop(target_tg_id, None)
             _store_chat_sessions.pop(target_tg_id, None)
+            _object_chat_sessions.pop(target_tg_id, None)
 
             me_user = supabase.table("users_v1").select("username").eq("telegram_id", telegram_id).execute()
             my_name = f"@{me_user.data[0]['username']}" if me_user.data and me_user.data[0].get("username") else "?"
@@ -682,20 +695,23 @@ async def toggle_phone_visibility(update: Update, context: ContextTypes.DEFAULT_
 # CHAT STATE  (in-memory — lost on restart, acceptable)
 # =========================================================
 
-_room_chat_sessions:  dict = {}   # telegram_id → room_id
-_store_chat_sessions: dict = {}   # telegram_id → store_id
-_private_chats:       dict = {}   # telegram_id → target telegram_id
+_room_chat_sessions:   dict = {}   # telegram_id → room_id
+_store_chat_sessions:  dict = {}   # telegram_id → store_id
+_object_chat_sessions: dict = {}   # telegram_id → object_id
+_private_chats:        dict = {}   # telegram_id → target telegram_id
 
 
 def _in_any_chat(tg_id: int) -> bool:
     return (tg_id in _room_chat_sessions
             or tg_id in _store_chat_sessions
+            or tg_id in _object_chat_sessions
             or tg_id in _private_chats)
 
 
 def _exit_all_chats(tg_id: int):
     _room_chat_sessions.pop(tg_id, None)
     _store_chat_sessions.pop(tg_id, None)
+    _object_chat_sessions.pop(tg_id, None)
     _private_chats.pop(tg_id, None)
 
 
@@ -737,6 +753,7 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
         _store_chat_sessions[tg_id] = store_id
         _room_chat_sessions.pop(tg_id, None)
+        _object_chat_sessions.pop(tg_id, None)
         _private_chats.pop(tg_id, None)
         store_res  = supabase.table("stores_v1").select("name").eq("id", store_id).execute()
         store_name = store_res.data[0]["name"] if store_res.data else "?"
@@ -745,6 +762,19 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
             reply_markup=_exit_btn(lang)
         )
 
+    elif data.startswith("object_chat_sel:"):
+        try:
+            object_id = int(data.split(":")[1])
+        except (IndexError, ValueError):
+            return
+        _object_chat_sessions[tg_id] = object_id
+        _room_chat_sessions.pop(tg_id, None)
+        _store_chat_sessions.pop(tg_id, None)
+        _private_chats.pop(tg_id, None)
+        obj_res   = supabase.table("objects_v1").select("name").eq("id", object_id).execute()
+        obj_name  = obj_res.data[0]["name"] if obj_res.data else "?"
+        txt = (f"🗂️ دردشة كيان «{obj_name}»" if lang == "ar" else f"🗂️ Entity chat: «{obj_name}»")
+        await update.message.reply_text(txt, reply_markup=_exit_btn(lang))
 
 
 # =========================================================
@@ -811,6 +841,17 @@ async def _get_room_member_tg_ids(room_id: int, exclude_my_id: int = -1) -> list
 async def _get_store_member_tg_ids(store_id: int, exclude_my_id: int = -1) -> list:
     """Return telegram_ids of ALL store followers (include sender for echo)."""
     memb = supabase.table("store_members_v1").select("user_id").eq("store_id", store_id).execute()
+    targets = []
+    for m in (memb.data or []):
+        u = supabase.table("users_v1").select("telegram_id").eq("id", m["user_id"]).execute()
+        if u.data:
+            targets.append(u.data[0]["telegram_id"])
+    return targets
+
+
+async def _get_object_member_tg_ids(object_id: int) -> list:
+    """Return telegram_ids of ALL object members."""
+    memb = supabase.table("object_members_v1").select("user_id").eq("object_id", object_id).execute()
     targets = []
     for m in (memb.data or []):
         u = supabase.table("users_v1").select("telegram_id").eq("id", m["user_id"]).execute()
@@ -918,6 +959,46 @@ async def relay_any_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await _send_relayed(context.bot, t, msg, header, other_btns)
             except Exception as e:
                 logger.error(f"store relay → {t}: {e}")
+        return
+
+    # ── Object (entity) group chat ───────────────────────
+    if tg_id in _object_chat_sessions:
+        object_id  = _object_chat_sessions[tg_id]
+        obj_res    = supabase.table("objects_v1").select("name").eq("id", object_id).execute()
+        obj_name   = obj_res.data[0]["name"] if obj_res.data else "?"
+
+        targets = await _get_object_member_tg_ids(object_id)
+        others  = [t for t in targets if t != tg_id]
+
+        sent_header = (f"✅ رسالتك — كيان «{obj_name}»"
+                       if lang == "ar" else
+                       f"✅ Your message — Entity «{obj_name}»")
+        try:
+            await _send_relayed(context.bot, tg_id, msg, sent_header, None)
+        except Exception as e:
+            logger.error(f"object echo → sender: {e}")
+
+        if not others:
+            note = ("ℹ️ لا يوجد أعضاء آخرون في الكيان الآن."
+                    if lang == "ar" else
+                    "ℹ️ No other members in this entity right now.")
+            await msg.reply_text(note)
+            return
+
+        other_btns = InlineKeyboardMarkup([[
+            InlineKeyboardButton(
+                "💬 أدخل الدردشة" if lang == "ar" else "💬 Join Chat",
+                callback_data=f"object_chat_sel:{object_id}"
+            ),
+            InlineKeyboardButton(T(lang, "chat_btn_private"), callback_data=f"priv_chat:{tg_id}")
+        ]])
+        header = (f"💬 {display_name} ← 🗂️ {obj_name}" if lang == "ar"
+                  else f"💬 {display_name} → 🗂️ {obj_name}")
+        for t in others:
+            try:
+                await _send_relayed(context.bot, t, msg, header, other_btns)
+            except Exception as e:
+                logger.error(f"object relay → {t}: {e}")
         return
 
     # ── Private chat ─────────────────────────────────────

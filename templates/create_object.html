@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Always Close – Create Entity</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;min-height:100vh;padding-bottom:40px}
+    #header{background:#fff;padding:14px 16px 12px;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;align-items:center;gap:10px;margin-bottom:16px}
+    #header h1{font-size:18px;font-weight:700;color:#111;flex:1}
+    .close-btn{background:none;border:none;font-size:20px;cursor:pointer;color:#555;padding:4px 6px;border-radius:8px}
+    .section{background:#fff;border-radius:16px;margin:0 12px 14px;padding:16px}
+    .sec-title{font-size:13px;font-weight:700;color:#555;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+    .field-label{font-size:13px;font-weight:600;color:#444;margin-bottom:6px;display:block}
+    .field-input{width:100%;padding:11px 13px;border:1.5px solid #ddd;border-radius:12px;font-size:14px;outline:none;font-family:inherit;transition:border-color .15s;background:#fafafa}
+    .field-input:focus{border-color:#6c3483;background:#fff}
+    .field-textarea{width:100%;padding:11px 13px;border:1.5px solid #ddd;border-radius:12px;font-size:14px;outline:none;font-family:inherit;min-height:80px;resize:vertical;transition:border-color .15s;background:#fafafa}
+    .field-textarea:focus{border-color:#6c3483;background:#fff}
+    .char-hint{font-size:11px;color:#bbb;text-align:right;margin-top:4px}
+    /* Type grid */
+    .type-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .type-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:12px;border:1.5px solid #e0e0e0;background:#fafafa;cursor:pointer;transition:all .15s;font-family:inherit}
+    .type-btn:active{transform:scale(.95)}
+    .type-btn.selected{background:#f3e5f5;border-color:#8e44ad}
+    .type-btn.mobile-type.selected{background:#e8f4fb;border-color:#2471a3}
+    .type-emoji{font-size:22px;line-height:1}
+    .type-name{font-size:10px;font-weight:600;color:#555;text-align:center;line-height:1.2}
+    .type-btn.selected .type-name{color:#8e44ad}
+    .type-btn.mobile-type.selected .type-name{color:#2471a3}
+    /* Mobile badge */
+    .mobile-badge{display:none;background:#e8f4fb;color:#2471a3;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;margin-top:8px;text-align:center}
+    .mobile-badge.show{display:block}
+    /* Duration chips */
+    .dur-row{display:flex;gap:8px;flex-wrap:wrap}
+    .dur-chip{padding:8px 14px;border-radius:20px;border:1.5px solid #ddd;background:#fafafa;font-size:13px;cursor:pointer;font-weight:500;color:#555;transition:all .15s}
+    .dur-chip.active{background:#8e44ad;border-color:#8e44ad;color:#fff}
+    /* Submit */
+    #submit-btn{display:block;width:calc(100% - 24px);margin:0 12px;padding:15px;background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff;border:none;border-radius:16px;font-size:16px;font-weight:700;cursor:pointer;transition:opacity .15s}
+    #submit-btn:disabled{opacity:.5}
+    #submit-btn:active:not(:disabled){opacity:.8}
+    /* Toast */
+    #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#222;color:#fff;border-radius:20px;padding:9px 20px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    /* RTL */
+    body.rtl{direction:rtl}
+    body.rtl .char-hint{text-align:left}
+  </style>
+</head>
+<body>
+<div id="header">
+  <button class="close-btn" onclick="if(window.Telegram?.WebApp?.close)Telegram.WebApp.close();else window.history.back()">✕</button>
+  <h1 id="page-title">✨ Create Entity</h1>
+</div>
+
+<div class="section">
+  <div class="sec-title" id="sec-type">Entity Type</div>
+  <div class="type-grid" id="type-grid"></div>
+  <div class="mobile-badge" id="mobile-badge">🚗 Mobile Entity</div>
+</div>
+
+<div class="section">
+  <label class="field-label" id="label-name">Name *</label>
+  <input class="field-input" id="inp-name" type="text" maxlength="60" placeholder="…">
+  <div class="char-hint"><span id="name-cnt">0</span>/60</div>
+</div>
+
+<div class="section">
+  <label class="field-label" id="label-purpose">Purpose / Description</label>
+  <textarea class="field-textarea" id="inp-purpose" maxlength="200" placeholder="…"></textarea>
+  <div class="char-hint"><span id="purpose-cnt">0</span>/200</div>
+</div>
+
+<div class="section">
+  <div class="sec-title" id="sec-dur">Duration</div>
+  <div class="dur-row">
+    <button class="dur-chip active" data-val="">♾️ <span id="dur-forever">Forever</span></button>
+    <button class="dur-chip" data-val="1d">⏰ <span id="dur-1d">1 Day</span></button>
+    <button class="dur-chip" data-val="3d">📅 <span id="dur-3d">3 Days</span></button>
+    <button class="dur-chip" data-val="1w">🗓️ <span id="dur-1w">1 Week</span></button>
+    <button class="dur-chip" data-val="1m">📆 <span id="dur-1m">1 Month</span></button>
+  </div>
+</div>
+
+<button id="submit-btn" disabled>✨ <span id="btn-text">Create Entity</span></button>
+<div id="toast"></div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  const uid  = new URLSearchParams(location.search).get('uid');
+  const lang = new URLSearchParams(location.search).get('lang') || 'en';
+  const isAr = lang === 'ar';
+  if (isAr) document.body.classList.add('rtl');
+
+  const T = {
+    ar:{
+      page_title:'✨ إنشاء كيان',
+      sec_type:'نوع الكيان', sec_dur:'مدة الكيان',
+      label_name:'الاسم *', label_purpose:'الغرض / الوصف',
+      ph_name:'اسم الكيان…', ph_purpose:'وصف مختصر…',
+      dur_forever:'دائم', dur_1d:'يوم', dur_3d:'3 أيام', dur_1w:'أسبوع', dur_1m:'شهر',
+      btn_create:'✨ إنشاء الكيان', mobile_badge:'🚗 كيان متحرك',
+      ok:'✅ تم إنشاء الكيان!', limit:'❌ وصلت للحد الأقصى (5 كيانات)',
+      no_loc:'⚠️ شارك موقعك أولاً', err:'❌ حدث خطأ',
+      name_req:'⚠️ الاسم مطلوب', type_req:'⚠️ اختر نوع الكيان',
+    },
+    en:{
+      page_title:'✨ Create Entity',
+      sec_type:'Entity Type', sec_dur:'Duration',
+      label_name:'Name *', label_purpose:'Purpose / Description',
+      ph_name:'Entity name…', ph_purpose:'Short description…',
+      dur_forever:'Forever', dur_1d:'1 Day', dur_3d:'3 Days', dur_1w:'1 Week', dur_1m:'1 Month',
+      btn_create:'✨ Create Entity', mobile_badge:'🚗 Mobile Entity',
+      ok:'✅ Entity created!', limit:'❌ Limit reached (5 entities)',
+      no_loc:'⚠️ Share your location first', err:'❌ Error occurred',
+      name_req:'⚠️ Name is required', type_req:'⚠️ Please select a type',
+    }
+  }[lang] || {};
+
+  document.getElementById('page-title').textContent   = T.page_title;
+  document.getElementById('sec-type').textContent     = T.sec_type;
+  document.getElementById('sec-dur').textContent      = T.sec_dur;
+  document.getElementById('label-name').textContent   = T.label_name;
+  document.getElementById('label-purpose').textContent= T.label_purpose;
+  document.getElementById('inp-name').placeholder     = T.ph_name;
+  document.getElementById('inp-purpose').placeholder  = T.ph_purpose;
+  document.getElementById('mobile-badge').textContent = T.mobile_badge;
+  document.getElementById('btn-text').textContent     = T.btn_create;
+  document.getElementById('dur-forever').textContent  = T.dur_forever;
+  document.getElementById('dur-1d').textContent       = T.dur_1d;
+  document.getElementById('dur-3d').textContent       = T.dur_3d;
+  document.getElementById('dur-1w').textContent       = T.dur_1w;
+  document.getElementById('dur-1m').textContent       = T.dur_1m;
+
+  const TYPES = [
+    {key:'متجر',         emoji:'🏪', ar:'متجر',         en:'Store',          mobile:false},
+    {key:'غرفة',         emoji:'🚪', ar:'غرفة',         en:'Room',           mobile:false},
+    {key:'مطعم',         emoji:'🍔', ar:'مطعم',         en:'Restaurant',     mobile:false},
+    {key:'مقهى',         emoji:'☕', ar:'مقهى',         en:'Café',           mobile:false},
+    {key:'عيادة',        emoji:'🏥', ar:'عيادة',        en:'Clinic',         mobile:false},
+    {key:'صيدلية',       emoji:'💊', ar:'صيدلية',       en:'Pharmacy',       mobile:false},
+    {key:'مستشفى',       emoji:'🏨', ar:'مستشفى',       en:'Hospital',       mobile:false},
+    {key:'شركة',         emoji:'🏢', ar:'شركة',         en:'Company',        mobile:false},
+    {key:'مكتب',         emoji:'💼', ar:'مكتب',         en:'Office',         mobile:false},
+    {key:'مواد غذائية',  emoji:'🛒', ar:'مواد غذائية',  en:'Grocery',        mobile:false},
+    {key:'هايبر',        emoji:'🏬', ar:'هايبر',        en:'Hypermarket',    mobile:false},
+    {key:'صالون',        emoji:'💈', ar:'صالون',        en:'Salon',          mobile:false},
+    {key:'نادي رياضي',   emoji:'⚽', ar:'نادي رياضي',   en:'Sports Club',    mobile:false},
+    {key:'مكتبة',        emoji:'📚', ar:'مكتبة',        en:'Library',        mobile:false},
+    {key:'ورشة',         emoji:'🔧', ar:'ورشة',         en:'Workshop',       mobile:false},
+    {key:'جراج',         emoji:'🚘', ar:'جراج',         en:'Garage',         mobile:false},
+    {key:'مدرسة',        emoji:'🏫', ar:'مدرسة',        en:'School',         mobile:false},
+    {key:'جامعة',        emoji:'🎓', ar:'جامعة',        en:'University',     mobile:false},
+    {key:'مسجد',         emoji:'🕌', ar:'مسجد',         en:'Mosque',         mobile:false},
+    {key:'دور عبادة',    emoji:'⛪', ar:'دور عبادة',    en:'Place of Worship',mobile:false},
+    {key:'قسم شرطة',     emoji:'👮', ar:'قسم شرطة',     en:'Police Station', mobile:false},
+    {key:'محكمة',        emoji:'⚖️', ar:'محكمة',        en:'Court',          mobile:false},
+    {key:'مطار',         emoji:'✈️', ar:'مطار',         en:'Airport',        mobile:false},
+    {key:'فندق',         emoji:'🛎️', ar:'فندق',         en:'Hotel',          mobile:false},
+    {key:'مسرح',         emoji:'🎭', ar:'مسرح',         en:'Theater',        mobile:false},
+    {key:'سينما',        emoji:'🎬', ar:'سينما',        en:'Cinema',         mobile:false},
+    {key:'حديقة',        emoji:'🌳', ar:'حديقة',        en:'Park',           mobile:false},
+    {key:'ملاهي',        emoji:'🎡', ar:'ملاهي',        en:'Amusement Park', mobile:false},
+    {key:'سيارة',        emoji:'🚗', ar:'سيارة',        en:'Car',            mobile:true},
+    {key:'دراجة نارية',  emoji:'🏍️', ar:'دراجة نارية',  en:'Motorcycle',     mobile:true},
+    {key:'سيارة جماعية', emoji:'🚌', ar:'سيارة جماعية', en:'Shared Vehicle', mobile:true},
+  ];
+
+  let selectedType = '';
+  let isMobile = false;
+
+  const grid = document.getElementById('type-grid');
+  TYPES.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'type-btn' + (t.mobile ? ' mobile-type' : '');
+    btn.dataset.key    = t.key;
+    btn.dataset.mobile = t.mobile ? '1' : '0';
+    btn.innerHTML = `<span class="type-emoji">${t.emoji}</span><span class="type-name">${isAr ? t.ar : t.en}</span>`;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedType = t.key;
+      isMobile = t.mobile;
+      document.getElementById('mobile-badge').classList.toggle('show', t.mobile);
+      updateSubmit();
+    });
+    grid.appendChild(btn);
+  });
+
+  const nameInput = document.getElementById('inp-name');
+  const purposeInput = document.getElementById('inp-purpose');
+
+  nameInput.addEventListener('input', () => {
+    document.getElementById('name-cnt').textContent = nameInput.value.length;
+    updateSubmit();
+  });
+  purposeInput.addEventListener('input', () => {
+    document.getElementById('purpose-cnt').textContent = purposeInput.value.length;
+  });
+
+  let selectedDur = '';
+  document.querySelectorAll('.dur-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.dur-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      selectedDur = chip.dataset.val;
+    });
+  });
+
+  function updateSubmit() {
+    document.getElementById('submit-btn').disabled = !(nameInput.value.trim() && selectedType);
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  document.getElementById('submit-btn').addEventListener('click', async () => {
+    const name = nameInput.value.trim();
+    if (!name) return showToast(T.name_req);
+    if (!selectedType) return showToast(T.type_req);
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/object/create', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          uid: parseInt(uid),
+          name, purpose: purposeInput.value.trim(),
+          object_type: selectedType, is_mobile: isMobile,
+          expires: selectedDur
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(T.ok);
+        setTimeout(() => {
+          if (window.Telegram?.WebApp?.close) Telegram.WebApp.close();
+          else window.history.back();
+        }, 1200);
+      } else if (data.error === 'limit_reached') {
+        showToast(T.limit);
+        btn.disabled = false;
+      } else if (data.error === 'not_registered') {
+        showToast(T.no_loc);
+        btn.disabled = false;
+      } else {
+        showToast(T.err);
+        btn.disabled = false;
+      }
+    } catch(e) {
+      showToast(T.err);
+      btn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

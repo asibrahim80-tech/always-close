@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Always Close – Entities</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;min-height:100vh}
+
+    /* Header */
+    #header{position:sticky;top:0;z-index:100;background:#fff;padding:14px 16px 10px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+    #header h1{font-size:18px;font-weight:700;color:#111;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+    #header h1 span.accent{color:#8e44ad}
+
+    /* Sort chips */
+    #sort-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;margin-bottom:8px}
+    #sort-row::-webkit-scrollbar{display:none}
+    .sort-chip{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;background:#f7f7f7;font-size:12.5px;cursor:pointer;font-weight:500;color:#555;transition:all .15s;white-space:nowrap}
+    .sort-chip.active{background:#8e44ad;border-color:#8e44ad;color:#fff}
+    .sort-chip:active{opacity:.75}
+
+    /* Filter row */
+    #filter-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+    #filter-row select{flex:1;padding:7px 10px;border-radius:10px;border:1.5px solid #e0e0e0;font-size:13px;background:#fafafa;color:#333;outline:none}
+    #filter-row select:focus{border-color:#8e44ad}
+
+    /* Type chips row */
+    #type-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
+    #type-row::-webkit-scrollbar{display:none}
+    .type-chip{flex-shrink:0;padding:5px 12px;border-radius:18px;border:1.5px solid #ddd;background:#f7f7f7;font-size:12px;cursor:pointer;font-weight:500;color:#555;transition:all .15s;white-space:nowrap}
+    .type-chip.active{background:#7d3c98;border-color:#7d3c98;color:#fff}
+
+    /* Mobile toggle */
+    #mobile-row{display:flex;align-items:center;gap:8px;margin-top:4px;padding-bottom:4px}
+    .toggle-label{font-size:12px;color:#666;font-weight:500}
+    .toggle-wrap{display:flex;border-radius:20px;border:1.5px solid #ddd;overflow:hidden;background:#f7f7f7}
+    .toggle-btn{padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:transparent;color:#777;transition:all .15s}
+    .toggle-btn.active{background:#2471a3;color:#fff}
+    .toggle-btn.active.fixed{background:#8e44ad}
+
+    /* Stats */
+    #stats-bar{background:#f8f4fc;border-radius:10px;padding:7px 12px;margin-top:8px;font-size:12px;color:#7d3c98;font-weight:600;display:none}
+
+    /* Loading */
+    #loading{text-align:center;padding:50px 20px;color:#999;font-size:14px}
+    .spinner{width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#8e44ad;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* List */
+    #list{padding:10px 12px;display:flex;flex-direction:column;gap:12px}
+
+    /* Card */
+    .ocard{background:#fff;border-radius:18px;box-shadow:0 2px 10px rgba(0,0,0,.08);overflow:hidden}
+
+    /* Banner */
+    .obj-banner{position:relative;width:100%;height:130px;overflow:hidden;background:linear-gradient(135deg,#8e44ad 0%,#6c3483 50%,#a93226 100%);display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .obj-banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .obj-banner-icon{font-size:52px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))}
+    .obj-banner-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,.5))}
+    .obj-banner-camera{position:absolute;bottom:8px;right:10px;background:rgba(255,255,255,.85);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600;color:#333;display:flex;align-items:center;gap:4px}
+    .obj-banner-del-img{position:absolute;bottom:8px;left:10px;background:rgba(231,76,60,.85);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600;color:#fff;cursor:pointer}
+
+    /* Card body */
+    .ocard-body{padding:12px 14px 0}
+    .ocard-name-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+    .ocard-name{font-size:16px;font-weight:700;color:#111;flex:1;word-break:break-word}
+    .badge-new{background:#27ae60;color:#fff;border-radius:10px;padding:2px 8px;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px}
+
+    /* Badges */
+    .ocard-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+    .badge{border-radius:10px;padding:3px 9px;font-size:12px;font-weight:500}
+    .badge.dist{background:#fdf0ef;color:#e74c3c}
+    .badge.mem{background:#f3e5f5;color:#7b1fa2}
+    .badge.time{background:#eaf3fb;color:#2980b9}
+    .badge.type{background:#e8f8f0;color:#1e8449;border:1px solid #a9dfbf}
+    .badge.mobile{background:#e8f4fb;color:#2471a3;border:1px solid #a9cce3}
+    .badge.purp{background:#fef9e7;color:#b7770d;border:1px solid #f9e79f;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    /* Stars */
+    .star-display{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+    .star-bar-wrap{position:relative;display:inline-block;font-size:16px;line-height:1;letter-spacing:1px}
+    .star-bar-back{color:#ddd}
+    .star-bar-front{position:absolute;top:0;left:0;overflow:hidden;white-space:nowrap;color:#f39c12}
+    .star-val{font-size:15px;font-weight:700;color:#333}
+    .star-cnt{font-size:12px;color:#999}
+    .no-ratings{font-size:12px;color:#bbb;font-style:italic}
+
+    /* Rate widget */
+    .rate-section{padding:0 14px 10px}
+    .rate-label{font-size:12px;color:#888;margin-bottom:5px}
+    .rate-stars{display:flex;gap:4px}
+    .rate-star{font-size:26px;color:#ddd;cursor:pointer;transition:color .1s,transform .1s;user-select:none;-webkit-user-select:none}
+    .rate-star.on{color:#f39c12}
+    .rate-star.hover{color:#f5c842}
+    .rate-star:active{transform:scale(1.2)}
+
+    /* Member dots */
+    .member-bar{display:flex;align-items:center;gap:4px;padding:0 0 8px;cursor:pointer;border-radius:8px;transition:opacity .15s}
+    .member-bar:active{opacity:.65}
+    .member-dot{width:8px;height:8px;border-radius:50%;background:#8e44ad;opacity:.6}
+    .member-count-label{font-size:11px;color:#aaa;margin-left:4px}
+
+    /* Actions */
+    .ocard-actions{display:flex;flex-wrap:wrap;gap:7px;padding:0 14px 12px}
+    .act-btn{flex:1;min-width:0;padding:9px 10px;border-radius:11px;border:none;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:opacity .1s,transform .08s}
+    .act-btn:active{opacity:.7;transform:scale(.97)}
+    .act-btn.join{background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff}
+    .act-btn.joined{background:#e8f8f0;color:#27ae60;border:1.5px solid #a9dfbf;cursor:default}
+    .act-btn.chat{background:linear-gradient(135deg,#2471a3,#1a5276);color:#fff}
+    .act-btn.del{background:#fdf0ef;color:#e74c3c;border:1.5px solid #fadbd8}
+    .act-btn.edit{background:#f3e5f5;color:#8e44ad;border:1.5px solid #d2b4de}
+    .act-btn.rate-members{background:#fff3e0;color:#e67e22;border:1.5px solid #fce0b0;flex:0 0 auto;padding:9px 14px}
+
+    /* Divider */
+    .ocard-div{height:1px;background:#f0f0f0;margin:0 14px}
+
+    /* No results */
+    #no-results{text-align:center;padding:40px 20px;color:#aaa;font-size:14px;display:none}
+    #no-results .ico{font-size:40px;margin-bottom:8px}
+
+    /* Toast */
+    #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#222;color:#fff;border-radius:20px;padding:9px 20px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    /* Peek sheet */
+    #peek-overlay{position:fixed;inset:0;z-index:600;display:none;align-items:flex-end}
+    #peek-overlay.open{display:flex}
+    #peek-bg{position:absolute;inset:0;background:rgba(0,0,0,.45);animation:fadein .2s}
+    @keyframes fadein{from{opacity:0}to{opacity:1}}
+    #peek-sheet{position:relative;width:100%;background:#fff;border-radius:22px 22px 0 0;max-height:75vh;display:flex;flex-direction:column;animation:slideUp .28s cubic-bezier(.4,0,.2,1);overflow:hidden}
+    #peek-handle{width:36px;height:4px;background:#e0e0e0;border-radius:4px;margin:10px auto 0}
+    #peek-head{display:flex;align-items:center;justify-content:space-between;padding:12px 18px 10px;border-bottom:1px solid #f0f0f0}
+    #peek-title{font-size:15px;font-weight:700;color:#111;display:flex;align-items:center;gap:6px}
+    #peek-count{background:#8e44ad;color:#fff;border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700}
+    #peek-close-btn{font-size:22px;color:#bbb;cursor:pointer;line-height:1;padding:4px}
+    #peek-list{overflow-y:auto;padding:6px 0 24px;flex:1}
+    .pk-item{display:flex;align-items:center;gap:12px;padding:10px 18px;cursor:pointer;transition:background .12s}
+    .pk-item:active{background:#f5f0fb}
+    .pk-av{width:48px;height:48px;border-radius:50%;flex-shrink:0;overflow:hidden;background:linear-gradient(135deg,#c8b4e3,#a76dc5);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;box-shadow:0 2px 6px rgba(142,68,173,.25)}
+    .pk-av img{width:100%;height:100%;object-fit:cover}
+    .pk-info{flex:1;min-width:0}
+    .pk-name{font-size:14px;font-weight:700;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pk-meta{display:flex;align-items:center;gap:8px;margin-top:3px;flex-wrap:wrap}
+    .pk-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+    .pk-age{background:#f3e8fc;color:#7d3c98}
+    .pk-male{background:#e8f4fb;color:#2471a3}
+    .pk-female{background:#fde8f4;color:#a93226}
+    .pk-other{background:#f0f0f0;color:#555}
+    .pk-arr{font-size:18px;color:#c8b4e3;flex-shrink:0}
+    #peek-empty{text-align:center;padding:40px 20px;color:#bbb;font-size:14px}
+    #peek-loading{text-align:center;padding:30px}
+    .peek-spin{width:28px;height:28px;border:3px solid #e0e0e0;border-top-color:#8e44ad;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
+
+    /* Members rating modal */
+    #members-modal{position:fixed;inset:0;z-index:500;display:none}
+    #modal-bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+    #modal-panel{position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:22px 22px 0 0;max-height:80vh;overflow-y:auto;padding:0 0 30px}
+    #modal-panel.open{animation:slideUp .3s ease}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    #modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;border-bottom:1px solid #f0f0f0;position:sticky;top:0;background:#fff;z-index:1}
+    #modal-title{font-size:16px;font-weight:700;color:#111}
+    #modal-close{font-size:22px;color:#999;cursor:pointer;padding:4px}
+    .member-item{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid #f8f8f8}
+    .member-av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#e0e0e0,#ccc);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#888;flex-shrink:0;overflow:hidden}
+    .member-av img{width:100%;height:100%;object-fit:cover}
+    .member-info{flex:1;min-width:0}
+    .member-name{font-size:14px;font-weight:600;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .member-avg{font-size:11px;color:#f39c12;margin-top:2px}
+    .member-rate-stars{display:flex;gap:3px;margin-top:5px}
+    .member-rate-star{font-size:22px;color:#ddd;cursor:pointer;transition:color .1s}
+    .member-rate-star.on{color:#f39c12}
+    #modal-empty{text-align:center;padding:30px;color:#bbb;font-size:14px}
+    #modal-loading{text-align:center;padding:30px}
+    .modal-spinner{width:28px;height:28px;border:3px solid #e0e0e0;border-top-color:#8e44ad;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
+
+    /* Edit modal */
+    #edit-modal{position:fixed;inset:0;z-index:700;display:none}
+    #edit-modal-bg{position:absolute;inset:0;background:rgba(0,0,0,.52)}
+    #edit-panel{position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:22px 22px 0 0;padding:20px 16px 36px;max-height:90vh;overflow-y:auto}
+    #edit-panel.open{animation:slideUp .3s ease}
+    #edit-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    #edit-modal-title{font-size:16px;font-weight:800;color:#111}
+    #edit-modal-close{font-size:22px;color:#aaa;cursor:pointer;padding:4px;line-height:1}
+    .ef-label{font-size:12px;font-weight:700;color:#555;margin-bottom:5px;display:block}
+    .ef-input{width:100%;box-sizing:border-box;padding:11px 13px;border:1.5px solid #ddd;border-radius:12px;font-size:14px;margin-bottom:12px;outline:none;font-family:inherit;transition:border-color .15s}
+    .ef-input:focus{border-color:#7c3aed}
+    .ef-char{font-size:11px;color:#bbb;text-align:right;margin-top:-10px;margin-bottom:10px}
+    #edit-save-btn{width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s}
+    #edit-save-btn:disabled{opacity:.5}
+
+    /* RTL */
+    body.rtl{direction:rtl}
+    body.rtl .obj-banner-camera{right:auto;left:10px}
+    body.rtl .obj-banner-del-img{left:auto;right:10px}
+    body.rtl .member-count-label{margin-left:0;margin-right:4px}
+    body.rtl .star-bar-front{left:auto;right:0}
+    body.rtl .pk-meta{direction:rtl}
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <h1>
+    <button onclick="if(window.Telegram?.WebApp?.close)Telegram.WebApp.close();else window.history.back();" style="background:none;border:none;font-size:20px;cursor:pointer;padding:2px 6px;border-radius:8px;color:#8e44ad;display:flex;align-items:center;flex-shrink:0">✕</button>
+    🗂️ <span class="accent" id="title-text">Entities</span>
+  </h1>
+  <div id="sort-row">
+    <button class="sort-chip active" data-sort="distance" id="chip-dist">📍 Closest</button>
+    <button class="sort-chip"        data-sort="members"  id="chip-mem">👥 Most Members</button>
+    <button class="sort-chip"        data-sort="rating"   id="chip-rat">⭐ Top Rated</button>
+    <button class="sort-chip"        data-sort="newest"   id="chip-new">🕒 Newest</button>
+  </div>
+  <div id="filter-row">
+    <select id="sel-dist">
+      <option value="">Any Distance</option>
+      <option value="0.5">≤ 500 m</option>
+      <option value="1">≤ 1 km</option>
+      <option value="5">≤ 5 km</option>
+      <option value="10">≤ 10 km</option>
+      <option value="50">≤ 50 km</option>
+      <option value="100">≤ 100 km</option>
+      <option value="200">≤ 200 km</option>
+      <option value="500">≤ 500 km</option>
+    </select>
+    <select id="sel-mem">
+      <option value="">Any Members</option>
+      <option value="1">1+</option>
+      <option value="5">5+</option>
+      <option value="10">10+</option>
+    </select>
+  </div>
+  <div id="type-row">
+    <button class="type-chip active" data-type="">🌐 <span id="chip-all">All</span></button>
+  </div>
+  <div id="mobile-row">
+    <span class="toggle-label" id="lbl-mobility">Filter:</span>
+    <div class="toggle-wrap">
+      <button class="toggle-btn active" id="btn-all-mob" data-mob="">🌐 <span id="m-all">All</span></button>
+      <button class="toggle-btn fixed"  id="btn-fixed"   data-mob="0">📍 <span id="m-fixed">Fixed</span></button>
+      <button class="toggle-btn"        id="btn-mobile"  data-mob="1">🚗 <span id="m-mobile">Mobile</span></button>
+    </div>
+  </div>
+  <div id="stats-bar"></div>
+</div>
+
+<div id="loading"><div class="spinner"></div><div id="loading-lbl">Loading…</div></div>
+<div id="list" style="display:none"></div>
+<div id="no-results"><div class="ico">🗂️</div><div id="no-res-lbl">No entities found</div></div>
+<div id="toast"></div>
+<input type="file" id="img-input" accept="image/*" style="display:none">
+
+<!-- Edit modal -->
+<div id="edit-modal">
+  <div id="edit-modal-bg"></div>
+  <div id="edit-panel">
+    <div id="edit-hdr">
+      <span id="edit-modal-title">✏️ Edit Entity</span>
+      <span id="edit-modal-close">✕</span>
+    </div>
+    <label class="ef-label" id="ef-name-label">Name</label>
+    <input  class="ef-input" id="ef-name" type="text" maxlength="60">
+    <div class="ef-char" id="ef-name-char">0/60</div>
+    <label class="ef-label" id="ef-purpose-label">Purpose</label>
+    <input  class="ef-input" id="ef-purpose" type="text" maxlength="200">
+    <button id="edit-save-btn">💾 Save</button>
+  </div>
+</div>
+
+<!-- Peek sheet -->
+<div id="peek-overlay">
+  <div id="peek-bg"></div>
+  <div id="peek-sheet">
+    <div id="peek-handle"></div>
+    <div id="peek-head">
+      <div id="peek-title">👥 <span id="peek-obj-name"></span> <span id="peek-count"></span></div>
+      <div id="peek-close-btn">✕</div>
+    </div>
+    <div id="peek-list">
+      <div id="peek-loading"><div class="peek-spin"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Members rating modal -->
+<div id="members-modal">
+  <div id="modal-bg"></div>
+  <div id="modal-panel">
+    <div id="modal-header">
+      <span id="modal-title">Rate Members</span>
+      <span id="modal-close">✕</span>
+    </div>
+    <div id="modal-body"><div id="modal-loading"><div class="modal-spinner"></div></div></div>
+  </div>
+</div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+const uid     = new URLSearchParams(location.search).get('uid');
+const lang    = new URLSearchParams(location.search).get('lang') || 'en';
+const isAr    = lang === 'ar';
+if (isAr) document.body.classList.add('rtl');
+
+const tg = window.Telegram?.WebApp;
+if (tg) tg.ready();
+
+const T = {
+  ar:{
+    title:'قائمة الكيانات',
+    sort_dist:'📍 الأقرب', sort_mem:'👥 الأكثر أعضاء', sort_rat:'⭐ الأعلى تقييماً', sort_new:'🕒 الأحدث',
+    any_dist:'أي مسافة', d05:'≤ 500 م', d1:'≤ 1 كم', d5:'≤ 5 كم', d10:'≤ 10 كم', d50:'≤ 50 كم', d100:'≤ 100 كم', d200:'≤ 200 كم', d500:'≤ 500 كم',
+    any_mem:'أي عدد أعضاء', m1:'1+', m5:'5+', m10:'10+',
+    chip_all:'الكل', m_all:'الكل', m_fixed:'ثابت', m_mobile:'متحرك', lbl_mobility:'التصفية:',
+    loading:'جارٍ التحميل…', no_res:'لا توجد كيانات', stats:n=>`${n} كيان`,
+    btn_join:'➕ انضم', btn_joined:'✅ منضم', btn_chat:'💬 الدردشة', btn_del:'🗑️ حذف', btn_edit:'✏️ تعديل', btn_rate_mem:'⭐ تقييم',
+    rate_label:'قيّم هذا الكيان:', join_ok:'✅ تم الانضمام!', join_err:'❌ خطأ في الانضمام',
+    del_confirm:'حذف هذا الكيان نهائياً؟', del_ok:'✅ تم الحذف', del_err:'❌ خطأ في الحذف',
+    no_loc:'⚠️ شارك موقعك أولاً', rate_ok:'✅ تم التقييم!', rate_err:'❌ خطأ في التقييم',
+    img_ok:'✅ تم رفع الصورة!', img_err:'❌ خطأ في رفع الصورة', img_del_ok:'✅ تم حذف الصورة',
+    cam:'📷 صورة', cam_del:'🗑️ حذف الصورة',
+    edit_title:'✏️ تعديل الكيان', ef_name:'الاسم', ef_purpose:'الغرض / الوصف',
+    edit_save:'💾 حفظ', edit_ok:'✅ تم التعديل', edit_err:'❌ خطأ في التعديل',
+    peek_title:'الأعضاء', peek_empty:'لا يوجد أعضاء بعد',
+    modal_rate:'⭐ تقييم الأعضاء', modal_empty:'لا يوجد أعضاء',
+    rate_mem_ok:'✅ تم تقييم العضو', rate_mem_err:'❌ خطأ',
+    no_reg:'⚠️ شارك موقعك أولاً', mobile_badge:'🚗 متحرك',
+  },
+  en:{
+    title:'Entities List',
+    sort_dist:'📍 Closest', sort_mem:'👥 Most Members', sort_rat:'⭐ Top Rated', sort_new:'🕒 Newest',
+    any_dist:'Any Distance', d05:'≤ 500 m', d1:'≤ 1 km', d5:'≤ 5 km', d10:'≤ 10 km', d50:'≤ 50 km', d100:'≤ 100 km', d200:'≤ 200 km', d500:'≤ 500 km',
+    any_mem:'Any Members', m1:'1+', m5:'5+', m10:'10+',
+    chip_all:'All', m_all:'All', m_fixed:'Fixed', m_mobile:'Mobile', lbl_mobility:'Filter:',
+    loading:'Loading…', no_res:'No entities found', stats:n=>`${n} entities`,
+    btn_join:'➕ Join', btn_joined:'✅ Joined', btn_chat:'💬 Chat', btn_del:'🗑️ Delete', btn_edit:'✏️ Edit', btn_rate_mem:'⭐ Rate',
+    rate_label:'Rate this entity:', join_ok:'✅ Joined!', join_err:'❌ Error joining',
+    del_confirm:'Delete this entity permanently?', del_ok:'✅ Deleted', del_err:'❌ Error deleting',
+    no_loc:'⚠️ Share your location first', rate_ok:'✅ Rated!', rate_err:'❌ Error rating',
+    img_ok:'✅ Image uploaded!', img_err:'❌ Image upload error', img_del_ok:'✅ Image removed',
+    cam:'📷 Photo', cam_del:'🗑️ Remove Photo',
+    edit_title:'✏️ Edit Entity', ef_name:'Name', ef_purpose:'Purpose / Description',
+    edit_save:'💾 Save', edit_ok:'✅ Saved!', edit_err:'❌ Error saving',
+    peek_title:'Members', peek_empty:'No members yet',
+    modal_rate:'⭐ Rate Members', modal_empty:'No members',
+    rate_mem_ok:'✅ Member rated', rate_mem_err:'❌ Error',
+    no_reg:'⚠️ Share your location first', mobile_badge:'🚗 Mobile',
+  }
+}[lang] || {};
+
+/* ─── Apply translations ─── */
+document.getElementById('title-text').textContent    = T.title;
+document.getElementById('chip-dist').textContent     = T.sort_dist;
+document.getElementById('chip-mem').textContent      = T.sort_mem;
+document.getElementById('chip-rat').textContent      = T.sort_rat;
+document.getElementById('chip-new').textContent      = T.sort_new;
+document.getElementById('chip-all').textContent      = T.chip_all;
+document.getElementById('loading-lbl').textContent   = T.loading;
+document.getElementById('no-res-lbl').textContent    = T.no_res;
+document.getElementById('lbl-mobility').textContent  = T.lbl_mobility;
+document.getElementById('m-all').textContent         = T.m_all;
+document.getElementById('m-fixed').textContent       = T.m_fixed;
+document.getElementById('m-mobile').textContent      = T.m_mobile;
+document.getElementById('modal-title').textContent   = T.modal_rate;
+document.getElementById('edit-modal-title').textContent = T.edit_title;
+document.getElementById('ef-name-label').textContent    = T.ef_name;
+document.getElementById('ef-purpose-label').textContent = T.ef_purpose;
+document.getElementById('edit-save-btn').textContent    = T.edit_save;
+
+/* ─── Distance options ─── */
+const distSel = document.getElementById('sel-dist');
+distSel.options[0].text = T.any_dist;
+['d05','d1','d5','d10','d50','d100','d200','d500'].forEach((k,i)=>distSel.options[i+1].text=T[k]);
+const memSel = document.getElementById('sel-mem');
+memSel.options[0].text = T.any_mem;
+['m1','m5','m10'].forEach((k,i)=>memSel.options[i+1].text=T[k]);
+
+/* ─── Type definitions ─── */
+const TYPES = [
+  {key:'متجر',emoji:'🏪'},{key:'غرفة',emoji:'🚪'},{key:'مطعم',emoji:'🍔'},{key:'مقهى',emoji:'☕'},
+  {key:'عيادة',emoji:'🏥'},{key:'صيدلية',emoji:'💊'},{key:'مستشفى',emoji:'🏨'},{key:'شركة',emoji:'🏢'},
+  {key:'مكتب',emoji:'💼'},{key:'مواد غذائية',emoji:'🛒'},{key:'هايبر',emoji:'🏬'},{key:'صالون',emoji:'💈'},
+  {key:'نادي رياضي',emoji:'⚽'},{key:'مكتبة',emoji:'📚'},{key:'ورشة',emoji:'🔧'},{key:'جراج',emoji:'🚘'},
+  {key:'مدرسة',emoji:'🏫'},{key:'جامعة',emoji:'🎓'},{key:'مسجد',emoji:'🕌'},{key:'دور عبادة',emoji:'⛪'},
+  {key:'قسم شرطة',emoji:'👮'},{key:'محكمة',emoji:'⚖️'},{key:'مطار',emoji:'✈️'},{key:'فندق',emoji:'🛎️'},
+  {key:'مسرح',emoji:'🎭'},{key:'سينما',emoji:'🎬'},{key:'حديقة',emoji:'🌳'},{key:'ملاهي',emoji:'🎡'},
+  {key:'سيارة',emoji:'🚗'},{key:'دراجة نارية',emoji:'🏍️'},{key:'سيارة جماعية',emoji:'🚌'},
+];
+const TYPE_EMOJI = {};
+TYPES.forEach(t => TYPE_EMOJI[t.key] = t.emoji);
+
+/* ─── Build type chips ─── */
+const typeRow = document.getElementById('type-row');
+TYPES.forEach(t => {
+  const btn = document.createElement('button');
+  btn.className = 'type-chip';
+  btn.dataset.type = t.key;
+  btn.textContent  = `${t.emoji} ${t.key}`;
+  typeRow.appendChild(btn);
+});
+
+/* ─── State ─── */
+let allObjects = [], sortMode = 'distance', filterDist = '', filterMem = '', filterType = '', filterMob = '';
+let imgTargetId = null, editTargetId = null;
+
+/* ─── Toast ─── */
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+/* ─── Stars helper ─── */
+function starBar(rating, cnt) {
+  if (!cnt) return `<span class="no-ratings">${isAr?'لا يوجد تقييم':'No ratings'}</span>`;
+  const pct = (rating/5)*100;
+  return `
+    <div class="star-display">
+      <div class="star-bar-wrap">
+        <span class="star-bar-back">★★★★★</span>
+        <span class="star-bar-front" style="width:${pct}%">★★★★★</span>
+      </div>
+      <span class="star-val">${rating.toFixed(1)}</span>
+      <span class="star-cnt">(${cnt})</span>
+    </div>`;
+}
+
+/* ─── Fetch data ─── */
+async function load() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('list').style.display    = 'none';
+  document.getElementById('no-results').style.display = 'none';
+  try {
+    const res  = await fetch(`/api/objects/${uid}`);
+    const data = await res.json();
+    allObjects = data.objects || [];
+  } catch(e) { allObjects = []; }
+  render();
+}
+
+/* ─── Sort & filter ─── */
+function applyFilters(list) {
+  let out = [...list];
+  if (filterDist) out = out.filter(o => (o.distance_km||0) <= parseFloat(filterDist));
+  if (filterMem)  out = out.filter(o => (o.members_count||0) >= parseInt(filterMem));
+  if (filterType) out = out.filter(o => o.object_type === filterType);
+  if (filterMob !== '') out = out.filter(o => (o.is_mobile ? '1':'0') === filterMob);
+  if (sortMode === 'distance') out.sort((a,b)=>(a.distance_km||9e9)-(b.distance_km||9e9));
+  if (sortMode === 'members')  out.sort((a,b)=>(b.members_count||0)-(a.members_count||0));
+  if (sortMode === 'rating')   out.sort((a,b)=>(b.avg_rating||0)-(a.avg_rating||0));
+  if (sortMode === 'newest')   out.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+  return out;
+}
+
+/* ─── Render ─── */
+function render() {
+  document.getElementById('loading').style.display = 'none';
+  const filtered = applyFilters(allObjects);
+  const listEl   = document.getElementById('list');
+  const noEl     = document.getElementById('no-results');
+  if (!filtered.length) { listEl.style.display='none'; noEl.style.display='block'; return; }
+  noEl.style.display = 'none'; listEl.style.display = 'flex';
+  const statsBar = document.getElementById('stats-bar');
+  statsBar.style.display = 'block';
+  statsBar.textContent   = T.stats(filtered.length);
+  listEl.innerHTML = filtered.map(o => buildCard(o)).join('');
+  bindCards();
+}
+
+function fmtDist(km) {
+  if (km == null) return '';
+  if (km < 1) return `${Math.round(km*1000)} م`;
+  return `${km.toFixed(1)} كم`;
+}
+
+function buildCard(o) {
+  const isOwner   = String(o.owner_id) === String(uid);
+  const isMember  = o.is_member;
+  const emoji     = TYPE_EMOJI[o.object_type] || '🗂️';
+  const isNew     = o.created_at && (Date.now()-new Date(o.created_at).getTime()) < 86400000;
+  const distKm    = o.distance_km;
+
+  let bannerHtml;
+  if (o.image_url) {
+    bannerHtml = `
+      <div class="obj-banner" data-id="${o.id}" ${isOwner?'data-upload="1"':''}>
+        <img src="${o.image_url}" loading="lazy" alt="">
+        <div class="obj-banner-overlay"></div>
+        ${isOwner?`<div class="obj-banner-camera">📷</div><div class="obj-banner-del-img" data-del-img="${o.id}">🗑️</div>`:''}
+      </div>`;
+  } else {
+    bannerHtml = `
+      <div class="obj-banner" data-id="${o.id}" ${isOwner?'data-upload="1"':''}>
+        <span class="obj-banner-icon">${emoji}</span>
+        ${isOwner?`<div class="obj-banner-camera">📷 ${T.cam}</div>`:''}
+      </div>`;
+  }
+
+  const typeBadge  = `<span class="badge type">${emoji} ${o.object_type}</span>`;
+  const mobBadge   = o.is_mobile ? `<span class="badge mobile">${T.mobile_badge}</span>` : '';
+  const distBadge  = distKm!=null ? `<span class="badge dist">📍 ${fmtDist(distKm)}</span>` : '';
+  const memBadge   = `<span class="badge mem">👥 ${o.members_count||0}</span>`;
+  const purpBadge  = o.purpose ? `<span class="badge purp" title="${o.purpose}">💬 ${o.purpose}</span>` : '';
+
+  const ratingHtml = starBar(o.avg_rating||0, o.rating_count||0);
+
+  const dotCount = Math.min(o.members_count||0, 10);
+  const dots = dotCount > 0
+    ? Array(dotCount).fill('<div class="member-dot"></div>').join('')+`<span class="member-count-label">${o.members_count}</span>`
+    : '';
+
+  const joinBtn = isMember
+    ? `<button class="act-btn joined">${T.btn_joined}</button>`
+    : `<button class="act-btn join" data-join="${o.id}">${T.btn_join}</button>`;
+
+  const chatBtn = isMember
+    ? `<button class="act-btn chat" data-chat="${o.id}">${T.btn_chat}</button>`
+    : '';
+
+  const editBtn   = isOwner ? `<button class="act-btn edit" data-edit="${o.id}" data-name="${encodeURIComponent(o.name||'')}" data-purpose="${encodeURIComponent(o.purpose||'')}">✏️</button>` : '';
+  const deleteBtn = isOwner ? `<button class="act-btn del" data-del="${o.id}">${T.btn_del}</button>` : '';
+  const rateMemBtn= isMember ? `<button class="act-btn rate-members" data-rate-mem="${o.id}" data-obj-name="${encodeURIComponent(o.name||'')}">${T.btn_rate_mem}</button>` : '';
+
+  const rateStars = !isOwner ? `
+    <div class="rate-section">
+      <div class="rate-label">${T.rate_label}</div>
+      <div class="rate-stars" data-rate-id="${o.id}">
+        ${[1,2,3,4,5].map(s=>`<span class="rate-star${(o.my_rating||0)>=s?' on':''}" data-v="${s}">★</span>`).join('')}
+      </div>
+    </div>` : '';
+
+  return `
+    <div class="ocard" id="card-${o.id}">
+      ${bannerHtml}
+      <div class="ocard-body">
+        <div class="ocard-name-row">
+          <span class="ocard-name">${o.name}</span>
+          ${isNew?`<span class="badge-new">${isAr?'جديد':'NEW'}</span>`:''}
+        </div>
+        <div class="ocard-badges">${typeBadge}${mobBadge}${distBadge}${memBadge}${purpBadge}</div>
+        ${ratingHtml}
+        ${dots?`<div class="member-bar" data-peek="${o.id}" data-peek-name="${encodeURIComponent(o.name||'')}">${dots}</div>`:''}
+      </div>
+      <div class="ocard-div"></div>
+      ${rateStars}
+      <div class="ocard-actions">
+        ${joinBtn}${chatBtn}${rateMemBtn}${editBtn}${deleteBtn}
+      </div>
+    </div>`;
+}
+
+/* ─── Bind card interactions ─── */
+function bindCards() {
+  /* Join */
+  document.querySelectorAll('[data-join]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.join;
+      btn.disabled = true;
+      try {
+        const res  = await fetch('/api/object/join', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid:parseInt(uid),object_id:parseInt(id)})});
+        const data = await res.json();
+        if (data.ok) { showToast(T.join_ok); load(); }
+        else if (data.error==='not_registered') showToast(T.no_loc);
+        else { showToast(T.join_err); btn.disabled=false; }
+      } catch{ showToast(T.join_err); btn.disabled=false; }
+    });
+  });
+
+  /* Chat */
+  document.querySelectorAll('[data-chat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.chat;
+      if (tg?.sendData) tg.sendData(`object_chat_sel:${id}`);
+      else showToast('💬 object_chat_sel:'+id);
+    });
+  });
+
+  /* Delete */
+  document.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm(T.del_confirm)) return;
+      const id = btn.dataset.del;
+      try {
+        const res  = await fetch('/api/object/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid:parseInt(uid),object_id:parseInt(id)})});
+        const data = await res.json();
+        if (data.ok) { showToast(T.del_ok); document.getElementById(`card-${id}`)?.remove(); allObjects=allObjects.filter(o=>String(o.id)!==id); }
+        else showToast(T.del_err);
+      } catch{ showToast(T.del_err); }
+    });
+  });
+
+  /* Image upload */
+  document.querySelectorAll('[data-upload]').forEach(el => {
+    el.addEventListener('click', () => {
+      imgTargetId = el.dataset.id;
+      document.getElementById('img-input').click();
+    });
+  });
+
+  /* Image delete */
+  document.querySelectorAll('[data-del-img]').forEach(el => {
+    el.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = el.dataset.delImg;
+      try {
+        const res  = await fetch('/api/object/image/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid:parseInt(uid),object_id:parseInt(id)})});
+        const data = await res.json();
+        if (data.ok) { showToast(T.img_del_ok); load(); }
+      } catch{}
+    });
+  });
+
+  /* Edit */
+  document.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editTargetId = btn.dataset.edit;
+      document.getElementById('ef-name').value    = decodeURIComponent(btn.dataset.name||'');
+      document.getElementById('ef-purpose').value = decodeURIComponent(btn.dataset.purpose||'');
+      document.getElementById('ef-name-char').textContent = `${document.getElementById('ef-name').value.length}/60`;
+      document.getElementById('edit-modal').style.display = 'block';
+      document.getElementById('edit-panel').classList.add('open');
+    });
+  });
+
+  /* Rate entity */
+  document.querySelectorAll('.rate-stars').forEach(row => {
+    const id    = row.dataset.rateId;
+    const stars = row.querySelectorAll('.rate-star');
+    stars.forEach(star => {
+      star.addEventListener('mouseenter', () => stars.forEach((s,i)=>s.classList.toggle('hover',i<parseInt(star.dataset.v))));
+      star.addEventListener('mouseleave', () => stars.forEach(s=>s.classList.remove('hover')));
+      star.addEventListener('click', async () => {
+        const v = parseInt(star.dataset.v);
+        stars.forEach((s,i)=>s.classList.toggle('on',i<v));
+        try {
+          const res  = await fetch('/api/object/rate', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid:parseInt(uid),object_id:parseInt(id),rating:v})});
+          const data = await res.json();
+          if (data.ok) showToast(T.rate_ok); else showToast(T.rate_err);
+        } catch{ showToast(T.rate_err); }
+      });
+    });
+  });
+
+  /* Members peek */
+  document.querySelectorAll('[data-peek]').forEach(bar => {
+    bar.addEventListener('click', async () => {
+      const id   = bar.dataset.peek;
+      const name = decodeURIComponent(bar.dataset.peekName||'');
+      document.getElementById('peek-obj-name').textContent = name;
+      document.getElementById('peek-count').textContent    = '';
+      document.getElementById('peek-list').innerHTML       = '<div id="peek-loading"><div class="peek-spin"></div></div>';
+      document.getElementById('peek-overlay').classList.add('open');
+      try {
+        const res  = await fetch(`/api/object/${id}/members?uid=${uid}`);
+        const data = await res.json();
+        const list = data.members || [];
+        document.getElementById('peek-count').textContent = list.length;
+        if (!list.length) {
+          document.getElementById('peek-list').innerHTML = `<div id="peek-empty">${T.peek_empty}</div>`;
+          return;
+        }
+        document.getElementById('peek-list').innerHTML = list.map(m => {
+          const av = m.photo_url ? `<img src="${m.photo_url}" loading="lazy" alt="">` : (m.username||'?')[0].toUpperCase();
+          const genderClass = m.gender==='male'?'pk-male':m.gender==='female'?'pk-female':'pk-other';
+          return `
+            <div class="pk-item">
+              <div class="pk-av">${av}</div>
+              <div class="pk-info">
+                <div class="pk-name">${m.username||'User'}</div>
+                <div class="pk-meta">
+                  ${m.age?`<span class="pk-chip pk-age">🎂 ${m.age}</span>`:''}
+                  ${m.gender?`<span class="pk-chip ${genderClass}">${m.gender==='male'?(isAr?'ذكر':'Male'):m.gender==='female'?(isAr?'أنثى':'Female'):(isAr?'آخر':'Other')}</span>`:''}
+                </div>
+              </div>
+              <span class="pk-arr">›</span>
+            </div>`;
+        }).join('');
+      } catch {
+        document.getElementById('peek-list').innerHTML = `<div id="peek-empty">${T.peek_empty}</div>`;
+      }
+    });
+  });
+
+  /* Rate members */
+  document.querySelectorAll('[data-rate-mem]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id   = btn.dataset.rateMem;
+      const name = decodeURIComponent(btn.dataset.objName||'');
+      document.getElementById('modal-title').textContent = `${T.modal_rate} – ${name}`;
+      document.getElementById('modal-body').innerHTML    = `<div id="modal-loading"><div class="modal-spinner"></div></div>`;
+      document.getElementById('members-modal').style.display = 'block';
+      document.getElementById('modal-panel').classList.add('open');
+      try {
+        const res  = await fetch(`/api/object/${id}/members?uid=${uid}`);
+        const data = await res.json();
+        const list = (data.members||[]).filter(m=>String(m.telegram_id)!==String(uid));
+        if (!list.length) { document.getElementById('modal-body').innerHTML=`<div id="modal-empty">${T.modal_empty}</div>`; return; }
+        document.getElementById('modal-body').innerHTML = list.map(m=>`
+          <div class="member-item">
+            <div class="member-av">${m.photo_url?`<img src="${m.photo_url}" loading="lazy" alt="">`:((m.username||'?')[0].toUpperCase())}</div>
+            <div class="member-info">
+              <div class="member-name">${m.username||'User'}</div>
+              <div class="member-avg">${m.my_rating?'⭐ '+m.my_rating:''}</div>
+              <div class="member-rate-stars" data-uid="${m.telegram_id}" data-obj="${id}">
+                ${[1,2,3,4,5].map(s=>`<span class="member-rate-star${(m.my_rating||0)>=s?' on':''}" data-v="${s}">★</span>`).join('')}
+              </div>
+            </div>
+          </div>`).join('');
+        document.querySelectorAll('.member-rate-stars').forEach(row=>{
+          const stars = row.querySelectorAll('.member-rate-star');
+          stars.forEach(star=>{
+            star.addEventListener('click', async ()=>{
+              const v   = parseInt(star.dataset.v);
+              const tid = row.dataset.uid;
+              const oid = row.dataset.obj;
+              stars.forEach((s,i)=>s.classList.toggle('on',i<v));
+              try{
+                const r = await fetch(`/api/object/${oid}/members/${tid}/rate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid:parseInt(uid),rating:v})});
+                const d = await r.json();
+                showToast(d.ok?T.rate_mem_ok:T.rate_mem_err);
+              }catch{showToast(T.rate_mem_err);}
+            });
+          });
+        });
+      } catch { document.getElementById('modal-body').innerHTML=`<div id="modal-empty">${T.modal_empty}</div>`; }
+    });
+  });
+}
+
+/* ─── Image upload ─── */
+document.getElementById('img-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file || !imgTargetId) return;
+  const fd = new FormData();
+  fd.append('image', file);
+  fd.append('uid', uid);
+  fd.append('object_id', imgTargetId);
+  try {
+    const res  = await fetch('/api/object/image/upload', {method:'POST', body:fd});
+    const data = await res.json();
+    if (data.ok) { showToast(T.img_ok); load(); }
+    else showToast(T.img_err);
+  } catch { showToast(T.img_err); }
+  e.target.value = '';
+});
+
+/* ─── Edit modal ─── */
+document.getElementById('edit-modal-bg').addEventListener('click', closeEdit);
+document.getElementById('edit-modal-close').addEventListener('click', closeEdit);
+function closeEdit() {
+  document.getElementById('edit-modal').style.display = 'none';
+  document.getElementById('edit-panel').classList.remove('open');
+}
+document.getElementById('ef-name').addEventListener('input', e => {
+  document.getElementById('ef-name-char').textContent = `${e.target.value.length}/60`;
+});
+document.getElementById('edit-save-btn').addEventListener('click', async () => {
+  const name    = document.getElementById('ef-name').value.trim();
+  const purpose = document.getElementById('ef-purpose').value.trim();
+  if (!name) return;
+  document.getElementById('edit-save-btn').disabled = true;
+  try {
+    const res  = await fetch('/api/object/edit', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uid:parseInt(uid),object_id:parseInt(editTargetId),name,purpose})});
+    const data = await res.json();
+    if (data.ok) { showToast(T.edit_ok); closeEdit(); load(); }
+    else { showToast(T.edit_err); document.getElementById('edit-save-btn').disabled=false; }
+  } catch { showToast(T.edit_err); document.getElementById('edit-save-btn').disabled=false; }
+});
+
+/* ─── Peek sheet close ─── */
+document.getElementById('peek-bg').addEventListener('click', () => document.getElementById('peek-overlay').classList.remove('open'));
+document.getElementById('peek-close-btn').addEventListener('click', () => document.getElementById('peek-overlay').classList.remove('open'));
+
+/* ─── Members modal close ─── */
+document.getElementById('modal-bg').addEventListener('click', () => { document.getElementById('members-modal').style.display='none'; document.getElementById('modal-panel').classList.remove('open'); });
+document.getElementById('modal-close').addEventListener('click', () => { document.getElementById('members-modal').style.display='none'; document.getElementById('modal-panel').classList.remove('open'); });
+
+/* ─── Sort chips ─── */
+document.querySelectorAll('.sort-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.sort-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    sortMode = chip.dataset.sort;
+    render();
+  });
+});
+
+/* ─── Distance & member filter ─── */
+document.getElementById('sel-dist').addEventListener('change', e => { filterDist = e.target.value; render(); });
+document.getElementById('sel-mem').addEventListener('change',  e => { filterMem  = e.target.value; render(); });
+
+/* ─── Type chips ─── */
+document.querySelectorAll('.type-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.type-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    filterType = chip.dataset.type;
+    render();
+  });
+});
+
+/* ─── Mobile toggle ─── */
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterMob = btn.dataset.mob;
+    render();
+  });
+});
+
+/* ─── Init ─── */
+load();
+</script>
+</body>
+</html>

@@ -112,6 +112,16 @@ def create_store_page():
     return render_template("create_store.html")
 
 
+@app.route('/objects')
+def objects_page():
+    return render_template("objects.html")
+
+
+@app.route('/create-object')
+def create_object_page():
+    return render_template("create_object.html")
+
+
 @app.route('/likes')
 def likes_page():
     return render_template("likes.html")
@@ -2591,6 +2601,444 @@ def api_group_chat_send():
                "msg_type": mtype, "file_url": furl, "file_name": fname, "duration": dur}
         supabase.table(table).insert(row).execute()
 
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/objects/<int:telegram_id>')
+def api_objects(telegram_id):
+    """Return all objects (entities) with membership, ownership, and distance."""
+    try:
+        from database import supabase
+        my_id = None
+        my_lat, my_lng = None, None
+
+        me_res = supabase.table("users_v1").select("id").eq("telegram_id", telegram_id).execute()
+        if me_res.data:
+            my_id = me_res.data[0]["id"]
+            loc = supabase.table("user_locations_v1") \
+                .select("latitude, longitude").eq("user_id", my_id).limit(1).execute()
+            if loc.data:
+                my_lat = float(loc.data[0]["latitude"])
+                my_lng = float(loc.data[0]["longitude"])
+
+        objs_res = supabase.table("objects_v1") \
+            .select("id, name, latitude, longitude, created_by, created_at, purpose, object_type, is_mobile, image_url, expires_at") \
+            .execute()
+
+        my_obj_ids = set()
+        if my_id is not None:
+            try:
+                memb_res = supabase.table("object_members_v1") \
+                    .select("object_id").eq("user_id", my_id).execute()
+                my_obj_ids = {m["object_id"] for m in (memb_res.data or [])}
+            except Exception:
+                pass
+
+        objs_out = []
+        for o in (objs_res.data or []):
+            olat = o.get("latitude")
+            olng = o.get("longitude")
+            is_mobile = o.get("is_mobile", False)
+            if not is_mobile and (olat is None or olng is None):
+                continue
+            dist = None
+            if my_lat is not None and olat is not None and olng is not None:
+                dist = round(_haversine(my_lat, my_lng, float(olat), float(olng)), 2)
+
+            try:
+                cnt = supabase.table("object_members_v1") \
+                    .select("id", count="exact").eq("object_id", o["id"]).execute()
+                members = cnt.count if cnt.count is not None else 0
+            except Exception:
+                members = 0
+
+            objs_out.append({
+                "id":          o["id"],
+                "name":        o.get("name", "Entity"),
+                "lat":         float(olat) if olat else None,
+                "lng":         float(olng) if olng else None,
+                "distance":    dist,
+                "members":     members,
+                "created_at":  o.get("created_at"),
+                "purpose":     o.get("purpose") or "",
+                "object_type": o.get("object_type") or "",
+                "is_mobile":   is_mobile,
+                "image_url":   o.get("image_url") or "",
+                "expires_at":  o.get("expires_at") or "",
+                "is_creator":  (my_id is not None and o.get("created_by") == my_id),
+                "is_member":   (o["id"] in my_obj_ids),
+            })
+
+        from collections import defaultdict
+        all_rat = supabase.table("object_ratings_v1").select("object_id, rating").execute()
+        bucket  = defaultdict(list)
+        for row in (all_rat.data or []):
+            bucket[row["object_id"]].append(row["rating"])
+        avg_ratings = {oid: (round(sum(v)/len(v),1), len(v)) for oid, v in bucket.items()}
+        my_ratings  = {}
+        if my_id is not None:
+            my_rat = supabase.table("object_ratings_v1") \
+                .select("object_id, rating").eq("user_id", my_id).execute()
+            my_ratings = {r["object_id"]: r["rating"] for r in (my_rat.data or [])}
+
+        for entry in objs_out:
+            oid = entry["id"]
+            avg, cnt = avg_ratings.get(oid, (0, 0))
+            entry["avg_rating"]   = avg
+            entry["rating_count"] = cnt
+            entry["my_rating"]    = my_ratings.get(oid, 0)
+
+        return jsonify({"objects": objs_out, "my_user_id": my_id})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"objects": [], "error": str(e)})
+
+
+@app.route('/api/object/create', methods=['POST'])
+def api_object_create():
+    try:
+        from database import supabase
+        data        = request.get_json(force=True)
+        uid         = int(data.get("uid", 0))
+        name        = sanitize_text(data.get("name", ""), 60)
+        purpose     = sanitize_text(data.get("purpose", ""), 200)
+        object_type = sanitize_text(data.get("object_type", ""), 40)
+        is_mobile   = bool(data.get("is_mobile", False))
+        expires     = data.get("expires", "")
+
+        if not uid or not name:
+            return jsonify({"ok": False, "error": "missing_fields"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_registered"})
+        creator_id = me.data[0]["id"]
+
+        existing = supabase.table("objects_v1").select("id", count="exact") \
+            .eq("created_by", creator_id).execute()
+        if (existing.count or 0) >= 5:
+            return jsonify({"ok": False, "error": "limit_reached"})
+
+        loc = supabase.table("user_locations_v1").select("latitude,longitude") \
+            .eq("user_id", creator_id).limit(1).execute()
+
+        expires_map = {"1d": timedelta(days=1), "3d": timedelta(days=3),
+                       "1w": timedelta(weeks=1), "1m": timedelta(days=30)}
+        expires_at = None
+        if expires in expires_map:
+            expires_at = (datetime.utcnow() + expires_map[expires]).isoformat()
+
+        record = {"name": name, "created_by": creator_id,
+                  "purpose": purpose, "object_type": object_type, "is_mobile": is_mobile}
+        if loc.data:
+            record["latitude"]  = loc.data[0]["latitude"]
+            record["longitude"] = loc.data[0]["longitude"]
+        if expires_at:
+            record["expires_at"] = expires_at
+
+        result = supabase.table("objects_v1").insert(record).execute()
+        if result.data:
+            obj_id = result.data[0]["id"]
+            try:
+                supabase.table("object_members_v1").insert(
+                    {"object_id": obj_id, "user_id": creator_id}).execute()
+            except Exception:
+                pass
+            return jsonify({"ok": True, "object_id": obj_id})
+        return jsonify({"ok": False, "error": "create_failed"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/object/join', methods=['POST'])
+def api_object_join():
+    try:
+        from database import supabase
+        data      = request.get_json(force=True)
+        uid       = int(data.get("uid", 0))
+        object_id = int(data.get("object_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        existing = supabase.table("object_members_v1") \
+            .select("id").eq("object_id", object_id).eq("user_id", my_id).execute()
+        if existing.data:
+            return jsonify({"ok": True, "already": True})
+
+        supabase.table("object_members_v1").insert(
+            {"object_id": object_id, "user_id": my_id}).execute()
+        return jsonify({"ok": True, "already": False})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/object/delete', methods=['POST'])
+def api_object_delete():
+    try:
+        from database import supabase
+        data      = request.get_json(force=True)
+        uid       = int(data.get("uid", 0))
+        object_id = int(data.get("object_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        obj = supabase.table("objects_v1").select("created_by").eq("id", object_id).execute()
+        if not obj.data or obj.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        cnt = supabase.table("object_members_v1") \
+            .select("id", count="exact").eq("object_id", object_id).execute()
+        if (cnt.count or 0) > 1:
+            return jsonify({"ok": False, "error": "has_members"})
+
+        supabase.table("object_members_v1").delete().eq("object_id", object_id).execute()
+        supabase.table("objects_v1").delete().eq("id", object_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/object/rate', methods=['POST'])
+@limiter.limit('20 per minute')
+def api_object_rate():
+    try:
+        from database import supabase
+        data      = request.get_json(force=True)
+        uid       = int(data.get("uid", 0))
+        object_id = int(data.get("object_id", 0))
+        rating    = int(data.get("rating", 0))
+        if not 1 <= rating <= 5:
+            return jsonify({"ok": False, "error": "invalid_rating"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        existing = supabase.table("object_ratings_v1") \
+            .select("id").eq("object_id", object_id).eq("user_id", my_id).execute()
+        if existing.data:
+            supabase.table("object_ratings_v1") \
+                .update({"rating": rating}).eq("id", existing.data[0]["id"]).execute()
+        else:
+            supabase.table("object_ratings_v1").insert({
+                "object_id": object_id, "user_id": my_id, "rating": rating
+            }).execute()
+
+        all_rat = supabase.table("object_ratings_v1") \
+            .select("rating").eq("object_id", object_id).execute()
+        vals = [r["rating"] for r in (all_rat.data or [])]
+        avg  = round(sum(vals) / len(vals), 1) if vals else 0
+        return jsonify({"ok": True, "avg_rating": avg, "rating_count": len(vals)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/object/image/upload', methods=['POST'])
+def api_object_image_upload():
+    try:
+        from database import supabase
+        uid       = int(request.form.get("uid", 0))
+        object_id = int(request.form.get("object_id", 0))
+        file      = request.files.get("image")
+        if not file:
+            return jsonify({"ok": False, "error": "no_file"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        obj = supabase.table("objects_v1").select("created_by").eq("id", object_id).execute()
+        if not obj.data or obj.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        import os
+        ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
+        folder = "static/object_images"
+        os.makedirs(folder, exist_ok=True)
+        filename  = f"object_{object_id}.{ext}"
+        path      = f"{folder}/{filename}"
+        file.save(path)
+
+        image_url = f"/static/object_images/{filename}"
+        supabase.table("objects_v1").update({"image_url": image_url}).eq("id", object_id).execute()
+        return jsonify({"ok": True, "image_url": image_url})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/object/image/delete', methods=['POST'])
+def api_object_image_delete():
+    try:
+        from database import supabase
+        data      = request.get_json(force=True)
+        uid       = int(data.get("uid", 0))
+        object_id = int(data.get("object_id", 0))
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        obj = supabase.table("objects_v1").select("created_by, image_url") \
+            .eq("id", object_id).execute()
+        if not obj.data or obj.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        img_url = obj.data[0].get("image_url") or ""
+        if img_url.startswith("/static/"):
+            try:
+                import os; os.remove(img_url.lstrip("/"))
+            except Exception:
+                pass
+        supabase.table("objects_v1").update({"image_url": None}).eq("id", object_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/object/edit', methods=['POST'])
+def api_object_edit():
+    try:
+        from database import supabase
+        data        = request.get_json(force=True)
+        uid         = int(data.get("uid", 0))
+        object_id   = int(data.get("object_id", 0))
+        name        = sanitize_text(data.get("name", ""), 60)
+        purpose     = sanitize_text(data.get("purpose", ""), 200)
+        object_type = sanitize_text(data.get("object_type", ""), 40)
+
+        if not name:
+            return jsonify({"ok": False, "error": "name_required"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        obj = supabase.table("objects_v1").select("created_by").eq("id", object_id).execute()
+        if not obj.data or obj.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        supabase.table("objects_v1").update({
+            "name": name, "purpose": purpose, "object_type": object_type
+        }).eq("id", object_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/object/<int:object_id>/members')
+@limiter.limit('30 per minute')
+def api_object_members_peek(object_id):
+    try:
+        from database import supabase
+        members_res = supabase.table("object_members_v1") \
+            .select("user_id").eq("object_id", object_id).execute()
+        result = []
+        for m in (members_res.data or []):
+            u = supabase.table("users_v1") \
+                .select("id, username, age, gender, photo_url, telegram_id") \
+                .eq("id", m["user_id"]).execute()
+            if u.data:
+                row = u.data[0]
+                result.append({
+                    "id":          row.get("id"),
+                    "telegram_id": row.get("telegram_id"),
+                    "username":    row.get("username") or "User",
+                    "age":         row.get("age"),
+                    "gender":      row.get("gender"),
+                    "photo_url":   row.get("photo_url") or "",
+                })
+        return jsonify({"ok": True, "members": result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/object/<int:object_id>/members/<int:telegram_id>')
+def api_object_members(object_id, telegram_id):
+    try:
+        from database import supabase
+        from config import BOT_TOKEN
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", telegram_id).execute()
+        if not me.data:
+            return jsonify({"ok": False, "members": []})
+        my_id = me.data[0]["id"]
+
+        members_res = supabase.table("object_members_v1") \
+            .select("user_id").eq("object_id", object_id).execute()
+
+        my_given_res = supabase.table("user_ratings_v1") \
+            .select("rated_user_id, rating").eq("rater_id", my_id).execute()
+        my_given = {r["rated_user_id"]: r["rating"] for r in (my_given_res.data or [])}
+
+        result = []
+        for m in (members_res.data or []):
+            member_uid = m["user_id"]
+            if member_uid == my_id:
+                continue
+            u = supabase.table("users_v1") \
+                .select("id, username, age, gender, photo_url, telegram_id") \
+                .eq("id", member_uid).execute()
+            if u.data:
+                row = u.data[0]
+                result.append({
+                    "id":          row.get("id"),
+                    "telegram_id": row.get("telegram_id"),
+                    "username":    row.get("username") or "User",
+                    "age":         row.get("age"),
+                    "gender":      row.get("gender"),
+                    "photo_url":   row.get("photo_url") or "",
+                    "my_rating":   my_given.get(member_uid, 0),
+                })
+        return jsonify({"ok": True, "members": result})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/object/<int:object_id>/members/<int:target_tg_id>/rate', methods=['POST'])
+def api_object_member_rate(object_id, target_tg_id):
+    try:
+        from database import supabase
+        data   = request.get_json(force=True)
+        uid    = data.get('uid')
+        rating = int(data.get('rating', 0))
+        if not uid or not (1 <= rating <= 5):
+            return jsonify({"ok": False, "error": "invalid"})
+
+        rater = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not rater.data:
+            return jsonify({"ok": False, "error": "not_registered"})
+        rater_id = rater.data[0]["id"]
+
+        target = supabase.table("users_v1").select("id").eq("telegram_id", target_tg_id).execute()
+        if not target.data:
+            return jsonify({"ok": False, "error": "target_not_found"})
+        target_id = target.data[0]["id"]
+
+        existing = supabase.table("user_ratings_v1") \
+            .select("id").eq("rater_id", rater_id) \
+            .eq("rated_user_id", target_id).execute()
+        if existing.data:
+            supabase.table("user_ratings_v1") \
+                .update({"rating": rating}) \
+                .eq("id", existing.data[0]["id"]).execute()
+        else:
+            supabase.table("user_ratings_v1").insert({
+                "rater_id": rater_id,
+                "rated_user_id": target_id,
+                "rating": rating
+            }).execute()
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})

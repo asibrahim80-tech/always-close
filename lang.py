@@ -95,6 +95,9 @@ TEXTS = {
         "btn_settings": "⚙️ الإعدادات",
         "settings_tap": "⚙️ اضغط لفتح صفحة الإعدادات",
         "settings_btn_open": "⚙️ فتح الإعدادات",
+        # Objects (unified entities)
+        "btn_objects_list": "🗂️ قائمة الكيانات",
+        "btn_create_object": "✨ إنشاء كيان",
         # Rooms nearby & create
         "btn_rooms_nearby": "📍 الغرف القريبة",
         "btn_create_room": "🏠 إنشاء غرفة",
@@ -282,6 +285,8 @@ TEXTS = {
         "settings_tap": "⚙️ Tap to open the settings page",
         "settings_btn_open": "⚙️ Open Settings",
         # Rooms nearby & create
+        "btn_objects_list": "🗂️ Entities List",
+        "btn_create_object": "✨ Create Entity",
         "btn_rooms_nearby": "📍 Rooms Nearby",
         "btn_create_room": "🏠 Create Room",
         "create_room_ask_name": "🏠 Enter a name for your room:",
