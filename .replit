@@ -3,7 +3,7 @@ modules = ["python-3.11", "web", "postgresql-16"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["openssl", "postgresql", "nano"]
+packages = ["nano", "openssl", "postgresql"]
 
 [unitTest]
 language = "python3"
@@ -12,8 +12,8 @@ language = "python3"
 requiredFiles = [".replit", "replit.nix"]
 
 [deployment]
-run = ["python", "main.py"]
-deploymentTarget = "vm"
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+deploymentTarget = "autoscale"
 build = ["pip", "install", "-r", "requirements.txt"]
 
 [agent]
