@@ -3400,33 +3400,44 @@ def _run_bot_polling():
 
         offset = 0
         inner_delay = 1
-        while True:
+        try:
+            while True:
+                try:
+                    updates = await asyncio.wait_for(
+                        bot_app.bot.get_updates(
+                            offset=offset,
+                            timeout=20,
+                            allowed_updates=_Update2.ALL_TYPES,
+                        ),
+                        timeout=30,
+                    )
+                    inner_delay = 1  # reset on success
+                    for upd in updates:
+                        await bot_app.process_update(upd)
+                        offset = upd.update_id + 1
+                except _Conflict:
+                    _ka_logger.warning("getUpdates Conflict — raising to outer handler")
+                    raise
+                except asyncio.TimeoutError:
+                    pass  # normal long-poll timeout, continue
+                except _NetError as _ne:
+                    _ka_logger.warning(f"Network error in polling: {_ne}. Retry in {inner_delay}s…")
+                    await asyncio.sleep(inner_delay)
+                    inner_delay = min(inner_delay * 2, 30)
+                except Exception as _ex:
+                    _ka_logger.error(f"Unexpected polling error: {_ex}. Retry in {inner_delay}s…")
+                    await asyncio.sleep(inner_delay)
+                    inner_delay = min(inner_delay * 2, 30)
+        finally:
+            # Cleanup so bot_app can be safely re-initialized on retry
             try:
-                updates = await asyncio.wait_for(
-                    bot_app.bot.get_updates(
-                        offset=offset,
-                        timeout=20,
-                        allowed_updates=_Update2.ALL_TYPES,
-                    ),
-                    timeout=30,
-                )
-                inner_delay = 1  # reset on success
-                for upd in updates:
-                    await bot_app.process_update(upd)
-                    offset = upd.update_id + 1
-            except _Conflict:
-                _ka_logger.warning("getUpdates Conflict — raising to outer handler")
-                raise
-            except asyncio.TimeoutError:
-                pass  # normal long-poll timeout, continue
-            except _NetError as _ne:
-                _ka_logger.warning(f"Network error in polling: {_ne}. Retry in {inner_delay}s…")
-                await asyncio.sleep(inner_delay)
-                inner_delay = min(inner_delay * 2, 30)
-            except Exception as _ex:
-                _ka_logger.error(f"Unexpected polling error: {_ex}. Retry in {inner_delay}s…")
-                await asyncio.sleep(inner_delay)
-                inner_delay = min(inner_delay * 2, 30)
+                await bot_app.stop()
+            except Exception:
+                pass
+            try:
+                await bot_app.shutdown()
+            except Exception:
+                pass
 
     retry_delay = 5
     conflict_retries = 0
