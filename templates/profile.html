@@ -384,13 +384,7 @@
     </div>
   </div>
 
-  <!-- Zodiac -->
-  <div class="pcard">
-    <div class="pcard-hdr"><span class="pcard-hdr-icon">⭐</span><span class="pcard-hdr-title" id="lbl-zodiac-title"></span></div>
-    <div class="pcard-body">
-      <div class="zodiac-grid" id="zodiac-grid"></div>
-    </div>
-  </div>
+  <!-- Zodiac: auto-display only, no manual selection -->
 
   <!-- Social Status -->
   <div class="pcard">
@@ -469,10 +463,14 @@
     <div class="pcard-hdr"><span class="pcard-hdr-icon">🌍</span><span class="pcard-hdr-title" id="lbl-loc-title"></span></div>
     <div class="pcard-body">
       <label class="f-label" id="lbl-country"></label>
-      <input class="f-input" id="f-country" type="text" maxlength="60">
+      <select class="f-input" id="f-country" onchange="onCountryChange()" style="appearance:auto">
+        <option value=""></option>
+      </select>
 
       <label class="f-label" id="lbl-city"></label>
-      <input class="f-input" id="f-city" type="text" maxlength="60">
+      <select class="f-input" id="f-city" style="appearance:auto">
+        <option value=""></option>
+      </select>
 
       <label class="f-label" id="lbl-neighborhood"></label>
       <input class="f-input" id="f-neighborhood" type="text" maxlength="60">
@@ -833,7 +831,7 @@ document.getElementById('lbl-gender').textContent         = T.gender;
 document.getElementById('lbl-g-male').textContent         = T.g_male;
 document.getElementById('lbl-g-female').textContent       = T.g_female;
 document.getElementById('lbl-birthdate').textContent      = T.birthdate;
-document.getElementById('lbl-zodiac-title').textContent   = T.zodiac_title;
+// zodiac title removed (auto-calculated, no manual grid)
 document.getElementById('lbl-social-title').textContent   = T.social_title;
 document.getElementById('lbl-children').textContent       = T.children;
 document.getElementById('lbl-contact-title').textContent  = T.contact_title;
@@ -1057,23 +1055,100 @@ function buildChips(containerId, items, selectedArr, colorCls, isRadio) {
   });
 }
 
-// ── Build zodiac grid ─────────────────────────────────────────
-function buildZodiacGrid(selected) {
-  const grid = document.getElementById('zodiac-grid');
-  grid.innerHTML = '';
-  ZODIACS.forEach(z => {
-    const el = document.createElement('div');
-    el.className = 'zodiac-chip' + (selected[0] === z.v ? ' active' : '');
-    el.dataset.v = z.v;
-    el.innerHTML = `<span class="zodiac-sign">${z.s}</span><span class="zodiac-name">${z.n}</span>`;
-    el.addEventListener('click', () => {
-      grid.querySelectorAll('.zodiac-chip').forEach(c => c.classList.remove('active'));
-      el.classList.add('active');
-      selected[0] = z.v;
-      calcCompletion();
-    });
-    grid.appendChild(el);
+// ── Build zodiac grid (no-op — zodiac is auto-calculated from birthdate) ──
+function buildZodiacGrid(selected) { /* zodiac shown only via auto-row */ }
+
+// ── Countries & Cities data ────────────────────────────────────────────────
+const COUNTRIES_DATA = lang === 'ar' ? [
+  {n:'السعودية',   cities:['الرياض','جدة','مكة المكرمة','المدينة المنورة','الدمام','الطائف','تبوك','أبها','بريدة','خميس مشيط','جيزان','نجران','حائل','ينبع','الجبيل']},
+  {n:'مصر',        cities:['القاهرة','الجيزة','الإسكندرية','الأقصر','أسوان','بورسعيد','السويس','طنطا','المنصورة','الإسماعيلية','المنيا','سوهاج','أسيوط','الزقازيق','دمنهور']},
+  {n:'الإمارات',   cities:['دبي','أبوظبي','الشارقة','رأس الخيمة','الفجيرة','عجمان','أم القيوين']},
+  {n:'الكويت',     cities:['الكويت','حولي','الفروانية','الأحمدي','الجهراء','مبارك الكبير']},
+  {n:'قطر',        cities:['الدوحة','الريان','الوكرة','الخور','مسيعيد','الوكرة']},
+  {n:'البحرين',    cities:['المنامة','المحرق','الرفاع','الحد','عيسى','حمد']},
+  {n:'عُمان',      cities:['مسقط','صلالة','نزوى','صور','صحار','مطرح','البريمي']},
+  {n:'الأردن',     cities:['عمّان','إربد','الزرقاء','العقبة','المفرق','جرش','عجلون','الكرك','مأدبا']},
+  {n:'لبنان',      cities:['بيروت','طرابلس','صيدا','صور','زحلة','جونيه','النبطية']},
+  {n:'سوريا',      cities:['دمشق','حلب','حمص','اللاذقية','طرطوس','دير الزور','الحسكة','القامشلي']},
+  {n:'العراق',     cities:['بغداد','البصرة','الموصل','أربيل','النجف','كربلاء','السليمانية','كركوك']},
+  {n:'اليمن',      cities:['صنعاء','عدن','تعز','الحديدة','إب','المكلا','ذمار','حضرموت']},
+  {n:'ليبيا',      cities:['طرابلس','بنغازي','مصراتة','سبها','الزاوية','البيضاء','توبرق']},
+  {n:'تونس',       cities:['تونس','صفاقس','سوسة','قفصة','بنزرت','قابس','القيروان']},
+  {n:'الجزائر',    cities:['الجزائر','وهران','قسنطينة','عنابة','بجاية','تلمسان','سطيف']},
+  {n:'المغرب',     cities:['الرباط','الدار البيضاء','مراكش','فاس','طنجة','أكادير','مكناس','وجدة']},
+  {n:'السودان',    cities:['الخرطوم','أم درمان','بورتسودان','كسلا','الأبيض','واو','مدني']},
+  {n:'فلسطين',     cities:['القدس','غزة','رام الله','نابلس','الخليل','جنين','طولكرم']},
+  {n:'الصومال',    cities:['مقديشو','هرجيسا','كسمايو','بوصاصو','بيدوا']},
+  {n:'جيبوتي',     cities:['جيبوتي','علي صبيح','تاجورة','عوسة']},
+  {n:'جزر القمر',  cities:['موروني','موتسامودو','فومبوني']},
+  {n:'موريتانيا',  cities:['نواكشوط','نواذيبو','روصو','ألاك','كيفة']},
+  {n:'أخرى',       cities:[]},
+] : [
+  {n:'Saudi Arabia',  cities:['Riyadh','Jeddah','Mecca','Medina','Dammam','Taif','Tabuk','Abha','Buraidah','Khamis Mushait']},
+  {n:'Egypt',         cities:['Cairo','Giza','Alexandria','Luxor','Aswan','Port Said','Suez','Tanta','Mansoura','Ismailia']},
+  {n:'UAE',           cities:['Dubai','Abu Dhabi','Sharjah','Ras Al Khaimah','Fujairah','Ajman','Umm Al Quwain']},
+  {n:'Kuwait',        cities:['Kuwait City','Hawalli','Farwaniya','Ahmadi','Jahra','Mubarak Al-Kabeer']},
+  {n:'Qatar',         cities:['Doha','Al Rayyan','Al Wakrah','Al Khor','Mesaieed']},
+  {n:'Bahrain',       cities:['Manama','Muharraq','Riffa','Hamad Town','Isa Town','Sitra']},
+  {n:'Oman',          cities:['Muscat','Salalah','Nizwa','Sur','Sohar','Matrah']},
+  {n:'Jordan',        cities:['Amman','Irbid','Zarqa','Aqaba','Mafraq','Jerash','Ajloun','Karak']},
+  {n:'Lebanon',       cities:['Beirut','Tripoli','Sidon','Tyre','Zahle','Jounieh']},
+  {n:'Syria',         cities:['Damascus','Aleppo','Homs','Latakia','Tartus','Deir ez-Zor']},
+  {n:'Iraq',          cities:['Baghdad','Basra','Mosul','Erbil','Najaf','Karbala']},
+  {n:'Yemen',         cities:['Sanaa','Aden','Taiz','Hodeidah','Ibb','Mukalla']},
+  {n:'Libya',         cities:['Tripoli','Benghazi','Misrata','Sabha','Zawiya']},
+  {n:'Tunisia',       cities:['Tunis','Sfax','Sousse','Gafsa','Bizerte','Gabes']},
+  {n:'Algeria',       cities:['Algiers','Oran','Constantine','Annaba','Bejaia','Tlemcen']},
+  {n:'Morocco',       cities:['Rabat','Casablanca','Marrakech','Fes','Tangier','Agadir','Meknes']},
+  {n:'Sudan',         cities:['Khartoum','Omdurman','Port Sudan','Kassala','Al-Ubayyid']},
+  {n:'Palestine',     cities:['Jerusalem','Gaza','Ramallah','Nablus','Hebron','Jenin']},
+  {n:'Other',         cities:[]},
+];
+
+function buildCountrySelect(currentCountry) {
+  const sel = document.getElementById('f-country');
+  sel.innerHTML = `<option value="">${lang==='ar'?'-- اختر الدولة --':'-- Select Country --'}</option>`;
+  COUNTRIES_DATA.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.n;
+    opt.textContent = c.n;
+    if (c.n === currentCountry) opt.selected = true;
+    sel.appendChild(opt);
   });
+}
+
+function buildCitySelect(country, currentCity) {
+  const sel = document.getElementById('f-city');
+  const found = COUNTRIES_DATA.find(c => c.n === country);
+  const cities = found ? found.cities : [];
+  if (cities.length === 0) {
+    sel.innerHTML = `<option value="">${currentCity || ''}</option>`;
+    if (currentCity) { const o=document.createElement('option'); o.value=currentCity; o.textContent=currentCity; o.selected=true; sel.appendChild(o); }
+    return;
+  }
+  sel.innerHTML = `<option value="">${lang==='ar'?'-- اختر المدينة --':'-- Select City --'}</option>`;
+  cities.forEach(city => {
+    const opt = document.createElement('option');
+    opt.value = city; opt.textContent = city;
+    if (city === currentCity) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  // If city not in list, add it
+  if (currentCity && !cities.includes(currentCity)) {
+    const opt = document.createElement('option');
+    opt.value = currentCity; opt.textContent = currentCity; opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function setCountryCity(country, city) {
+  buildCountrySelect(country);
+  buildCitySelect(country, city);
+}
+
+function onCountryChange() {
+  const country = document.getElementById('f-country').value;
+  buildCitySelect(country, '');
 }
 
 // ── Build education dropdown ──────────────────────────────────
@@ -1155,86 +1230,98 @@ const fileInput = document.getElementById('photo-file-input');
 function renderPhotoGrid() {
   const grid = document.getElementById('photo-grid');
   grid.innerHTML = '';
-  // Slot 0 = main photo
   const slots = [{ id: -1, photo_url: mainPhotoUrl, is_main: true }, ...photosState];
   for (let i = 0; i < 9; i++) {
     const slot = document.createElement('div');
     slot.className = 'photo-slot';
-    if (slots[i]) {
-      const s = slots[i];
-      if (s.photo_url) {
-        slot.classList.add('has-photo');
-        const img = document.createElement('img');
-        img.src = s.photo_url;
-        img.onerror = () => { img.style.display='none'; slot.classList.remove('has-photo'); };
-        slot.appendChild(img);
-        if (s.is_main) {
-          const badge = document.createElement('div');
-          badge.className = 'photo-main-badge';
-          badge.textContent = T.photo_main;
-          slot.appendChild(badge);
-        } else {
-          const del = document.createElement('div');
-          del.className = 'photo-slot-del';
-          del.textContent = '✕';
-          del.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (!confirm(T.photo_del_confirm)) return;
-            deleteExtraPhoto(s.id);
-          });
-          slot.appendChild(del);
-        }
-        slot.addEventListener('click', () => triggerPhotoUpload(s.is_main ? -1 : i));
+    slot.style.position = 'relative';
+    const s = slots[i] || null;
+
+    if (s && s.photo_url) {
+      slot.classList.add('has-photo');
+      const img = document.createElement('img');
+      img.src = s.photo_url;
+      img.onerror = () => { img.style.display='none'; slot.classList.remove('has-photo'); makeEmptySlot(slot, s && s.is_main); };
+      slot.appendChild(img);
+      if (s.is_main) {
+        const badge = document.createElement('div');
+        badge.className = 'photo-main-badge';
+        badge.textContent = T.photo_main;
+        slot.appendChild(badge);
+        const lbl = makeFileLabel(true);
+        const ic = document.createElement('div');
+        ic.style = 'position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.55);border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;pointer-events:none';
+        ic.textContent = '📷';
+        lbl.appendChild(ic);
+        slot.appendChild(lbl);
       } else {
-        const icon = document.createElement('div');
-        icon.className = 'photo-slot-icon';
-        icon.textContent = T.photo_add;
-        slot.appendChild(icon);
-        slot.addEventListener('click', () => triggerPhotoUpload(s.is_main ? -1 : i));
+        const del = document.createElement('div');
+        del.className = 'photo-slot-del';
+        del.textContent = '✕';
+        del.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!confirm(T.photo_del_confirm)) return;
+          deleteExtraPhoto(s.id);
+        });
+        slot.appendChild(del);
       }
     } else {
-      const icon = document.createElement('div');
-      icon.className = 'photo-slot-icon';
-      icon.textContent = T.photo_add;
-      slot.appendChild(icon);
-      slot.addEventListener('click', () => triggerPhotoUpload(i));
+      makeEmptySlot(slot, i === 0);
     }
     grid.appendChild(slot);
   }
 }
 
-function triggerPhotoUpload(slotIdx) {
-  pendingPhotoSlot = slotIdx;
-  fileInput.value = '';
-  fileInput.click();
+function makeEmptySlot(slot, isMain) {
+  const lbl = makeFileLabel(isMain);
+  const icon = document.createElement('div');
+  icon.className = 'photo-slot-icon';
+  icon.textContent = T.photo_add;
+  icon.style.pointerEvents = 'none';
+  lbl.appendChild(icon);
+  slot.appendChild(lbl);
 }
 
-fileInput.addEventListener('change', async () => {
-  if (!fileInput.files.length) return;
-  const file = fileInput.files[0];
-  if (pendingPhotoSlot === -1) {
-    // Main photo not uploaded separately — show preview (main photo set via bot)
-    showToast(lang === 'ar' ? 'الصورة الرئيسية تُعدَّل عبر البوت' : 'Main photo is set via the bot');
-    return;
-  }
-  // Upload extra photo
+function makeFileLabel(isMain) {
+  const lbl = document.createElement('label');
+  lbl.style = 'position:absolute;inset:0;cursor:pointer;display:flex;align-items:center;justify-content:center';
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.style.display = 'none';
+  inp.addEventListener('change', () => handlePhotoUpload(inp, isMain));
+  lbl.appendChild(inp);
+  return lbl;
+}
+
+async function handlePhotoUpload(inp, isMain) {
+  if (!inp.files || !inp.files.length) return;
+  const file = inp.files[0];
   const fd = new FormData();
   fd.append('uid', uid);
   fd.append('image', file);
+  if (isMain) fd.append('is_main', '1');
   try {
+    showToast(lang === 'ar' ? '⏳ جاري الرفع...' : '⏳ Uploading...');
     const res = await fetch('/api/profile/photo/add', { method:'POST', body:fd }).then(r=>r.json());
     if (res.ok) {
-      photosState.push({ id: Date.now(), photo_url: res.photo_url, order_num: photosState.length });
+      if (res.is_main) {
+        mainPhotoUrl = res.photo_url;
+        const av = document.getElementById('hdr-avatar');
+        av.src = res.photo_url;
+        av.style.display = 'block';
+        document.getElementById('hdr-avatar-ph').style.display = 'none';
+      } else {
+        photosState.push({ id: res.photo_id || Date.now(), photo_url: res.photo_url, order_num: photosState.length });
+      }
       renderPhotoGrid();
       showToast('✅');
-      // reload to get proper id
-      loadProfile();
     } else {
       if (res.error === 'max_photos') showToast(T.max_photos);
       else showToast(T.save_err);
     }
   } catch { showToast(T.save_err); }
-});
+}
 
 async function deleteExtraPhoto(photoId) {
   try {
@@ -1277,8 +1364,12 @@ async function loadProfile() {
     // Compute completeness from actual fields (not DB value which may be wrong type)
     // calcCompletion() will be called after all fields are populated below
 
-    // Avatar
+    // Avatar — use DB photo, fall back to Telegram WebApp photo_url
     mainPhotoUrl = p.photo_url || null;
+    if (!mainPhotoUrl) {
+      const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+      if (tgUser?.photo_url) mainPhotoUrl = tgUser.photo_url;
+    }
     if (mainPhotoUrl) {
       const img = document.getElementById('hdr-avatar');
       img.src = mainPhotoUrl;
@@ -1310,8 +1401,7 @@ async function loadProfile() {
     document.getElementById('f-profession').value  = p.profession  || '';
     document.getElementById('f-university').value  = p.university  || '';
     document.getElementById('f-school').value      = p.school      || '';
-    document.getElementById('f-country').value     = p.country     || '';
-    document.getElementById('f-city').value        = p.city        || '';
+    setCountryCity(p.country || '', p.city || '');
     document.getElementById('f-neighborhood').value= p.neighborhood|| '';
 
     // Zodiac auto hint

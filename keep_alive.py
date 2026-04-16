@@ -455,14 +455,16 @@ def api_profile_save():
         return jsonify({"ok": False, "error": str(e)})
 
 
-# ── Profile: add extra photo ──────────────────────────────────────────────
+# ── Profile: add photo (main or extra) ────────────────────────────────────
 @app.route('/api/profile/photo/add', methods=['POST'])
 @limiter.limit('10 per minute')
 def api_profile_photo_add():
     try:
         from database import supabase
-        uid = int(request.form.get("uid", 0))
-        f   = request.files.get("image")
+        import uuid as _uuid
+        uid     = int(request.form.get("uid", 0))
+        f       = request.files.get("image")
+        is_main = request.form.get("is_main") == "1"
         if not f:
             return jsonify({"ok": False, "error": "no_file"})
 
@@ -471,27 +473,33 @@ def api_profile_photo_add():
             return jsonify({"ok": False, "error": "not_found"})
         my_id = me.data[0]["id"]
 
-        # Max 9 photos
-        existing = supabase.table("user_photos_v1").select("id", count="exact") \
-            .eq("user_id", my_id).execute()
-        if (existing.count or 0) >= 9:
-            return jsonify({"ok": False, "error": "max_photos"})
-
+        # Save file
         os.makedirs("static/profile_photos", exist_ok=True)
         ext = (f.filename.rsplit(".", 1)[-1].lower()
                if f.filename and "." in f.filename else "jpg")
         if ext not in ("jpg", "jpeg", "png", "webp"):
             ext = "jpg"
-        import uuid as _uuid
         fname     = f"static/profile_photos/u{my_id}_{_uuid.uuid4().hex[:8]}.{ext}"
         photo_url = f"/{fname}"
         f.save(fname)
 
-        order_num = (existing.count or 0)
-        supabase.table("user_photos_v1").insert({
-            "user_id": my_id, "photo_url": photo_url, "order_num": order_num
-        }).execute()
-        return jsonify({"ok": True, "photo_url": photo_url})
+        if is_main:
+            # Update main profile photo in users_v1
+            supabase.table("users_v1").update({"photo_url": photo_url}) \
+                .eq("telegram_id", uid).execute()
+            return jsonify({"ok": True, "photo_url": photo_url, "is_main": True})
+        else:
+            # Max 9 extra photos
+            existing = supabase.table("user_photos_v1").select("id", count="exact") \
+                .eq("user_id", my_id).execute()
+            if (existing.count or 0) >= 9:
+                return jsonify({"ok": False, "error": "max_photos"})
+            order_num = (existing.count or 0)
+            ins = supabase.table("user_photos_v1").insert({
+                "user_id": my_id, "photo_url": photo_url, "order_num": order_num
+            }).execute()
+            photo_id = ins.data[0]["id"] if ins.data else None
+            return jsonify({"ok": True, "photo_url": photo_url, "photo_id": photo_id, "is_main": False})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
