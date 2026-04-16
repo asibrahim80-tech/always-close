@@ -392,8 +392,11 @@
       <label class="f-label" id="lbl-email"></label>
       <input class="f-input" id="f-email" type="email" maxlength="100">
       <label class="f-label" id="lbl-phone-disp"></label>
-      <input class="f-input" id="f-phone" type="text" readonly style="opacity:.6;cursor:default">
-      <div style="font-size:11px;color:var(--sub);margin-top:-8px;margin-bottom:12px" id="lbl-phone-hint"></div>
+      <div style="display:flex;gap:8px;margin-bottom:4px">
+        <input class="f-input" id="f-phone" type="tel" maxlength="20" placeholder="+966…" style="flex:1;margin-bottom:0">
+        <button id="btn-save-phone" onclick="savePhone()" style="background:#8e44ad;color:#fff;border:none;border-radius:12px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0" id="lbl-save-phone">💾</button>
+      </div>
+      <div style="font-size:11px;color:var(--sub);margin-top:0;margin-bottom:12px" id="lbl-phone-hint"></div>
     </div>
   </div>
 </div>
@@ -527,6 +530,16 @@
   </div>
 </div>
 
+<!-- Feedback + Manage Entities quick-links -->
+<div id="profile-quick-links" style="display:flex;gap:10px;padding:0 12px 16px;flex-wrap:wrap">
+  <a id="link-manage-objs" href="#" onclick="openManageObjs()" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px 14px;background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.07);text-decoration:none;color:#333;font-size:13px;font-weight:600;min-width:140px">
+    <span style="font-size:20px">🗂️</span><span id="lbl-manage-link">My Entities</span>
+  </a>
+  <a id="link-feedback" href="#" onclick="openFeedback()" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px 14px;background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.07);text-decoration:none;color:#333;font-size:13px;font-weight:600;min-width:140px">
+    <span style="font-size:20px">📨</span><span id="lbl-feedback-link">Send Feedback</span>
+  </a>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -569,7 +582,8 @@ const T = lang === 'ar' ? {
   contact_title: 'معلومات التواصل',
   email: 'البريد الإلكتروني',
   phone: 'رقم الهاتف',
-  phone_hint: 'يُضاف من البوت عند مشاركة جهة الاتصال',
+  phone_hint: 'يمكنك تعديل رقم هاتفك في أي وقت',
+  save_phone: 'حفظ',
   looking_title: 'ماذا تبحث عن؟',
   looking_hint: 'يمكنك اختيار أكثر من خيار',
   hobbies_title: 'الهوايات',
@@ -605,6 +619,8 @@ const T = lang === 'ar' ? {
   priv_phone_desc: 'السماح للآخرين برؤية رقم هاتفك في ملفك الشخصي',
   priv_phone_on: '📞 مُظهر',
   priv_phone_off: '🔕 مخفي',
+  lbl_manage_link: '🗂️ كياناتي',
+  lbl_feedback_link: '📨 الملاحظات',
 } : {
   loading: 'Loading...',
   complete_label: 'Profile completion',
@@ -634,7 +650,8 @@ const T = lang === 'ar' ? {
   contact_title: 'Contact Info',
   email: 'Email Address',
   phone: 'Phone Number',
-  phone_hint: 'Added via bot when you share your contact',
+  phone_hint: 'You can edit your phone number at any time',
+  save_phone: 'Save',
   looking_title: 'What are you looking for?',
   looking_hint: 'You can select multiple options',
   hobbies_title: 'Hobbies',
@@ -670,6 +687,8 @@ const T = lang === 'ar' ? {
   priv_phone_desc: 'Allow others to see your phone number on your profile',
   priv_phone_on: '📞 Shown',
   priv_phone_off: '🔕 Hidden',
+  lbl_manage_link: '🗂️ My Entities',
+  lbl_feedback_link: '📨 Send Feedback',
 };
 
 // ── Apply static labels ───────────────────────────────────────
@@ -693,6 +712,9 @@ document.getElementById('lbl-contact-title').textContent  = T.contact_title;
 document.getElementById('lbl-email').textContent          = T.email;
 document.getElementById('lbl-phone-disp').textContent     = T.phone;
 document.getElementById('lbl-phone-hint').textContent     = T.phone_hint;
+document.getElementById('btn-save-phone').title          = T.save_phone;
+document.getElementById('lbl-manage-link').textContent    = T.lbl_manage_link;
+document.getElementById('lbl-feedback-link').textContent  = T.lbl_feedback_link;
 document.getElementById('lbl-looking-title').textContent  = T.looking_title;
 document.getElementById('lbl-looking-hint').textContent   = T.looking_hint;
 document.getElementById('lbl-hobbies-title').textContent  = T.hobbies_title;
@@ -1298,6 +1320,34 @@ async function toggleVisibility() {
       showToast(res.is_visible
         ? (lang==='ar' ? '👁️ حسابك مرئي الآن' : '👁️ Account is now visible')
         : (lang==='ar' ? '👻 حسابك مخفي الآن' : '👻 Account is now hidden'));
+    }
+  } catch(e) { console.error(e); }
+}
+
+function openManageObjs() {
+  const url = `/manage-objects?uid=${uid}&lang=${lang}`;
+  if (window.Telegram?.WebApp?.openLink) Telegram.WebApp.openLink(url);
+  else window.open(url, '_blank');
+}
+
+function openFeedback() {
+  const url = `/feedback?uid=${uid}&lang=${lang}`;
+  if (window.Telegram?.WebApp?.openLink) Telegram.WebApp.openLink(url);
+  else window.open(url, '_blank');
+}
+
+async function savePhone() {
+  if (!uid) return;
+  const phone = document.getElementById('f-phone').value.trim();
+  try {
+    const res = await fetch('/api/profile/update_phone', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({uid, phone})
+    }).then(r=>r.json());
+    if (res.ok) {
+      showToast(lang==='ar' ? '✅ تم حفظ رقم الهاتف' : '✅ Phone number saved');
+    } else {
+      showToast(lang==='ar' ? '❌ فشل الحفظ' : '❌ Failed to save');
     }
   } catch(e) { console.error(e); }
 }

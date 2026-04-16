@@ -7,7 +7,7 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;min-height:100vh;padding-bottom:40px}
-    #header{background:#fff;padding:14px 16px 12px;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;align-items:center;gap:10px;margin-bottom:16px}
+    #header{background:#fff;padding:14px 16px 12px;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;align-items:center;gap:10px;margin-bottom:16px;position:sticky;top:0;z-index:50}
     #header h1{font-size:18px;font-weight:700;color:#111;flex:1}
     .close-btn{background:none;border:none;font-size:20px;cursor:pointer;color:#555;padding:4px 6px;border-radius:8px}
     .section{background:#fff;border-radius:16px;margin:0 12px 14px;padding:16px}
@@ -18,33 +18,79 @@
     .field-textarea{width:100%;padding:11px 13px;border:1.5px solid #ddd;border-radius:12px;font-size:14px;outline:none;font-family:inherit;min-height:80px;resize:vertical;transition:border-color .15s;background:#fafafa}
     .field-textarea:focus{border-color:#6c3483;background:#fff}
     .char-hint{font-size:11px;color:#bbb;text-align:right;margin-top:4px}
+
+    /* Static/Mobile toggle */
+    .mobility-row{display:flex;gap:10px;margin-bottom:14px}
+    .mob-btn{flex:1;padding:12px 8px;border-radius:12px;border:2px solid #e0e0e0;background:#fafafa;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;color:#666;transition:all .15s;display:flex;flex-direction:column;align-items:center;gap:4px}
+    .mob-btn .mob-icon{font-size:24px}
+    .mob-btn.sel-fixed{border-color:#8e44ad;background:#f3e5f5;color:#8e44ad}
+    .mob-btn.sel-mobile{border-color:#2471a3;background:#e8f4fb;color:#2471a3}
+
     /* Type grid */
     .type-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
     .type-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:12px;border:1.5px solid #e0e0e0;background:#fafafa;cursor:pointer;transition:all .15s;font-family:inherit}
     .type-btn:active{transform:scale(.95)}
     .type-btn.selected{background:#f3e5f5;border-color:#8e44ad}
     .type-btn.mobile-type.selected{background:#e8f4fb;border-color:#2471a3}
-    .type-emoji{font-size:22px;line-height:1}
+    .type-emoji-lbl{font-size:22px;line-height:1}
     .type-name{font-size:10px;font-weight:600;color:#555;text-align:center;line-height:1.2}
     .type-btn.selected .type-name{color:#8e44ad}
     .type-btn.mobile-type.selected .type-name{color:#2471a3}
-    /* Mobile badge */
-    .mobile-badge{display:none;background:#e8f4fb;color:#2471a3;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;margin-top:8px;text-align:center}
-    .mobile-badge.show{display:block}
+
+    /* Custom type */
+    #custom-type-wrap{display:none;margin-top:12px}
+    #custom-type-wrap.show{display:block}
+    .emoji-picker-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .emoji-opt{font-size:24px;padding:6px;border-radius:10px;border:2px solid #e0e0e0;background:#fafafa;cursor:pointer;transition:all .12s}
+    .emoji-opt.selected{border-color:#8e44ad;background:#f3e5f5}
+    #custom-emoji-input{margin-top:8px;width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:12px;font-size:20px;outline:none;background:#fafafa;text-align:center;font-family:inherit}
+    #custom-emoji-input:focus{border-color:#8e44ad}
+
+    /* Map icon picker */
+    #map-icon-section{display:none}
+    #map-icon-section.show{display:block}
+    .map-icon-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+    .map-icon-btn{font-size:22px;padding:6px 8px;border-radius:10px;border:2px solid #e0e0e0;background:#fafafa;cursor:pointer;transition:all .12s}
+    .map-icon-btn.selected{border-color:#e74c3c;background:#fdf0ef}
+
+    /* Banner image */
+    .banner-upload{border:2px dashed #ddd;border-radius:14px;padding:20px;text-align:center;cursor:pointer;transition:all .15s;background:#fafafa;position:relative;overflow:hidden}
+    .banner-upload:active{opacity:.8}
+    .banner-upload.has-img{border-style:solid;border-color:#8e44ad;padding:0}
+    #banner-preview{display:none;width:100%;height:140px;object-fit:cover;border-radius:12px}
+    .banner-placeholder{pointer-events:none}
+    .banner-ico{font-size:32px;margin-bottom:8px}
+    .banner-lbl{font-size:13px;color:#888;font-weight:500}
+    .banner-del{position:absolute;top:8px;right:8px;background:rgba(231,76,60,.85);color:#fff;border:none;border-radius:10px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;display:none}
+    .banner-upload.has-img .banner-del{display:block}
+    .banner-upload.has-img .banner-placeholder{display:none}
+
+    /* Catalog */
+    .catalog-item{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .catalog-item-input{flex:1;padding:9px 12px;border:1.5px solid #ddd;border-radius:10px;font-size:13px;outline:none;font-family:inherit;background:#fafafa}
+    .catalog-item-input:focus{border-color:#6c3483}
+    .catalog-del-btn{background:#fdf0ef;border:1px solid #fadbd8;color:#e74c3c;border-radius:8px;padding:8px 10px;font-size:14px;cursor:pointer;flex-shrink:0}
+    .catalog-add-btn{width:100%;padding:10px;border:1.5px dashed #ccc;border-radius:10px;background:transparent;font-size:13px;color:#888;cursor:pointer;font-family:inherit;transition:all .15s;margin-top:4px}
+    .catalog-add-btn:active{background:#f5f5f5}
+
     /* Duration chips */
     .dur-row{display:flex;gap:8px;flex-wrap:wrap}
     .dur-chip{padding:8px 14px;border-radius:20px;border:1.5px solid #ddd;background:#fafafa;font-size:13px;cursor:pointer;font-weight:500;color:#555;transition:all .15s}
     .dur-chip.active{background:#8e44ad;border-color:#8e44ad;color:#fff}
+
     /* Submit */
     #submit-btn{display:block;width:calc(100% - 24px);margin:0 12px;padding:15px;background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff;border:none;border-radius:16px;font-size:16px;font-weight:700;cursor:pointer;transition:opacity .15s}
     #submit-btn:disabled{opacity:.5}
     #submit-btn:active:not(:disabled){opacity:.8}
+
     /* Toast */
     #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#222;color:#fff;border-radius:20px;padding:9px 20px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap}
     #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
     /* RTL */
     body.rtl{direction:rtl}
     body.rtl .char-hint{text-align:left}
+    body.rtl .banner-del{right:auto;left:8px}
   </style>
 </head>
 <body>
@@ -53,24 +99,80 @@
   <h1 id="page-title">✨ Create Entity</h1>
 </div>
 
+<!-- Static / Mobile -->
+<div class="section">
+  <div class="sec-title" id="sec-mobility">Type: Fixed or Mobile?</div>
+  <div class="mobility-row">
+    <button class="mob-btn sel-fixed" id="btn-fixed" onclick="setMobility(false)">
+      <span class="mob-icon">📍</span>
+      <span id="lbl-fixed">Fixed</span>
+    </button>
+    <button class="mob-btn" id="btn-mobile" onclick="setMobility(true)">
+      <span class="mob-icon">🚗</span>
+      <span id="lbl-mobile">Mobile</span>
+    </button>
+  </div>
+</div>
+
+<!-- Entity Type -->
 <div class="section">
   <div class="sec-title" id="sec-type">Entity Type</div>
   <div class="type-grid" id="type-grid"></div>
-  <div class="mobile-badge" id="mobile-badge">🚗 Mobile Entity</div>
+
+  <!-- Custom "Other" type -->
+  <div id="custom-type-wrap">
+    <label class="field-label" id="lbl-custom-name">Custom Type Name</label>
+    <input class="field-input" id="inp-custom-type" maxlength="30" placeholder="…">
+    <div class="field-label" id="lbl-choose-emoji" style="margin-top:12px">Choose Emoji Icon</div>
+    <div class="emoji-picker-row" id="emoji-quick"></div>
+    <input class="field-input" id="custom-emoji-input" maxlength="4" placeholder="✏️">
+  </div>
 </div>
 
+<!-- Map Icon -->
+<div class="section" id="map-icon-section">
+  <div class="sec-title" id="sec-map-icon">Map Icon (optional)</div>
+  <div style="font-size:12px;color:#888;margin-bottom:8px" id="lbl-map-icon-hint">Choose a different icon to show on the map</div>
+  <div class="map-icon-row" id="map-icon-row"></div>
+</div>
+
+<!-- Banner Image -->
+<div class="section">
+  <div class="sec-title" id="sec-banner">Card Banner Image (optional)</div>
+  <div class="banner-upload" id="banner-upload" onclick="document.getElementById('banner-file').click()">
+    <div class="banner-placeholder">
+      <div class="banner-ico">🖼️</div>
+      <div class="banner-lbl" id="lbl-banner">Tap to upload a banner photo</div>
+    </div>
+    <img id="banner-preview">
+    <button class="banner-del" id="banner-del-btn" onclick="event.stopPropagation();removeBanner()" id="lbl-banner-del">✕</button>
+  </div>
+  <input type="file" id="banner-file" accept="image/*" style="display:none">
+</div>
+
+<!-- Name -->
 <div class="section">
   <label class="field-label" id="label-name">Name *</label>
   <input class="field-input" id="inp-name" type="text" maxlength="60" placeholder="…">
   <div class="char-hint"><span id="name-cnt">0</span>/60</div>
 </div>
 
+<!-- Purpose -->
 <div class="section">
   <label class="field-label" id="label-purpose">Purpose / Description</label>
   <textarea class="field-textarea" id="inp-purpose" maxlength="200" placeholder="…"></textarea>
   <div class="char-hint"><span id="purpose-cnt">0</span>/200</div>
 </div>
 
+<!-- Catalog -->
+<div class="section">
+  <div class="sec-title" id="sec-catalog">Catalog (optional)</div>
+  <div style="font-size:12px;color:#888;margin-bottom:10px" id="lbl-catalog-hint">Add items, services, or products</div>
+  <div id="catalog-list"></div>
+  <button class="catalog-add-btn" id="catalog-add-btn" onclick="addCatalogItem()">+ Add Item</button>
+</div>
+
+<!-- Duration -->
 <div class="section">
   <div class="sec-title" id="sec-dur">Duration</div>
   <div class="dur-row">
@@ -95,101 +197,265 @@
   const T = {
     ar:{
       page_title:'✨ إنشاء كيان',
-      sec_type:'نوع الكيان', sec_dur:'مدة الكيان',
+      sec_mobility:'نوع الكيان: ثابت أم متحرك؟',
+      lbl_fixed:'ثابت', lbl_mobile:'متحرك',
+      sec_type:'نوع الكيان',
+      lbl_custom_name:'اسم النوع المخصص',
+      lbl_choose_emoji:'اختر رمز الإيموجي',
+      sec_map_icon:'أيقونة الخريطة (اختياري)',
+      lbl_map_icon_hint:'اختر أيقونة مختلفة تظهر على الخريطة',
+      sec_banner:'صورة البانر (اختياري)',
+      lbl_banner:'اضغط لرفع صورة بانر',
+      lbl_banner_del:'حذف',
+      sec_catalog:'الكتالوج (اختياري)',
+      lbl_catalog_hint:'أضف عناصر أو خدمات أو منتجات',
+      catalog_add:'+ إضافة عنصر',
+      catalog_ph:'اسم العنصر…',
+      sec_dur:'مدة الكيان',
       label_name:'الاسم *', label_purpose:'الغرض / الوصف',
       ph_name:'اسم الكيان…', ph_purpose:'وصف مختصر…',
       dur_forever:'دائم', dur_1d:'يوم', dur_3d:'3 أيام', dur_1w:'أسبوع', dur_1m:'شهر',
-      btn_create:'✨ إنشاء الكيان', mobile_badge:'🚗 كيان متحرك',
+      btn_create:'✨ إنشاء الكيان',
       ok:'✅ تم إنشاء الكيان!', limit:'❌ وصلت للحد الأقصى (5 كيانات)',
       no_loc:'⚠️ شارك موقعك أولاً', err:'❌ حدث خطأ',
       name_req:'⚠️ الاسم مطلوب', type_req:'⚠️ اختر نوع الكيان',
     },
     en:{
       page_title:'✨ Create Entity',
-      sec_type:'Entity Type', sec_dur:'Duration',
+      sec_mobility:'Type: Fixed or Mobile?',
+      lbl_fixed:'Fixed', lbl_mobile:'Mobile',
+      sec_type:'Entity Type',
+      lbl_custom_name:'Custom Type Name',
+      lbl_choose_emoji:'Choose Emoji Icon',
+      sec_map_icon:'Map Icon (optional)',
+      lbl_map_icon_hint:'Choose a different icon to show on the map',
+      sec_banner:'Card Banner Image (optional)',
+      lbl_banner:'Tap to upload a banner photo',
+      lbl_banner_del:'Remove',
+      sec_catalog:'Catalog (optional)',
+      lbl_catalog_hint:'Add items, services, or products',
+      catalog_add:'+ Add Item',
+      catalog_ph:'Item name…',
+      sec_dur:'Duration',
       label_name:'Name *', label_purpose:'Purpose / Description',
       ph_name:'Entity name…', ph_purpose:'Short description…',
       dur_forever:'Forever', dur_1d:'1 Day', dur_3d:'3 Days', dur_1w:'1 Week', dur_1m:'1 Month',
-      btn_create:'✨ Create Entity', mobile_badge:'🚗 Mobile Entity',
+      btn_create:'✨ Create Entity',
       ok:'✅ Entity created!', limit:'❌ Limit reached (5 entities)',
       no_loc:'⚠️ Share your location first', err:'❌ Error occurred',
       name_req:'⚠️ Name is required', type_req:'⚠️ Please select a type',
     }
   }[lang] || {};
 
-  document.getElementById('page-title').textContent   = T.page_title;
-  document.getElementById('sec-type').textContent     = T.sec_type;
-  document.getElementById('sec-dur').textContent      = T.sec_dur;
-  document.getElementById('label-name').textContent   = T.label_name;
-  document.getElementById('label-purpose').textContent= T.label_purpose;
-  document.getElementById('inp-name').placeholder     = T.ph_name;
-  document.getElementById('inp-purpose').placeholder  = T.ph_purpose;
-  document.getElementById('mobile-badge').textContent = T.mobile_badge;
-  document.getElementById('btn-text').textContent     = T.btn_create;
-  document.getElementById('dur-forever').textContent  = T.dur_forever;
-  document.getElementById('dur-1d').textContent       = T.dur_1d;
-  document.getElementById('dur-3d').textContent       = T.dur_3d;
-  document.getElementById('dur-1w').textContent       = T.dur_1w;
-  document.getElementById('dur-1m').textContent       = T.dur_1m;
+  /* Apply translations */
+  document.getElementById('page-title').textContent       = T.page_title;
+  document.getElementById('sec-mobility').textContent     = T.sec_mobility;
+  document.getElementById('lbl-fixed').textContent        = T.lbl_fixed;
+  document.getElementById('lbl-mobile').textContent       = T.lbl_mobile;
+  document.getElementById('sec-type').textContent         = T.sec_type;
+  document.getElementById('lbl-custom-name').textContent  = T.lbl_custom_name;
+  document.getElementById('lbl-choose-emoji').textContent = T.lbl_choose_emoji;
+  document.getElementById('sec-map-icon').textContent     = T.sec_map_icon;
+  document.getElementById('lbl-map-icon-hint').textContent= T.lbl_map_icon_hint;
+  document.getElementById('sec-banner').textContent       = T.sec_banner;
+  document.getElementById('lbl-banner').textContent       = T.lbl_banner;
+  document.getElementById('sec-catalog').textContent      = T.sec_catalog;
+  document.getElementById('lbl-catalog-hint').textContent = T.lbl_catalog_hint;
+  document.getElementById('catalog-add-btn').textContent  = T.catalog_add;
+  document.getElementById('sec-dur').textContent          = T.sec_dur;
+  document.getElementById('label-name').textContent       = T.label_name;
+  document.getElementById('label-purpose').textContent    = T.label_purpose;
+  document.getElementById('inp-name').placeholder         = T.ph_name;
+  document.getElementById('inp-purpose').placeholder      = T.ph_purpose;
+  document.getElementById('btn-text').textContent         = T.btn_create;
+  document.getElementById('dur-forever').textContent      = T.dur_forever;
+  document.getElementById('dur-1d').textContent           = T.dur_1d;
+  document.getElementById('dur-3d').textContent           = T.dur_3d;
+  document.getElementById('dur-1w').textContent           = T.dur_1w;
+  document.getElementById('dur-1m').textContent           = T.dur_1m;
 
-  const TYPES = [
-    {key:'متجر',         emoji:'🏪', ar:'متجر',         en:'Store',          mobile:false},
-    {key:'غرفة',         emoji:'🚪', ar:'غرفة',         en:'Room',           mobile:false},
-    {key:'مطعم',         emoji:'🍔', ar:'مطعم',         en:'Restaurant',     mobile:false},
-    {key:'مقهى',         emoji:'☕', ar:'مقهى',         en:'Café',           mobile:false},
-    {key:'عيادة',        emoji:'🏥', ar:'عيادة',        en:'Clinic',         mobile:false},
-    {key:'صيدلية',       emoji:'💊', ar:'صيدلية',       en:'Pharmacy',       mobile:false},
-    {key:'مستشفى',       emoji:'🏨', ar:'مستشفى',       en:'Hospital',       mobile:false},
-    {key:'شركة',         emoji:'🏢', ar:'شركة',         en:'Company',        mobile:false},
-    {key:'مكتب',         emoji:'💼', ar:'مكتب',         en:'Office',         mobile:false},
-    {key:'مواد غذائية',  emoji:'🛒', ar:'مواد غذائية',  en:'Grocery',        mobile:false},
-    {key:'هايبر',        emoji:'🏬', ar:'هايبر',        en:'Hypermarket',    mobile:false},
-    {key:'صالون',        emoji:'💈', ar:'صالون',        en:'Salon',          mobile:false},
-    {key:'نادي رياضي',   emoji:'⚽', ar:'نادي رياضي',   en:'Sports Club',    mobile:false},
-    {key:'مكتبة',        emoji:'📚', ar:'مكتبة',        en:'Library',        mobile:false},
-    {key:'ورشة',         emoji:'🔧', ar:'ورشة',         en:'Workshop',       mobile:false},
-    {key:'جراج',         emoji:'🚘', ar:'جراج',         en:'Garage',         mobile:false},
-    {key:'مدرسة',        emoji:'🏫', ar:'مدرسة',        en:'School',         mobile:false},
-    {key:'جامعة',        emoji:'🎓', ar:'جامعة',        en:'University',     mobile:false},
-    {key:'مسجد',         emoji:'🕌', ar:'مسجد',         en:'Mosque',         mobile:false},
-    {key:'دور عبادة',    emoji:'⛪', ar:'دور عبادة',    en:'Place of Worship',mobile:false},
-    {key:'قسم شرطة',     emoji:'👮', ar:'قسم شرطة',     en:'Police Station', mobile:false},
-    {key:'محكمة',        emoji:'⚖️', ar:'محكمة',        en:'Court',          mobile:false},
-    {key:'مطار',         emoji:'✈️', ar:'مطار',         en:'Airport',        mobile:false},
-    {key:'فندق',         emoji:'🛎️', ar:'فندق',         en:'Hotel',          mobile:false},
-    {key:'مسرح',         emoji:'🎭', ar:'مسرح',         en:'Theater',        mobile:false},
-    {key:'سينما',        emoji:'🎬', ar:'سينما',        en:'Cinema',         mobile:false},
-    {key:'حديقة',        emoji:'🌳', ar:'حديقة',        en:'Park',           mobile:false},
-    {key:'ملاهي',        emoji:'🎡', ar:'ملاهي',        en:'Amusement Park', mobile:false},
-    {key:'سيارة',        emoji:'🚗', ar:'سيارة',        en:'Car',            mobile:true},
-    {key:'دراجة نارية',  emoji:'🏍️', ar:'دراجة نارية',  en:'Motorcycle',     mobile:true},
-    {key:'سيارة جماعية', emoji:'🚌', ar:'سيارة جماعية', en:'Shared Vehicle', mobile:true},
+  /* Type definitions */
+  const FIXED_TYPES = [
+    {key:'متجر',emoji:'🏪',ar:'متجر',en:'Store'},
+    {key:'غرفة',emoji:'🚪',ar:'غرفة',en:'Room'},
+    {key:'مطعم',emoji:'🍔',ar:'مطعم',en:'Restaurant'},
+    {key:'مقهى',emoji:'☕',ar:'مقهى',en:'Café'},
+    {key:'عيادة',emoji:'🏥',ar:'عيادة',en:'Clinic'},
+    {key:'صيدلية',emoji:'💊',ar:'صيدلية',en:'Pharmacy'},
+    {key:'مستشفى',emoji:'🏨',ar:'مستشفى',en:'Hospital'},
+    {key:'شركة',emoji:'🏢',ar:'شركة',en:'Company'},
+    {key:'مكتب',emoji:'💼',ar:'مكتب',en:'Office'},
+    {key:'مواد غذائية',emoji:'🛒',ar:'مواد غذائية',en:'Grocery'},
+    {key:'هايبر',emoji:'🏬',ar:'هايبر',en:'Hypermarket'},
+    {key:'صالون',emoji:'💈',ar:'صالون',en:'Salon'},
+    {key:'نادي رياضي',emoji:'⚽',ar:'نادي رياضي',en:'Sports Club'},
+    {key:'مكتبة',emoji:'📚',ar:'مكتبة',en:'Library'},
+    {key:'ورشة',emoji:'🔧',ar:'ورشة',en:'Workshop'},
+    {key:'جراج',emoji:'🚘',ar:'جراج',en:'Garage'},
+    {key:'مدرسة',emoji:'🏫',ar:'مدرسة',en:'School'},
+    {key:'جامعة',emoji:'🎓',ar:'جامعة',en:'University'},
+    {key:'مسجد',emoji:'🕌',ar:'مسجد',en:'Mosque'},
+    {key:'دور عبادة',emoji:'⛪',ar:'دور عبادة',en:'Place of Worship'},
+    {key:'قسم شرطة',emoji:'👮',ar:'قسم شرطة',en:'Police Station'},
+    {key:'محكمة',emoji:'⚖️',ar:'محكمة',en:'Court'},
+    {key:'مطار',emoji:'✈️',ar:'مطار',en:'Airport'},
+    {key:'فندق',emoji:'🛎️',ar:'فندق',en:'Hotel'},
+    {key:'مسرح',emoji:'🎭',ar:'مسرح',en:'Theater'},
+    {key:'سينما',emoji:'🎬',ar:'سينما',en:'Cinema'},
+    {key:'حديقة',emoji:'🌳',ar:'حديقة',en:'Park'},
+    {key:'ملاهي',emoji:'🎡',ar:'ملاهي',en:'Amusement Park'},
   ];
+  const MOBILE_TYPES = [
+    {key:'سيارة',emoji:'🚗',ar:'سيارة',en:'Car'},
+    {key:'دراجة نارية',emoji:'🏍️',ar:'دراجة نارية',en:'Motorcycle'},
+    {key:'سيارة جماعية',emoji:'🚌',ar:'سيارة جماعية',en:'Shared Vehicle'},
+  ];
+  const OTHER_TYPE = {key:'أخرى',emoji:'❓',ar:'أخرى',en:'Other'};
 
-  let selectedType = '';
-  let isMobile = false;
+  const MAP_ICONS = ['📍','🔴','🟡','🟢','🔵','🟣','⚫','🏷️','⭐','🔔','💎','🎯','🌟','🚩'];
+  const QUICK_EMOJIS = ['🏠','🏪','🚗','⭐','💼','🎯','🔧','🏥','📍','🌟','❤️','🎪','🏋️','🎮','🍕','☕','🛒','🎓','🕌','⚽'];
 
-  const grid = document.getElementById('type-grid');
-  TYPES.forEach(t => {
+  let selectedType  = '';
+  let selectedEmoji = '';
+  let isMobile      = false;
+  let selectedMapIcon = '';
+  let bannerFile    = null;
+
+  /* Mobility toggle */
+  function setMobility(mobile) {
+    isMobile = mobile;
+    document.getElementById('btn-fixed').className  = 'mob-btn' + (mobile ? '' : ' sel-fixed');
+    document.getElementById('btn-mobile').className = 'mob-btn' + (mobile ? ' sel-mobile' : '');
+    buildTypeGrid();
+    selectedType  = '';
+    selectedEmoji = '';
+    document.getElementById('custom-type-wrap').classList.remove('show');
+    document.getElementById('map-icon-section').classList.remove('show');
+    updateSubmit();
+  }
+
+  /* Build type grid */
+  function buildTypeGrid() {
+    const grid = document.getElementById('type-grid');
+    grid.innerHTML = '';
+    const list = isMobile ? MOBILE_TYPES : [...FIXED_TYPES, OTHER_TYPE];
+    list.forEach(t => {
+      const btn = document.createElement('button');
+      btn.className = 'type-btn' + (isMobile ? ' mobile-type' : '');
+      btn.dataset.key = t.key;
+      btn.innerHTML = `<span class="type-emoji-lbl">${t.emoji}</span><span class="type-name">${isAr ? t.ar : t.en}</span>`;
+      btn.addEventListener('click', () => selectType(t, btn));
+      grid.appendChild(btn);
+    });
+  }
+
+  function selectType(t, btn) {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedType  = t.key;
+    selectedEmoji = t.emoji;
+    const isOther = t.key === 'أخرى';
+    document.getElementById('custom-type-wrap').classList.toggle('show', isOther);
+    document.getElementById('map-icon-section').classList.toggle('show', true);
+    if (isOther) { selectedType = ''; selectedEmoji = ''; }
+    updateSubmit();
+  }
+
+  /* Quick emoji picker */
+  const quickRow = document.getElementById('emoji-quick');
+  QUICK_EMOJIS.forEach(e => {
     const btn = document.createElement('button');
-    btn.className = 'type-btn' + (t.mobile ? ' mobile-type' : '');
-    btn.dataset.key    = t.key;
-    btn.dataset.mobile = t.mobile ? '1' : '0';
-    btn.innerHTML = `<span class="type-emoji">${t.emoji}</span><span class="type-name">${isAr ? t.ar : t.en}</span>`;
+    btn.className = 'emoji-opt';
+    btn.textContent = e;
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+      document.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
-      selectedType = t.key;
-      isMobile = t.mobile;
-      document.getElementById('mobile-badge').classList.toggle('show', t.mobile);
+      document.getElementById('custom-emoji-input').value = e;
+      selectedEmoji = e;
+      selectedType  = document.getElementById('inp-custom-type').value.trim() || e;
       updateSubmit();
     });
-    grid.appendChild(btn);
+    quickRow.appendChild(btn);
   });
 
-  const nameInput = document.getElementById('inp-name');
-  const purposeInput = document.getElementById('inp-purpose');
+  document.getElementById('inp-custom-type').addEventListener('input', e => {
+    selectedType = e.target.value.trim();
+    updateSubmit();
+  });
+  document.getElementById('custom-emoji-input').addEventListener('input', e => {
+    const v = [...e.target.value].slice(0,2).join('');
+    e.target.value = v;
+    selectedEmoji = v || '❓';
+    document.querySelectorAll('.emoji-opt').forEach(b => b.classList.remove('selected'));
+    updateSubmit();
+  });
 
+  /* Map icon picker */
+  const mapIconRow = document.getElementById('map-icon-row');
+  MAP_ICONS.forEach(ico => {
+    const btn = document.createElement('button');
+    btn.className = 'map-icon-btn';
+    btn.textContent = ico;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.map-icon-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedMapIcon = ico;
+    });
+    mapIconRow.appendChild(btn);
+  });
+
+  /* Banner image */
+  document.getElementById('banner-file').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    bannerFile = file;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = document.getElementById('banner-preview');
+      img.src = ev.target.result;
+      img.style.display = 'block';
+      const wrap = document.getElementById('banner-upload');
+      wrap.classList.add('has-img');
+    };
+    reader.readAsDataURL(file);
+  });
+  function removeBanner() {
+    bannerFile = null;
+    document.getElementById('banner-preview').style.display = 'none';
+    document.getElementById('banner-preview').src = '';
+    document.getElementById('banner-upload').classList.remove('has-img');
+    document.getElementById('banner-file').value = '';
+  }
+
+  /* Catalog */
+  let catalogItems = [];
+  function addCatalogItem(val = '') {
+    const idx = catalogItems.length;
+    catalogItems.push(val);
+    const row = document.createElement('div');
+    row.className = 'catalog-item';
+    row.dataset.idx = idx;
+    const inp = document.createElement('input');
+    inp.className = 'catalog-item-input';
+    inp.placeholder = T.catalog_ph || 'Item name…';
+    inp.value = val;
+    inp.maxLength = 80;
+    inp.addEventListener('input', () => { catalogItems[idx] = inp.value; });
+    const del = document.createElement('button');
+    del.className = 'catalog-del-btn';
+    del.textContent = '🗑️';
+    del.addEventListener('click', () => {
+      catalogItems[idx] = null;
+      row.remove();
+    });
+    row.appendChild(inp);
+    row.appendChild(del);
+    document.getElementById('catalog-list').appendChild(row);
+  }
+
+  /* Name / purpose char count */
+  const nameInput    = document.getElementById('inp-name');
+  const purposeInput = document.getElementById('inp-purpose');
   nameInput.addEventListener('input', () => {
     document.getElementById('name-cnt').textContent = nameInput.value.length;
     updateSubmit();
@@ -198,6 +464,7 @@
     document.getElementById('purpose-cnt').textContent = purposeInput.value.length;
   });
 
+  /* Duration */
   let selectedDur = '';
   document.querySelectorAll('.dur-chip').forEach(chip => {
     chip.addEventListener('click', () => {
@@ -220,6 +487,7 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
   }
 
+  /* Submit */
   document.getElementById('submit-btn').addEventListener('click', async () => {
     const name = nameInput.value.trim();
     if (!name) return showToast(T.name_req);
@@ -229,38 +497,52 @@
     btn.disabled = true;
 
     try {
+      const catalog = catalogItems.filter(i => i && i.trim());
+
       const res = await fetch('/api/object/create', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
           uid: parseInt(uid),
-          name, purpose: purposeInput.value.trim(),
-          object_type: selectedType, is_mobile: isMobile,
-          expires: selectedDur
+          name,
+          purpose: purposeInput.value.trim(),
+          object_type: selectedType,
+          emoji: selectedEmoji,
+          map_icon: selectedMapIcon || selectedEmoji,
+          is_mobile: isMobile,
+          expires: selectedDur,
+          catalog,
         })
       });
       const data = await res.json();
       if (data.ok) {
+        /* Upload banner if any */
+        if (bannerFile && data.object_id) {
+          const fd = new FormData();
+          fd.append('uid', uid);
+          fd.append('object_id', data.object_id);
+          fd.append('image', bannerFile);
+          await fetch('/api/object/upload_banner', {method:'POST', body:fd}).catch(()=>{});
+        }
         showToast(T.ok);
         setTimeout(() => {
           if (window.Telegram?.WebApp?.close) Telegram.WebApp.close();
           else window.history.back();
         }, 1200);
       } else if (data.error === 'limit_reached') {
-        showToast(T.limit);
-        btn.disabled = false;
+        showToast(T.limit); btn.disabled = false;
       } else if (data.error === 'not_registered') {
-        showToast(T.no_loc);
-        btn.disabled = false;
+        showToast(T.no_loc); btn.disabled = false;
       } else {
-        showToast(T.err);
-        btn.disabled = false;
+        showToast(T.err); btn.disabled = false;
       }
     } catch(e) {
-      showToast(T.err);
-      btn.disabled = false;
+      showToast(T.err); btn.disabled = false;
     }
   });
+
+  /* Init */
+  buildTypeGrid();
 </script>
 </body>
 </html>

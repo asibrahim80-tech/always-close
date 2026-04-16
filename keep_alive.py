@@ -3078,6 +3078,233 @@ def health():
     })
 
 
+@app.route('/api/objects/mine/<int:tg_id>')
+def api_objects_mine(tg_id):
+    try:
+        from database import supabase
+        me = supabase.table("users_v1").select("id").eq("telegram_id", tg_id).execute()
+        if not me.data:
+            return jsonify({"ok": False, "objects": []})
+        my_id = me.data[0]["id"]
+
+        objs = supabase.table("objects_v1") \
+            .select("*") \
+            .eq("created_by", my_id) \
+            .order("created_at", desc=True).execute()
+
+        out = []
+        for o in (objs.data or []):
+            mem_cnt = supabase.table("object_members_v1") \
+                .select("id", count="exact").eq("object_id", o["id"]).eq("status", "active").execute()
+            pending = supabase.table("object_members_v1") \
+                .select("id", count="exact").eq("object_id", o["id"]).eq("status", "pending").execute()
+            rat = supabase.table("object_ratings_v1") \
+                .select("rating").eq("object_id", o["id"]).execute()
+            vals = [r["rating"] for r in (rat.data or [])]
+            avg  = round(sum(vals) / len(vals), 1) if vals else 0
+            out.append({**o,
+                "members_count": mem_cnt.count or 0,
+                "pending_count": pending.count or 0,
+                "avg_rating":    avg,
+            })
+        return jsonify({"ok": True, "objects": out})
+    except Exception as e:
+        return jsonify({"ok": False, "objects": [], "error": str(e)})
+
+
+@app.route('/api/object/update', methods=['POST'])
+def api_object_update():
+    try:
+        from database import supabase
+        data      = request.get_json(force=True)
+        uid       = int(data.get("uid", 0))
+        object_id = int(data.get("object_id", 0))
+        name      = (data.get("name") or "").strip()
+        purpose   = (data.get("purpose") or "").strip()
+        emoji     = (data.get("emoji") or "").strip()
+        if not name:
+            return jsonify({"ok": False, "error": "name_required"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        obj = supabase.table("objects_v1").select("created_by").eq("id", object_id).execute()
+        if not obj.data or obj.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        update_data = {"name": name, "purpose": purpose}
+        if emoji:
+            update_data["emoji"] = emoji
+        supabase.table("objects_v1").update(update_data).eq("id", object_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/object/<int:object_id>/members/manage')
+def api_object_members_manage(object_id):
+    try:
+        from database import supabase
+        uid = request.args.get("uid", 0)
+        me = supabase.table("users_v1").select("id").eq("telegram_id", int(uid)).execute()
+        if not me.data:
+            return jsonify({"ok": False, "members": []})
+        my_id = me.data[0]["id"]
+
+        obj = supabase.table("objects_v1").select("created_by").eq("id", object_id).execute()
+        if not obj.data or obj.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator", "members": []})
+
+        rows = supabase.table("object_members_v1") \
+            .select("user_id, status, role, joined_at") \
+            .eq("object_id", object_id).execute()
+
+        out = []
+        for r in (rows.data or []):
+            u = supabase.table("users_v1") \
+                .select("id, name, username, gender, photo_url") \
+                .eq("id", r["user_id"]).execute()
+            info = u.data[0] if u.data else {}
+            out.append({**r, **info})
+        return jsonify({"ok": True, "members": out})
+    except Exception as e:
+        return jsonify({"ok": False, "members": [], "error": str(e)})
+
+
+@app.route('/api/object/member/action', methods=['POST'])
+def api_object_member_action():
+    try:
+        from database import supabase
+        data      = request.get_json(force=True)
+        uid       = int(data.get("uid", 0))
+        object_id = int(data.get("object_id", 0))
+        member_id = int(data.get("member_id", 0))
+        action    = data.get("action", "")  # accept | reject | remove
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        obj = supabase.table("objects_v1").select("created_by").eq("id", object_id).execute()
+        if not obj.data or obj.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        if action == "accept":
+            supabase.table("object_members_v1") \
+                .update({"status": "active", "role": "member"}) \
+                .eq("object_id", object_id).eq("user_id", member_id).execute()
+        elif action in ("reject", "remove"):
+            supabase.table("object_members_v1") \
+                .delete().eq("object_id", object_id).eq("user_id", member_id).execute()
+        else:
+            return jsonify({"ok": False, "error": "invalid_action"})
+
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/object/upload_banner', methods=['POST'])
+def api_object_upload_banner():
+    try:
+        from database import supabase
+        import os
+        uid       = int(request.form.get("uid", 0))
+        object_id = int(request.form.get("object_id", 0))
+        file      = request.files.get("image")
+        if not file:
+            return jsonify({"ok": False, "error": "no_file"})
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        obj = supabase.table("objects_v1").select("created_by").eq("id", object_id).execute()
+        if not obj.data or obj.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+
+        ext      = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "jpg"
+        folder   = "static/object_images"
+        os.makedirs(folder, exist_ok=True)
+        filename = f"banner_{object_id}.{ext}"
+        path     = f"{folder}/{filename}"
+        file.save(path)
+
+        image_url = f"/static/object_images/{filename}"
+        supabase.table("objects_v1").update({"image_url": image_url}).eq("id", object_id).execute()
+        return jsonify({"ok": True, "image_url": image_url})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/profile/update_phone', methods=['POST'])
+def api_profile_update_phone():
+    try:
+        from database import supabase
+        data  = request.get_json(force=True)
+        uid   = int(data.get("uid", 0))
+        phone = (data.get("phone") or "").strip()
+
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+
+        supabase.table("users_v1").update({"phone": phone}).eq("id", my_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/feedback/submit', methods=['POST'])
+def api_feedback_submit():
+    try:
+        import os, time as _time
+        uid       = request.form.get("uid", "")
+        message   = (request.form.get("message") or "").strip()
+        subject   = (request.form.get("subject") or "").strip()
+        category  = (request.form.get("category") or "").strip()
+        rating    = request.form.get("rating", "0")
+        contact   = (request.form.get("contact") or "").strip()
+
+        if not message:
+            return jsonify({"ok": False, "error": "message_required"})
+
+        folder = "static/feedback"
+        os.makedirs(folder, exist_ok=True)
+        ts = int(_time.time())
+
+        saved_files = []
+        for key in request.files:
+            f   = request.files[key]
+            ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else "bin"
+            fn  = f"{uid}_{ts}_{key}.{ext}"
+            f.save(f"{folder}/{fn}")
+            saved_files.append(fn)
+
+        try:
+            from database import supabase
+            supabase.table("feedback_v1").insert({
+                "telegram_id": int(uid) if uid else None,
+                "message":     message,
+                "subject":     subject,
+                "category":    category,
+                "rating":      int(rating) if rating else None,
+                "contact":     contact,
+                "files":       saved_files,
+            }).execute()
+        except Exception:
+            pass
+
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 def _self_ping_loop():
     """Ping our own /health every 4 minutes to prevent Replit from sleeping."""
     _raw = os.environ.get("REPLIT_DOMAINS", "")

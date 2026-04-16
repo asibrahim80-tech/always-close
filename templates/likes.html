@@ -270,8 +270,7 @@
     <button class="fchip" data-f="smart">🌟 <span class="fchip-lbl"></span><span class="chip-cnt" id="cnt-smart">0</span></button>
     <button class="fchip" data-f="match">🔥 <span class="fchip-lbl"></span><span class="chip-cnt" id="cnt-match">0</span></button>
     <button class="fchip" data-f="people">💙 <span class="fchip-lbl"></span><span class="chip-cnt" id="cnt-people">0</span></button>
-    <button class="fchip" data-f="room">🚪 <span class="fchip-lbl"></span><span class="chip-cnt" id="cnt-room">0</span></button>
-    <button class="fchip" data-f="store">🏪 <span class="fchip-lbl"></span><span class="chip-cnt" id="cnt-store">0</span></button>
+    <button class="fchip" data-f="entity">🗂️ <span class="fchip-lbl"></span><span class="chip-cnt" id="cnt-entity">0</span></button>
   </div>
 </div>
 
@@ -319,21 +318,17 @@
     filter_smart: 'توافق',
     filter_match: 'تطابق',
     filter_people:'أشخاص',
-    filter_room:  'غرف',
-    filter_store: 'متاجر',
+    filter_entity:'كيانات',
     g_all:    'الكل',
     g_male:   'ذكور',
     g_female: 'إناث',
     badge_match: '🔥 تطابق',
     badge_like:  '💙 أعجبني',
-    badge_room:  '🚪 غرفة',
-    badge_store: '🏪 متجر',
+    badge_entity:'🗂️ كيان',
     sec_match:   'التطابقات',
     sec_like:    'طلبات الإعجاب',
-    sec_room:    'الانضمام للغرف',
-    sec_store:   'متابعة المتاجر',
-    joined_room:  'انضم لغرفة',
-    followed_store: 'تابع متجر',
+    sec_entity:  'الكيانات',
+    joined_entity: 'انضم لكيان',
     gender_male:   '👨',
     gender_female: '👩',
     time_now:    'الآن',
@@ -374,21 +369,17 @@
     filter_all:   'All',
     filter_match: 'Matches',
     filter_people:'People',
-    filter_room:  'Rooms',
-    filter_store: 'Stores',
+    filter_entity:'Entities',
     g_all:    'All',
     g_male:   'Male',
     g_female: 'Female',
     badge_match: '🔥 Match',
     badge_like:  '💙 Like',
-    badge_room:  '🚪 Room',
-    badge_store: '🏪 Store',
+    badge_entity:'🗂️ Entity',
     sec_match:   'Matches',
     sec_like:    'Like Requests',
-    sec_room:    'Room Joins',
-    sec_store:   'Store Follows',
-    joined_room:    'Joined room',
-    followed_store: 'Followed store',
+    sec_entity:  'Entities',
+    joined_entity:  'Joined entity',
     gender_male:   '👨',
     gender_female: '👩',
     time_now:    'Just now',
@@ -595,19 +586,19 @@
 
   // ── Filter + render ───────────────────────────────────────────────────────
   function getFiltered() {
-    const { matches, likes, room_joins, store_follows } = allData;
+    const { matches, likes, room_joins, store_follows, object_joins } = allData;
+    const all_entity = [...(room_joins||[]), ...(store_follows||[]), ...(object_joins||[])];
 
-    if (activeFilter === 'match') return { matches, likes: [], room_joins: [], store_follows: [] };
-    if (activeFilter === 'room')  return { matches: [], likes: [], room_joins, store_follows: [] };
-    if (activeFilter === 'store') return { matches: [], likes: [], room_joins: [], store_follows };
+    if (activeFilter === 'match')  return { matches, likes: [], entity: [] };
+    if (activeFilter === 'entity') return { matches: [], likes: [], entity: all_entity };
     if (activeFilter === 'people') {
       const filterPeople = list =>
         activeGender === 'all' ? list
         : list.filter(i => i.gender === activeGender);
-      return { matches: filterPeople(matches), likes: filterPeople(likes), room_joins: [], store_follows: [] };
+      return { matches: filterPeople(matches), likes: filterPeople(likes), entity: [] };
     }
     // 'all'
-    return { matches, likes, room_joins, store_follows };
+    return { matches, likes, entity: all_entity };
   }
 
   function render() {
@@ -617,8 +608,8 @@
     list.innerHTML = '';
     loading.style.display = 'none';
 
-    const { matches, likes, room_joins, store_follows } = getFiltered();
-    const total = matches.length + likes.length + room_joins.length + store_follows.length;
+    const { matches, likes, entity } = getFiltered();
+    const total = matches.length + likes.length + entity.length;
 
     document.getElementById('header-count').textContent = total;
 
@@ -637,30 +628,26 @@
     }
 
     if (activeFilter === 'all') {
-      // Merge everything and sort by time — smart unified feed
       const allItems = [
         ...matches.map(i=>({...i})),
         ...likes.map(i=>({...i})),
-        ...room_joins.map(i=>({...i})),
-        ...store_follows.map(i=>({...i})),
+        ...entity.map(i=>({...i})),
       ].sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
-
       allItems.forEach(item => list.appendChild(buildCard(item)));
     } else {
-      appendSection(matches,      '🔥', T.sec_match, true);
-      appendSection(likes,        '💙', T.sec_like,  true);
-      appendSection(room_joins,   '🚪', T.sec_room,  true);
-      appendSection(store_follows,'🏪', T.sec_store, true);
+      appendSection(matches, '🔥', T.sec_match,  true);
+      appendSection(likes,   '💙', T.sec_like,   true);
+      appendSection(entity,  '🗂️', T.sec_entity, true);
     }
   }
 
   function setEmptyState() {
-    const icons  = { all:'🔔', match:'🔥', people:'💙', room:'🚪', store:'🏪' };
+    const icons  = { all:'🔔', match:'🔥', people:'💙', entity:'🗂️' };
     const titles = {
       all:    T.empty_all_title,
       match:  T.empty_match_title,
       people: T.empty_like_title,
-      room:   T.empty_room_title,
+      entity: T.empty_room_title,
       store:  T.empty_store_title,
     };
     const subs = {

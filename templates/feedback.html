@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Always Close – Feedback</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;min-height:100vh;padding-bottom:40px}
+    #header{background:#fff;padding:14px 16px 12px;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;align-items:center;gap:10px;margin-bottom:16px;position:sticky;top:0;z-index:50}
+    .back-btn{background:none;border:none;font-size:22px;cursor:pointer;color:#555;padding:4px 8px;border-radius:8px}
+    #header h1{font-size:18px;font-weight:700;color:#111;flex:1}
+
+    .section{background:#fff;border-radius:16px;margin:0 12px 14px;padding:16px}
+    .sec-title{font-size:13px;font-weight:700;color:#555;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+    .field-label{font-size:13px;font-weight:600;color:#444;margin-bottom:6px;display:block}
+    .field-input{width:100%;padding:11px 13px;border:1.5px solid #ddd;border-radius:12px;font-size:14px;outline:none;font-family:inherit;transition:border-color .15s;background:#fafafa}
+    .field-input:focus{border-color:#8e44ad;background:#fff}
+    .field-textarea{width:100%;padding:11px 13px;border:1.5px solid #ddd;border-radius:12px;font-size:14px;outline:none;font-family:inherit;min-height:110px;resize:vertical;transition:border-color .15s;background:#fafafa;line-height:1.5}
+    .field-textarea:focus{border-color:#8e44ad;background:#fff}
+    .char-hint{font-size:11px;color:#bbb;text-align:right;margin-top:4px}
+
+    /* Star rating */
+    .star-row{display:flex;gap:8px;justify-content:center;padding:8px 0 4px}
+    .star-btn{font-size:34px;background:none;border:none;cursor:pointer;opacity:.35;transition:all .15s;line-height:1}
+    .star-btn.lit{opacity:1}
+    .rating-label{text-align:center;font-size:13px;color:#888;margin-top:4px;font-weight:500;min-height:18px}
+
+    /* Category chips */
+    .cat-row{display:flex;gap:8px;flex-wrap:wrap}
+    .cat-chip{padding:8px 14px;border-radius:20px;border:1.5px solid #ddd;background:#fafafa;font-size:13px;cursor:pointer;font-weight:500;color:#555;transition:all .15s}
+    .cat-chip.active{background:#8e44ad;border-color:#8e44ad;color:#fff}
+
+    /* File/image upload */
+    .upload-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+    .upload-btn{display:flex;align-items:center;gap:6px;padding:9px 14px;border:1.5px dashed #ccc;border-radius:12px;background:#fafafa;cursor:pointer;font-size:13px;color:#666;font-weight:500;transition:all .12s}
+    .upload-btn:active{opacity:.7}
+    .upload-thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .thumb-wrap{position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden}
+    .thumb-wrap img{width:100%;height:100%;object-fit:cover}
+    .thumb-del{position:absolute;top:3px;right:3px;background:rgba(231,76,60,.85);color:#fff;border:none;border-radius:6px;width:18px;height:18px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+    .file-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f0f2f5;border-radius:10px;margin-top:6px;font-size:12px;color:#444}
+    .file-icon{font-size:18px}
+    .file-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .file-del{background:none;border:none;color:#e74c3c;cursor:pointer;font-size:16px;padding:0 2px}
+
+    /* Submit */
+    #submit-btn{display:block;width:calc(100% - 24px);margin:0 12px;padding:15px;background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff;border:none;border-radius:16px;font-size:16px;font-weight:700;cursor:pointer;transition:opacity .15s}
+    #submit-btn:disabled{opacity:.45}
+    #submit-btn:active:not(:disabled){opacity:.8}
+
+    /* Success overlay */
+    #success-overlay{position:fixed;inset:0;background:#fff;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+    #success-overlay.show{display:flex}
+    .success-icon{font-size:64px;animation:pop .4s ease}
+    .success-title{font-size:22px;font-weight:800;color:#111}
+    .success-sub{font-size:14px;color:#888;text-align:center;padding:0 32px}
+    .success-close-btn{margin-top:8px;background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff;border:none;border-radius:14px;padding:12px 28px;font-size:15px;font-weight:700;cursor:pointer}
+    @keyframes pop{0%{transform:scale(.5);opacity:0}80%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
+
+    /* Toast */
+    #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#222;color:#fff;border-radius:20px;padding:9px 20px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    body.rtl{direction:rtl}
+    body.rtl .char-hint{text-align:left}
+    body.rtl .thumb-del{right:auto;left:3px}
+  </style>
+</head>
+<body>
+<div id="header">
+  <button class="back-btn" onclick="if(window.Telegram?.WebApp?.close)Telegram.WebApp.close();else window.history.back()">‹</button>
+  <h1 id="hdr-title">Feedback</h1>
+</div>
+
+<!-- App rating -->
+<div class="section">
+  <div class="sec-title" id="sec-rating">Rate the App</div>
+  <div class="star-row">
+    <button class="star-btn" data-val="1">⭐</button>
+    <button class="star-btn" data-val="2">⭐</button>
+    <button class="star-btn" data-val="3">⭐</button>
+    <button class="star-btn" data-val="4">⭐</button>
+    <button class="star-btn" data-val="5">⭐</button>
+  </div>
+  <div class="rating-label" id="rating-label"></div>
+</div>
+
+<!-- Category -->
+<div class="section">
+  <div class="sec-title" id="sec-category">Category</div>
+  <div class="cat-row" id="cat-row"></div>
+</div>
+
+<!-- Subject -->
+<div class="section">
+  <label class="field-label" id="lbl-subject">Subject (optional)</label>
+  <input class="field-input" id="inp-subject" maxlength="80" placeholder="…">
+</div>
+
+<!-- Message -->
+<div class="section">
+  <label class="field-label" id="lbl-message">Your Message *</label>
+  <textarea class="field-textarea" id="inp-message" maxlength="1000" placeholder="…"></textarea>
+  <div class="char-hint"><span id="msg-cnt">0</span>/1000</div>
+</div>
+
+<!-- Attachments -->
+<div class="section">
+  <div class="sec-title" id="sec-attach">Attachments (optional)</div>
+  <div class="upload-row">
+    <label class="upload-btn" for="img-file-input">📷 <span id="lbl-add-image">Add Image</span></label>
+    <label class="upload-btn" for="doc-file-input">📎 <span id="lbl-add-file">Attach File</span></label>
+  </div>
+  <input type="file" id="img-file-input" accept="image/*" multiple style="display:none">
+  <input type="file" id="doc-file-input" accept=".pdf,.doc,.docx,.txt,.zip" multiple style="display:none">
+  <div id="thumb-row" class="upload-thumbs"></div>
+  <div id="files-list"></div>
+</div>
+
+<!-- Contact -->
+<div class="section">
+  <label class="field-label" id="lbl-contact">Contact / Username (optional)</label>
+  <input class="field-input" id="inp-contact" maxlength="60" placeholder="@username or email">
+</div>
+
+<button id="submit-btn" disabled>📨 <span id="lbl-submit">Send Feedback</span></button>
+
+<!-- Success overlay -->
+<div id="success-overlay">
+  <div class="success-icon">🎉</div>
+  <div class="success-title" id="success-title">Thank You!</div>
+  <div class="success-sub" id="success-sub">Your feedback has been received.</div>
+  <button class="success-close-btn" id="success-close-btn" onclick="closeSelf()">✓ Close</button>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  const uid  = new URLSearchParams(location.search).get('uid');
+  const lang = new URLSearchParams(location.search).get('lang') || 'en';
+  const isAr = lang === 'ar';
+  if (isAr) document.body.classList.add('rtl');
+
+  const T = {
+    ar:{
+      hdr_title:'الملاحظات والشكاوي',
+      sec_rating:'تقييم التطبيق',
+      sec_category:'التصنيف',
+      sec_attach:'المرفقات (اختياري)',
+      lbl_subject:'الموضوع (اختياري)', lbl_message:'رسالتك *',
+      lbl_contact:'تواصل / يوزرنيم (اختياري)',
+      lbl_add_image:'إضافة صورة', lbl_add_file:'إرفاق ملف',
+      lbl_submit:'📨 إرسال',
+      ph_subject:'موضوع الرسالة…', ph_message:'اكتب ملاحظتك أو شكواك هنا…',
+      categories:['💡 اقتراح','🐛 مشكلة تقنية','📋 طلب ميزة','💬 تعليق عام','🚨 بلاغ'],
+      rating_labels:['','😞 سيء','😕 مقبول','😐 جيد','😊 جيد جداً','🤩 رائع!'],
+      msg_req:'⚠️ الرسالة مطلوبة',
+      success_title:'شكراً لك! 🎉',
+      success_sub:'تم استلام ملاحظتك وسنراجعها قريباً.',
+      success_close:'✓ إغلاق',
+      err:'❌ حدث خطأ، حاول لاحقاً',
+    },
+    en:{
+      hdr_title:'Feedback & Reports',
+      sec_rating:'Rate the App',
+      sec_category:'Category',
+      sec_attach:'Attachments (optional)',
+      lbl_subject:'Subject (optional)', lbl_message:'Your Message *',
+      lbl_contact:'Contact / Username (optional)',
+      lbl_add_image:'Add Image', lbl_add_file:'Attach File',
+      lbl_submit:'📨 Send Feedback',
+      ph_subject:'Message subject…', ph_message:'Write your feedback or report here…',
+      categories:['💡 Suggestion','🐛 Bug Report','📋 Feature Request','💬 General Comment','🚨 Report'],
+      rating_labels:['','😞 Poor','😕 Fair','😐 Good','😊 Very Good','🤩 Excellent!'],
+      msg_req:'⚠️ Message is required',
+      success_title:'Thank You! 🎉',
+      success_sub:'Your feedback has been received. We\'ll review it soon.',
+      success_close:'✓ Close',
+      err:'❌ Error occurred, try again',
+    }
+  }[lang] || {};
+
+  document.getElementById('hdr-title').textContent      = T.hdr_title;
+  document.getElementById('sec-rating').textContent     = T.sec_rating;
+  document.getElementById('sec-category').textContent   = T.sec_category;
+  document.getElementById('sec-attach').textContent     = T.sec_attach;
+  document.getElementById('lbl-subject').textContent    = T.lbl_subject;
+  document.getElementById('lbl-message').textContent    = T.lbl_message;
+  document.getElementById('lbl-contact').textContent    = T.lbl_contact;
+  document.getElementById('lbl-add-image').textContent  = T.lbl_add_image;
+  document.getElementById('lbl-add-file').textContent   = T.lbl_add_file;
+  document.getElementById('lbl-submit').textContent     = T.lbl_submit;
+  document.getElementById('inp-subject').placeholder    = T.ph_subject;
+  document.getElementById('inp-message').placeholder    = T.ph_message;
+  document.getElementById('success-title').textContent  = T.success_title;
+  document.getElementById('success-sub').textContent    = T.success_sub;
+  document.getElementById('success-close-btn').textContent = T.success_close;
+
+  /* Category chips */
+  let selectedCategory = '';
+  const catRow = document.getElementById('cat-row');
+  T.categories.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-chip';
+    btn.textContent = cat;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      selectedCategory = cat;
+    });
+    catRow.appendChild(btn);
+  });
+
+  /* Stars */
+  let selectedRating = 0;
+  const starBtns = document.querySelectorAll('.star-btn');
+  const ratingLbl = document.getElementById('rating-label');
+  starBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedRating = parseInt(btn.dataset.val);
+      updateStars();
+      ratingLbl.textContent = T.rating_labels[selectedRating] || '';
+    });
+  });
+  function updateStars() {
+    starBtns.forEach(b => {
+      b.classList.toggle('lit', parseInt(b.dataset.val) <= selectedRating);
+    });
+  }
+
+  /* Message counter */
+  const msgInput = document.getElementById('inp-message');
+  msgInput.addEventListener('input', () => {
+    document.getElementById('msg-cnt').textContent = msgInput.value.length;
+    checkSubmit();
+  });
+
+  function checkSubmit() {
+    document.getElementById('submit-btn').disabled = !msgInput.value.trim();
+  }
+
+  /* Image attachments */
+  let imageFiles = [];
+  document.getElementById('img-file-input').addEventListener('change', e => {
+    Array.from(e.target.files).forEach(file => {
+      imageFiles.push(file);
+      const wrap = document.createElement('div');
+      wrap.className = 'thumb-wrap';
+      const img = document.createElement('img');
+      const reader = new FileReader();
+      reader.onload = ev => { img.src = ev.target.result; };
+      reader.readAsDataURL(file);
+      const del = document.createElement('button');
+      del.className = 'thumb-del';
+      del.textContent = '×';
+      del.addEventListener('click', () => {
+        imageFiles = imageFiles.filter(f => f !== file);
+        wrap.remove();
+      });
+      wrap.appendChild(img);
+      wrap.appendChild(del);
+      document.getElementById('thumb-row').appendChild(wrap);
+    });
+    e.target.value = '';
+  });
+
+  /* File attachments */
+  let docFiles = [];
+  document.getElementById('doc-file-input').addEventListener('change', e => {
+    Array.from(e.target.files).forEach(file => {
+      docFiles.push(file);
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.innerHTML = `<span class="file-icon">📄</span><span class="file-name">${file.name}</span>`;
+      const del = document.createElement('button');
+      del.className = 'file-del';
+      del.textContent = '×';
+      del.addEventListener('click', () => {
+        docFiles = docFiles.filter(f => f !== file);
+        item.remove();
+      });
+      item.appendChild(del);
+      document.getElementById('files-list').appendChild(item);
+    });
+    e.target.value = '';
+  });
+
+  /* Submit */
+  document.getElementById('submit-btn').addEventListener('click', async () => {
+    const message = msgInput.value.trim();
+    if (!message) return showToast(T.msg_req);
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+
+    try {
+      const fd = new FormData();
+      fd.append('uid',      uid || '');
+      fd.append('message',  message);
+      fd.append('subject',  document.getElementById('inp-subject').value.trim());
+      fd.append('category', selectedCategory);
+      fd.append('rating',   selectedRating);
+      fd.append('contact',  document.getElementById('inp-contact').value.trim());
+      imageFiles.forEach((f, i) => fd.append(`image_${i}`, f));
+      docFiles.forEach((f,   i) => fd.append(`file_${i}`, f));
+
+      const res  = await fetch('/api/feedback/submit', { method:'POST', body: fd });
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('success-overlay').classList.add('show');
+      } else {
+        showToast(T.err); btn.disabled = false;
+      }
+    } catch(e) {
+      showToast(T.err); btn.disabled = false;
+    }
+  });
+
+  function closeSelf() {
+    if (window.Telegram?.WebApp?.close) Telegram.WebApp.close();
+    else window.history.back();
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+</script>
+</body>
+</html>

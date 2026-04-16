@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Always Close – Manage Entities</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;min-height:100vh;padding-bottom:40px}
+    #header{background:#fff;padding:14px 16px 12px;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;align-items:center;gap:10px;margin-bottom:16px;position:sticky;top:0;z-index:50}
+    .back-btn{background:none;border:none;font-size:20px;cursor:pointer;color:#555;padding:4px 8px;border-radius:8px}
+    #header h1{font-size:18px;font-weight:700;color:#111;flex:1}
+    #create-btn{background:#8e44ad;color:#fff;border:none;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+
+    #loading{text-align:center;padding:60px 20px;font-size:32px}
+    #empty-state{text-align:center;padding:60px 20px;display:none}
+    .empty-icon{font-size:52px;margin-bottom:12px}
+    .empty-title{font-size:16px;font-weight:700;color:#333;margin-bottom:6px}
+    .empty-sub{font-size:13px;color:#888;margin-bottom:20px}
+    .create-first-btn{background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff;border:none;border-radius:14px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer}
+
+    .obj-card{background:#fff;border-radius:16px;margin:0 12px 12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+    .obj-banner{height:80px;background:linear-gradient(135deg,#8e44ad22,#2471a322);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+    .obj-banner img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+    .obj-banner-emoji{font-size:36px;position:relative;z-index:1}
+    .obj-info{padding:12px 14px 10px}
+    .obj-name-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+    .obj-name{font-size:16px;font-weight:700;color:#111}
+    .obj-type-badge{font-size:11px;background:#f3e5f5;color:#8e44ad;border-radius:8px;padding:2px 8px;font-weight:600}
+    .obj-mobile-badge{font-size:11px;background:#e8f4fb;color:#2471a3;border-radius:8px;padding:2px 8px;font-weight:600}
+    .obj-purpose{font-size:13px;color:#666;line-height:1.4;margin-bottom:8px}
+    .obj-stats{display:flex;gap:12px;font-size:12px;color:#888;margin-bottom:10px}
+    .obj-stat{display:flex;align-items:center;gap:4px}
+
+    .obj-actions{display:flex;gap:8px;padding:0 14px 12px;flex-wrap:wrap}
+    .act-btn{padding:8px 12px;border-radius:10px;border:1.5px solid;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s}
+    .act-btn:active{opacity:.7}
+    .btn-edit{background:#f3e5f5;border-color:#d7bde2;color:#8e44ad}
+    .btn-members{background:#e8f4fb;border-color:#aed6f1;color:#2471a3}
+    .btn-chat{background:#e9f7ef;border-color:#a9dfbf;color:#1e8449}
+    .btn-delete{background:#fdf0ef;border-color:#fadbd8;color:#e74c3c}
+
+    /* Pending requests banner */
+    .pending-banner{background:#fff3cd;border-radius:10px;margin:0 14px 10px;padding:8px 12px;font-size:12px;color:#856404;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer}
+
+    /* Members modal overlay */
+    #overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:none;align-items:flex-end}
+    #overlay.show{display:flex}
+    #members-sheet{background:#fff;border-radius:22px 22px 0 0;width:100%;max-height:80vh;overflow-y:auto;padding:16px 16px 40px}
+    .sheet-handle{width:36px;height:4px;background:#ddd;border-radius:4px;margin:0 auto 14px}
+    .sheet-title{font-size:16px;font-weight:700;color:#111;margin-bottom:14px}
+    .member-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0}
+    .member-avatar{width:38px;height:38px;border-radius:50%;background:#e9ecef;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;overflow:hidden}
+    .member-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+    .member-info{flex:1}
+    .member-name{font-size:14px;font-weight:600;color:#111}
+    .member-sub{font-size:11px;color:#888}
+    .member-badge{font-size:10px;border-radius:6px;padding:2px 7px;font-weight:600;background:#e9ecef;color:#555}
+    .member-badge.owner{background:#f3e5f5;color:#8e44ad}
+    .member-badge.member{background:#e9f7ef;color:#1e8449}
+    .member-badge.pending{background:#fff3cd;color:#856404}
+    .member-acts{display:flex;gap:6px}
+    .m-btn{padding:6px 10px;border-radius:8px;border:1.5px solid;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+    .m-accept{background:#e9f7ef;border-color:#a9dfbf;color:#1e8449}
+    .m-reject{background:#fdf0ef;border-color:#fadbd8;color:#e74c3c}
+    .m-remove{background:#f8f9fa;border-color:#dee2e6;color:#555}
+
+    /* Edit sheet */
+    #edit-sheet{background:#fff;border-radius:22px 22px 0 0;width:100%;max-height:85vh;overflow-y:auto;padding:16px 16px 40px}
+    .edit-field{margin-bottom:14px}
+    .edit-label{font-size:13px;font-weight:600;color:#444;margin-bottom:6px;display:block}
+    .edit-input{width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:11px;font-size:14px;outline:none;font-family:inherit;background:#fafafa}
+    .edit-input:focus{border-color:#8e44ad}
+    .edit-save-btn{width:100%;padding:13px;background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px}
+
+    /* Toast */
+    #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#222;color:#fff;border-radius:20px;padding:9px 20px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    body.rtl{direction:rtl}
+  </style>
+</head>
+<body>
+<div id="header">
+  <button class="back-btn" onclick="if(window.Telegram?.WebApp?.close)Telegram.WebApp.close();else window.history.back()">‹</button>
+  <h1 id="hdr-title">My Entities</h1>
+  <button id="create-btn" onclick="openCreate()">+ <span id="lbl-create">Create</span></button>
+</div>
+
+<div id="loading">⏳</div>
+<div id="entity-list"></div>
+<div id="empty-state">
+  <div class="empty-icon">🗂️</div>
+  <div class="empty-title" id="empty-title">No entities yet</div>
+  <div class="empty-sub" id="empty-sub">Create your first entity</div>
+  <button class="create-first-btn" id="create-first-btn" onclick="openCreate()">✨ Create Entity</button>
+</div>
+
+<!-- Members/Edit overlay -->
+<div id="overlay" onclick="closeOverlay(event)">
+  <div id="members-sheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="members-title">Members</div>
+    <div id="members-list"></div>
+  </div>
+  <div id="edit-sheet" style="display:none">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="edit-title">Edit Entity</div>
+    <div class="edit-field">
+      <label class="edit-label" id="lbl-edit-name">Name</label>
+      <input class="edit-input" id="edit-name-inp" maxlength="60">
+    </div>
+    <div class="edit-field">
+      <label class="edit-label" id="lbl-edit-purpose">Purpose</label>
+      <input class="edit-input" id="edit-purpose-inp" maxlength="200">
+    </div>
+    <div class="edit-field">
+      <label class="edit-label" id="lbl-edit-emoji">Emoji Icon</label>
+      <input class="edit-input" id="edit-emoji-inp" maxlength="4" style="font-size:22px;text-align:center">
+    </div>
+    <button class="edit-save-btn" id="edit-save-btn">💾 <span id="lbl-save">Save</span></button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  const uid  = new URLSearchParams(location.search).get('uid');
+  const lang = new URLSearchParams(location.search).get('lang') || 'en';
+  const isAr = lang === 'ar';
+  if (isAr) document.body.classList.add('rtl');
+
+  const T = {
+    ar:{
+      hdr_title:'كياناتي', lbl_create:'إنشاء',
+      empty_title:'لا توجد كيانات بعد', empty_sub:'أنشئ كيانك الأول',
+      create_first:'✨ إنشاء كيان',
+      btn_edit:'✏️ تعديل', btn_members:'👥 الأعضاء', btn_chat:'💬 المحادثة', btn_delete:'🗑️ حذف',
+      pending:'⏳ طلبات انضمام معلّقة',
+      members_title:'أعضاء الكيان',
+      edit_title:'تعديل الكيان',
+      lbl_edit_name:'الاسم', lbl_edit_purpose:'الغرض', lbl_edit_emoji:'الإيموجي',
+      lbl_save:'حفظ',
+      badge_owner:'مالك', badge_member:'عضو', badge_pending:'معلّق',
+      accept:'✅ قبول', reject:'❌ رفض', remove:'إزالة',
+      deleted:'✅ تم الحذف', saved:'✅ تم الحفظ',
+      confirm_del:'هل تريد حذف هذا الكيان؟',
+      accepted:'✅ تم القبول', rejected:'❌ تم الرفض',
+      removed:'تم الإزالة', err:'❌ حدث خطأ',
+      no_members:'لا يوجد أعضاء بعد',
+      members_cnt:'عضو',
+      stat_members:'عضو', stat_rating:'تقييم',
+      mobile_badge:'متحرك', fixed_badge:'ثابت',
+    },
+    en:{
+      hdr_title:'My Entities', lbl_create:'Create',
+      empty_title:'No entities yet', empty_sub:'Create your first entity',
+      create_first:'✨ Create Entity',
+      btn_edit:'✏️ Edit', btn_members:'👥 Members', btn_chat:'💬 Chat', btn_delete:'🗑️ Delete',
+      pending:'⏳ Pending join requests',
+      members_title:'Entity Members',
+      edit_title:'Edit Entity',
+      lbl_edit_name:'Name', lbl_edit_purpose:'Purpose', lbl_edit_emoji:'Emoji Icon',
+      lbl_save:'Save',
+      badge_owner:'Owner', badge_member:'Member', badge_pending:'Pending',
+      accept:'✅ Accept', reject:'❌ Reject', remove:'Remove',
+      deleted:'✅ Deleted', saved:'✅ Saved',
+      confirm_del:'Delete this entity?',
+      accepted:'✅ Accepted', rejected:'❌ Rejected',
+      removed:'Removed', err:'❌ Error',
+      no_members:'No members yet',
+      members_cnt:'member',
+      stat_members:'members', stat_rating:'rating',
+      mobile_badge:'Mobile', fixed_badge:'Fixed',
+    }
+  }[lang] || {};
+
+  document.getElementById('hdr-title').textContent       = T.hdr_title;
+  document.getElementById('lbl-create').textContent      = T.lbl_create;
+  document.getElementById('empty-title').textContent     = T.empty_title;
+  document.getElementById('empty-sub').textContent       = T.empty_sub;
+  document.getElementById('create-first-btn').textContent= T.create_first;
+  document.getElementById('members-title').textContent   = T.members_title;
+  document.getElementById('edit-title').textContent      = T.edit_title;
+  document.getElementById('lbl-edit-name').textContent   = T.lbl_edit_name;
+  document.getElementById('lbl-edit-purpose').textContent= T.lbl_edit_purpose;
+  document.getElementById('lbl-edit-emoji').textContent  = T.lbl_edit_emoji;
+  document.getElementById('lbl-save').textContent        = T.lbl_save;
+
+  let myObjects = [];
+  let currentObjId = null;
+
+  let toastTimer;
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  function openCreate() {
+    const sep = isAr ? 'ar' : 'en';
+    const url = `/create-object?uid=${uid}&lang=${lang}`;
+    if (window.Telegram?.WebApp?.openLink) Telegram.WebApp.openLink(url);
+    else window.open(url, '_blank');
+  }
+
+  async function load() {
+    try {
+      const res  = await fetch(`/api/objects/mine/${uid}`);
+      const data = await res.json();
+      myObjects  = data.objects || [];
+      render();
+    } catch(e) {
+      myObjects = [];
+      render();
+    }
+  }
+
+  function render() {
+    document.getElementById('loading').style.display = 'none';
+    const listEl = document.getElementById('entity-list');
+    if (!myObjects.length) {
+      document.getElementById('empty-state').style.display = 'block';
+      listEl.innerHTML = '';
+      return;
+    }
+    document.getElementById('empty-state').style.display = 'none';
+    listEl.innerHTML = myObjects.map(buildCard).join('');
+    bindCards();
+  }
+
+  function buildCard(o) {
+    const emoji    = o.emoji || '🗂️';
+    const pending  = (o.pending_count || 0) > 0;
+    const mobBadge = o.is_mobile
+      ? `<span class="obj-mobile-badge">🚗 ${T.mobile_badge}</span>`
+      : `<span class="obj-type-badge">📍 ${T.fixed_badge}</span>`;
+    const typeBadge = o.object_type ? `<span class="obj-type-badge">${emoji} ${o.object_type}</span>` : '';
+    const bannerHtml = o.image_url
+      ? `<div class="obj-banner"><img src="${o.image_url}" loading="lazy"><span class="obj-banner-emoji">${emoji}</span></div>`
+      : `<div class="obj-banner"><span class="obj-banner-emoji">${emoji}</span></div>`;
+
+    return `
+    <div class="obj-card" data-id="${o.id}">
+      ${bannerHtml}
+      <div class="obj-info">
+        <div class="obj-name-row">
+          <span class="obj-name">${o.name}</span>
+          ${typeBadge}
+          ${mobBadge}
+        </div>
+        ${o.purpose ? `<div class="obj-purpose">${o.purpose}</div>` : ''}
+        <div class="obj-stats">
+          <span class="obj-stat">👥 ${o.members_count||0} ${T.stat_members}</span>
+          ${o.avg_rating ? `<span class="obj-stat">⭐ ${o.avg_rating.toFixed(1)}</span>` : ''}
+        </div>
+        ${pending ? `<div class="pending-banner" onclick="openMembers(${o.id})">⏳ ${T.pending} (${o.pending_count})</div>` : ''}
+      </div>
+      <div class="obj-actions">
+        <button class="act-btn btn-edit"    onclick="openEdit(${o.id})">${T.btn_edit}</button>
+        <button class="act-btn btn-members" onclick="openMembers(${o.id})">${T.btn_members}</button>
+        <button class="act-btn btn-chat"    onclick="openChat(${o.id})">${T.btn_chat}</button>
+        <button class="act-btn btn-delete"  onclick="deleteObj(${o.id})">${T.btn_delete}</button>
+      </div>
+    </div>`;
+  }
+
+  function bindCards() {}
+
+  /* ─── Members ─── */
+  async function openMembers(objId) {
+    currentObjId = objId;
+    const overlay = document.getElementById('overlay');
+    const sheet   = document.getElementById('members-sheet');
+    const editSh  = document.getElementById('edit-sheet');
+    editSh.style.display   = 'none';
+    sheet.style.display    = 'block';
+    overlay.classList.add('show');
+
+    const ml = document.getElementById('members-list');
+    ml.innerHTML = '<div style="text-align:center;padding:20px;font-size:24px">⏳</div>';
+
+    try {
+      const res  = await fetch(`/api/object/${objId}/members/manage?uid=${uid}`);
+      const data = await res.json();
+      const members = data.members || [];
+      if (!members.length) {
+        ml.innerHTML = `<div style="text-align:center;padding:20px;color:#888">${T.no_members}</div>`;
+        return;
+      }
+      ml.innerHTML = members.map(m => {
+        const isPending = m.status === 'pending';
+        const isOwner   = m.role   === 'owner';
+        const badge = isOwner
+          ? `<span class="member-badge owner">${T.badge_owner}</span>`
+          : isPending
+            ? `<span class="member-badge pending">${T.badge_pending}</span>`
+            : `<span class="member-badge member">${T.badge_member}</span>`;
+        const acts = isOwner ? '' : isPending
+          ? `<div class="member-acts">
+               <button class="m-btn m-accept" onclick="memberAction(${objId},${m.user_id},'accept')">${T.accept}</button>
+               <button class="m-btn m-reject" onclick="memberAction(${objId},${m.user_id},'reject')">${T.reject}</button>
+             </div>`
+          : `<div class="member-acts">
+               <button class="m-btn m-remove" onclick="memberAction(${objId},${m.user_id},'remove')">${T.remove}</button>
+             </div>`;
+        const avatar = m.photo_url
+          ? `<div class="member-avatar"><img src="${m.photo_url}"></div>`
+          : `<div class="member-avatar">${m.gender==='female'?'👩':'👨'}</div>`;
+        return `<div class="member-row">
+          ${avatar}
+          <div class="member-info">
+            <div class="member-name">${m.name || m.username || '—'} ${badge}</div>
+            <div class="member-sub">${m.joined_at ? new Date(m.joined_at).toLocaleDateString() : ''}</div>
+          </div>
+          ${acts}
+        </div>`;
+      }).join('');
+    } catch(e) {
+      ml.innerHTML = `<div style="text-align:center;padding:20px;color:#e74c3c">${T.err}</div>`;
+    }
+  }
+
+  async function memberAction(objId, memberId, action) {
+    try {
+      const res  = await fetch('/api/object/member/action', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ uid: parseInt(uid), object_id: objId, member_id: memberId, action })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(action === 'accept' ? T.accepted : action === 'reject' ? T.rejected : T.removed);
+        openMembers(objId);
+        load();
+      } else showToast(T.err);
+    } catch(e) { showToast(T.err); }
+  }
+
+  /* ─── Edit ─── */
+  function openEdit(objId) {
+    currentObjId = objId;
+    const o      = myObjects.find(x => x.id === objId);
+    if (!o) return;
+    document.getElementById('edit-name-inp').value    = o.name    || '';
+    document.getElementById('edit-purpose-inp').value = o.purpose || '';
+    document.getElementById('edit-emoji-inp').value   = o.emoji   || '';
+
+    const overlay = document.getElementById('overlay');
+    const editSh  = document.getElementById('edit-sheet');
+    const memSh   = document.getElementById('members-sheet');
+    memSh.style.display  = 'none';
+    editSh.style.display = 'block';
+    overlay.classList.add('show');
+  }
+
+  document.getElementById('edit-save-btn').addEventListener('click', async () => {
+    const name    = document.getElementById('edit-name-inp').value.trim();
+    const purpose = document.getElementById('edit-purpose-inp').value.trim();
+    const emoji   = document.getElementById('edit-emoji-inp').value.trim();
+    if (!name) return showToast(isAr ? '⚠️ الاسم مطلوب' : '⚠️ Name required');
+    try {
+      const res  = await fetch('/api/object/update', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ uid: parseInt(uid), object_id: currentObjId, name, purpose, emoji })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(T.saved);
+        closeOverlay();
+        load();
+      } else showToast(T.err);
+    } catch(e) { showToast(T.err); }
+  });
+
+  /* ─── Chat ─── */
+  function openChat(objId) {
+    const url = `/object-chat/${objId}?uid=${uid}&lang=${lang}`;
+    if (window.Telegram?.WebApp?.openLink) Telegram.WebApp.openLink(url);
+    else window.open(url, '_blank');
+  }
+
+  /* ─── Delete ─── */
+  async function deleteObj(objId) {
+    if (!confirm(T.confirm_del)) return;
+    try {
+      const res  = await fetch('/api/object/delete', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ uid: parseInt(uid), object_id: objId })
+      });
+      const data = await res.json();
+      if (data.ok) { showToast(T.deleted); load(); }
+      else showToast(T.err);
+    } catch(e) { showToast(T.err); }
+  }
+
+  /* ─── Overlay ─── */
+  function closeOverlay(e) {
+    if (e && e.target !== document.getElementById('overlay')) return;
+    document.getElementById('overlay').classList.remove('show');
+    document.getElementById('members-sheet').style.display = 'none';
+    document.getElementById('edit-sheet').style.display    = 'none';
+  }
+
+  load();
+</script>
+</body>
+</html>
