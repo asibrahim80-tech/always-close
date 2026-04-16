@@ -708,24 +708,29 @@
         if (data.error) return;
 
         const me = data.me;
-        // Only use server position as fallback on very first load (before live GPS arrives)
-        const serverPos = [me.lat, me.lng];
-        if (!gpsLatLng) gpsLatLng = serverPos;   // first-time fallback only
-        if (!myLatLng)  myLatLng  = [...gpsLatLng];
-        if (!myPhoto)   myPhoto   = me.photo_url || null;
-        myInitial = (me.name || '?')[0].toUpperCase();
+        // Update profile info from server
+        if (!myPhoto && me.photo_url) myPhoto = me.photo_url;
+        if (me.name) myInitial = (me.name || '?')[0].toUpperCase();
 
-        const roam = isRoaming();
-        const meIcon = makePin(true, true, myPhoto, myInitial, roam);
+        // Only use server position as fallback if GPS hasn't arrived yet AND server has a position
+        if (me.lat && me.lng) {
+          if (!gpsLatLng) gpsLatLng = [me.lat, me.lng];
+          if (!myLatLng)  myLatLng  = [...gpsLatLng];
+        }
 
-        if (!meMarker) {
-          meMarker = L.marker(myLatLng, { icon: meIcon, zIndexOffset: 1000 })
-            .addTo(map)
-            .bindPopup(`<div style="padding:10px;font-weight:700;font-size:14px">📍 ${L_.you}</div>`);
-          if (firstLoad) map.setView(myLatLng, defaultZoom);
-        } else {
-          meMarker.setIcon(meIcon);
-          // Don't move meMarker back to gpsLatLng — joystick position is kept
+        // Only create/update marker if we have a position
+        if (myLatLng) {
+          const roam = isRoaming();
+          const meIcon = makePin(true, true, myPhoto, myInitial, roam);
+
+          if (!meMarker) {
+            meMarker = L.marker(myLatLng, { icon: meIcon, zIndexOffset: 1000 })
+              .addTo(map)
+              .bindPopup(`<div style="padding:10px;font-weight:700;font-size:14px">📍 ${L_.you}</div>`);
+            if (firstLoad) map.setView(myLatLng, defaultZoom);
+          } else {
+            meMarker.setIcon(meIcon);
+          }
         }
 
         // ── Nearby users ──────────────────────────────────────
@@ -1040,8 +1045,16 @@
     // Update live position
     gpsLatLng = [lat, lng];
 
-    // Follow GPS if not joystick-roaming
-    if (!joystickRoaming && meMarker) {
+    if (!meMarker) {
+      // No server location yet — bootstrap marker directly from GPS
+      myLatLng = [lat, lng];
+      const meIcon = makePin(true, true, myPhoto, myInitial || '?', false);
+      meMarker = L.marker(myLatLng, { icon: meIcon, zIndexOffset: 1000 })
+        .addTo(map)
+        .bindPopup(`<div style="padding:10px;font-weight:700;font-size:14px">📍 ${L_.you}</div>`);
+      map.setView(myLatLng, defaultZoom);
+    } else if (!joystickRoaming) {
+      // Follow GPS if not joystick-roaming
       myLatLng = [lat, lng];
       meMarker.setLatLng(myLatLng);
       map.panTo(myLatLng, { animate: true, duration: 0.5 });

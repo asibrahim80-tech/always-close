@@ -858,7 +858,7 @@ def api_nearby(telegram_id):
 
         # ── Current user ────────────────────────────────────────
         me_res = supabase.table("users_v1") \
-            .select("id, username, photo_url") \
+            .select("id, username, photo_url, latitude, longitude, recorded_at") \
             .eq("telegram_id", telegram_id) \
             .execute()
 
@@ -875,12 +875,22 @@ def api_nearby(telegram_id):
             .limit(1) \
             .execute()
 
-        if not my_loc.data:
-            return jsonify({"error": "Share your location first."})
-
-        my_lat = float(my_loc.data[0]["latitude"])
-        my_lng = float(my_loc.data[0]["longitude"])
-        my_rec = my_loc.data[0].get("recorded_at")
+        if my_loc.data:
+            my_lat = float(my_loc.data[0]["latitude"])
+            my_lng = float(my_loc.data[0]["longitude"])
+            my_rec = my_loc.data[0].get("recorded_at")
+        elif me_res.data[0].get("latitude") and me_res.data[0].get("longitude"):
+            # Fallback: use coordinates stored directly in users_v1
+            my_lat = float(me_res.data[0]["latitude"])
+            my_lng = float(me_res.data[0]["longitude"])
+            my_rec = me_res.data[0].get("recorded_at")
+        else:
+            # No location at all — return minimal response so GPS can bootstrap
+            return jsonify({
+                "me": {"lat": None, "lng": None, "name": my_name,
+                        "photo_url": my_photo, "last_seen": None, "is_active": False},
+                "my_user_id": my_id, "nearby": []
+            })
 
         # ── Other users ─────────────────────────────────────────
         all_users = supabase.table("users_v1") \
