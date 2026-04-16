@@ -130,32 +130,55 @@ def edit_keyboard(lang: str) -> ReplyKeyboardMarkup:
 # =========================================================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    tg_id = update.effective_user.id
-    lang = detect_lang(update.effective_user.language_code)
+    tg_user = update.effective_user
+    tg_id = tg_user.id
+    lang = detect_lang(tg_user.language_code)
     context.user_data["lang"] = lang
+    context.user_data.pop("step", None)  # clear any old setup step
 
-    user = supabase.table("users_v1").select("id, language").eq("telegram_id", tg_id).execute()
+    user = supabase.table("users_v1").select("id, language, first_name").eq("telegram_id", tg_id).execute()
 
     if not user.data:
-        # New user — start profile setup
-        context.user_data["step"] = "gender"
-        await update.message.reply_text(
-            T(lang, "welcome_new"),
-            reply_markup=ReplyKeyboardMarkup(
-                [[T(lang, "btn_male"), T(lang, "btn_female")]],
-                resize_keyboard=True
-            )
-        )
+        # New user — create basic record immediately using Telegram data
+        supabase.table("users_v1").insert({
+            "telegram_id": tg_id,
+            "username": tg_user.username or "",
+            "first_name": tg_user.first_name or "",
+            "last_name": tg_user.last_name or "",
+            "language": lang,
+            "is_active": True,
+            "is_visible": True,
+        }).execute()
+        welcome_text = T(lang, "welcome_new")
     else:
         # Returning user — update language in DB if changed
         stored_lang = user.data[0].get("language") or "en"
         if stored_lang != lang:
             supabase.table("users_v1").update({"language": lang}).eq("telegram_id", tg_id).execute()
-        context.user_data["lang"] = lang
-        await update.message.reply_text(
-            T(lang, "welcome_back"),
-            reply_markup=main_keyboard(lang, update.effective_user.id)
-        )
+        welcome_text = T(lang, "welcome_back")
+
+    # Build display name from Telegram profile
+    display_name = f"{tg_user.first_name or ''} {tg_user.last_name or ''}".strip()
+    greeting = f"{welcome_text}\n\n👤 {display_name}" if display_name else welcome_text
+
+    keyboard = main_keyboard(lang, tg_id)
+
+    # Try to send profile photo alongside the welcome message
+    try:
+        photos = await tg_user.get_profile_photos(limit=1)
+        if photos.total_count > 0:
+            photo_file_id = photos.photos[0][-1].file_id
+            await update.message.reply_photo(
+                photo=photo_file_id,
+                caption=greeting,
+                reply_markup=keyboard,
+            )
+            return
+    except Exception as _photo_err:
+        logger.warning(f"Could not fetch profile photo for {tg_id}: {_photo_err}")
+
+    # Fallback — text only
+    await update.message.reply_text(greeting, reply_markup=keyboard)
 
 
 # =========================================================

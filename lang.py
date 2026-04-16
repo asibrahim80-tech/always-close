@@ -1,7 +1,7 @@
 TEXTS = {
     "ar": {
         # Welcome
-        "welcome_new": "🤍 أهلاً بك في Always Close\n\nاختر نوعك:",
+        "welcome_new": "🤍 أهلاً بك في Always Close!\n\nأكمل بياناتك من ملفك الشخصي 👤",
         "welcome_back": "🤍 مرحباً بعودتك!",
         # Profile setup
         "choose_gender": "👤 اختر نوعك:",
@@ -193,7 +193,7 @@ TEXTS = {
     },
     "en": {
         # Welcome
-        "welcome_new": "🤍 Welcome to Always Close\n\nChoose your gender:",
+        "welcome_new": "🤍 Welcome to Always Close!\n\nComplete your profile to get started 👤",
         "welcome_back": "🤍 Welcome Back!",
         # Profile setup
         "choose_gender": "👤 Choose your gender:",
