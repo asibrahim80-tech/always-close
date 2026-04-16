@@ -294,12 +294,13 @@
   <div id="tab-bar">
     <button class="tab-btn active" data-tab="photos">📸<span class="tab-done" id="tdone-photos"></span></button>
     <button class="tab-btn" data-tab="basic">👤<span class="tab-done" id="tdone-basic"></span></button>
-    <button class="tab-btn" data-tab="contact">💌<span class="tab-done" id="tdone-contact"></span></button>
     <button class="tab-btn" data-tab="looking">❤️<span class="tab-done" id="tdone-looking"></span></button>
     <button class="tab-btn" data-tab="interests">🎯<span class="tab-done" id="tdone-interests"></span></button>
     <button class="tab-btn" data-tab="education">🎓<span class="tab-done" id="tdone-education"></span></button>
     <button class="tab-btn" data-tab="location">📍<span class="tab-done" id="tdone-location"></span></button>
     <button class="tab-btn" data-tab="privacy">🔒</button>
+    <button class="tab-btn" data-tab="entities">🗂️</button>
+    <button class="tab-btn" data-tab="feedback">📨</button>
   </div>
 </div>
 
@@ -326,9 +327,10 @@
   </div>
 </div>
 
-<!-- ═══════════════ SECTION: BASIC INFO ═══════════════ -->
+<!-- ═══════════════ SECTION: BASIC INFO (merged with contact) ═══════════════ -->
 <div class="section" id="sec-basic" style="display:none">
-  <!-- Name -->
+
+  <!-- Required: Name -->
   <div class="pcard">
     <div class="pcard-hdr"><span class="pcard-hdr-icon">✍️</span><span class="pcard-hdr-title" id="lbl-name-title"></span></div>
     <div class="pcard-body">
@@ -342,13 +344,22 @@
           <input class="f-input" id="f-last-name" type="text" maxlength="40">
         </div>
       </div>
-      <label class="f-label" id="lbl-bio"></label>
-      <textarea class="f-textarea" id="f-bio" maxlength="300" rows="4"></textarea>
-      <div class="f-char"><span id="bio-char">0</span>/300</div>
     </div>
   </div>
 
-  <!-- Gender + Birthdate -->
+  <!-- Required: Contact -->
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">📧</span><span class="pcard-hdr-title" id="lbl-contact-title"></span></div>
+    <div class="pcard-body">
+      <label class="f-label" id="lbl-phone-disp"></label>
+      <input class="f-input" id="f-phone" type="tel" maxlength="20" placeholder="+966…">
+      <div style="font-size:11px;color:var(--sub);margin-bottom:12px" id="lbl-phone-hint"></div>
+      <label class="f-label" id="lbl-email"></label>
+      <input class="f-input" id="f-email" type="email" maxlength="100">
+    </div>
+  </div>
+
+  <!-- Required: Gender + Birthdate -->
   <div class="pcard">
     <div class="pcard-hdr"><span class="pcard-hdr-icon">🎂</span><span class="pcard-hdr-title" id="lbl-bday-title"></span></div>
     <div class="pcard-body">
@@ -360,6 +371,16 @@
       <label class="f-label" id="lbl-birthdate"></label>
       <input class="f-input" id="f-birthdate" type="date" max="">
       <div id="zodiac-auto-row" style="margin-bottom:8px;font-size:12px;color:var(--pr);font-weight:600"></div>
+    </div>
+  </div>
+
+  <!-- Optional: Bio -->
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">💬</span><span class="pcard-hdr-title" id="lbl-bio-title"></span></div>
+    <div class="pcard-body">
+      <label class="f-label" id="lbl-bio"></label>
+      <textarea class="f-textarea" id="f-bio" maxlength="300" rows="4"></textarea>
+      <div class="f-char"><span id="bio-char">0</span>/300</div>
     </div>
   </div>
 
@@ -380,23 +401,6 @@
         <span class="toggle-label" id="lbl-children"></span>
         <div class="toggle" id="toggle-children"></div>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════ SECTION: CONTACT ═══════════════ -->
-<div class="section" id="sec-contact" style="display:none">
-  <div class="pcard">
-    <div class="pcard-hdr"><span class="pcard-hdr-icon">📧</span><span class="pcard-hdr-title" id="lbl-contact-title"></span></div>
-    <div class="pcard-body">
-      <label class="f-label" id="lbl-email"></label>
-      <input class="f-input" id="f-email" type="email" maxlength="100">
-      <label class="f-label" id="lbl-phone-disp"></label>
-      <div style="display:flex;gap:8px;margin-bottom:4px">
-        <input class="f-input" id="f-phone" type="tel" maxlength="20" placeholder="+966…" style="flex:1;margin-bottom:0">
-        <button id="btn-save-phone" onclick="savePhone()" style="background:#8e44ad;color:#fff;border:none;border-radius:12px;padding:0 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0" id="lbl-save-phone">💾</button>
-      </div>
-      <div style="font-size:11px;color:var(--sub);margin-top:0;margin-bottom:12px" id="lbl-phone-hint"></div>
     </div>
   </div>
 </div>
@@ -476,6 +480,34 @@
   </div>
 </div>
 
+<!-- ═══════════════ SECTION: MY ENTITIES ═══════════════ -->
+<div class="section" id="sec-entities" style="display:none">
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">🗂️</span><span class="pcard-hdr-title" id="lbl-entities-title"></span></div>
+    <div class="pcard-body">
+      <div style="text-align:center;padding:12px 0 6px">
+        <div style="font-size:48px;margin-bottom:12px">🏪</div>
+        <div style="font-size:14px;color:var(--sub);margin-bottom:20px;line-height:1.5" id="lbl-entities-desc"></div>
+        <button onclick="openManageObjs()" style="width:100%;padding:14px;background:linear-gradient(135deg,var(--pr),var(--pk));color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer" id="lbl-entities-btn"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SECTION: FEEDBACK ═══════════════ -->
+<div class="section" id="sec-feedback" style="display:none">
+  <div class="pcard">
+    <div class="pcard-hdr"><span class="pcard-hdr-icon">📨</span><span class="pcard-hdr-title" id="lbl-feedback-title"></span></div>
+    <div class="pcard-body">
+      <div style="text-align:center;padding:12px 0 6px">
+        <div style="font-size:48px;margin-bottom:12px">💬</div>
+        <div style="font-size:14px;color:var(--sub);margin-bottom:20px;line-height:1.5" id="lbl-feedback-desc"></div>
+        <button onclick="openFeedback()" style="width:100%;padding:14px;background:linear-gradient(135deg,#00b894,#00cec9);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer" id="lbl-feedback-btn"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ SECTION: PRIVACY ═══════════════ -->
 <div class="section" id="sec-privacy" style="display:none">
 
@@ -530,17 +562,65 @@
   </div>
 </div>
 
-<!-- Feedback + Manage Entities quick-links -->
-<div id="profile-quick-links" style="display:flex;gap:10px;padding:0 12px 16px;flex-wrap:wrap">
-  <a id="link-manage-objs" href="#" onclick="openManageObjs()" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px 14px;background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.07);text-decoration:none;color:#333;font-size:13px;font-weight:600;min-width:140px">
-    <span style="font-size:20px">🗂️</span><span id="lbl-manage-link">My Entities</span>
-  </a>
-  <a id="link-feedback" href="#" onclick="openFeedback()" style="flex:1;display:flex;align-items:center;gap:8px;padding:12px 14px;background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.07);text-decoration:none;color:#333;font-size:13px;font-weight:600;min-width:140px">
-    <span style="font-size:20px">📨</span><span id="lbl-feedback-link">Send Feedback</span>
-  </a>
-</div>
-
 <div id="toast"></div>
+
+<!-- ═══════════════ REGISTRATION MODAL ═══════════════ -->
+<div id="reg-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);overflow-y:auto">
+  <div style="min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px 40px">
+    <div style="background:#fff;border-radius:24px;width:100%;max-width:480px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#6C5CE7,#fd79a8);padding:24px 20px 20px;text-align:center">
+        <div style="font-size:48px;margin-bottom:8px">👋</div>
+        <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:4px" id="reg-title"></div>
+        <div style="font-size:13px;color:rgba(255,255,255,.8)" id="reg-subtitle"></div>
+      </div>
+      <!-- Form -->
+      <div style="padding:20px">
+        <!-- Name row -->
+        <div class="f-row" style="margin-bottom:4px">
+          <div>
+            <label class="f-label" id="reg-lbl-fname"></label>
+            <input class="f-input" id="reg-first-name" type="text" maxlength="40" style="margin-bottom:0">
+          </div>
+          <div>
+            <label class="f-label" id="reg-lbl-lname"></label>
+            <input class="f-input" id="reg-last-name" type="text" maxlength="40" style="margin-bottom:0">
+          </div>
+        </div>
+        <div style="margin-bottom:12px"></div>
+
+        <!-- Phone -->
+        <label class="f-label" id="reg-lbl-phone"></label>
+        <input class="f-input" id="reg-phone" type="tel" maxlength="20" placeholder="+966…">
+
+        <!-- Email -->
+        <label class="f-label" id="reg-lbl-email"></label>
+        <input class="f-input" id="reg-email" type="email" maxlength="100">
+
+        <!-- Gender -->
+        <label class="f-label" id="reg-lbl-gender"></label>
+        <div class="chip-grid" id="reg-gender-chips" style="padding-bottom:12px">
+          <div class="chip radio" data-v="Male" id="reg-g-male" onclick="selectRegGender('Male')">👨 <span id="reg-lbl-g-male"></span></div>
+          <div class="chip radio" data-v="Female" id="reg-g-female" onclick="selectRegGender('Female')">👩 <span id="reg-lbl-g-female"></span></div>
+        </div>
+
+        <!-- Birthdate -->
+        <label class="f-label" id="reg-lbl-bdate"></label>
+        <input class="f-input" id="reg-birthdate" type="date" max="">
+
+        <!-- Bio (optional) -->
+        <label class="f-label" id="reg-lbl-bio"></label>
+        <textarea class="f-textarea" id="reg-bio" maxlength="300" rows="3"></textarea>
+
+        <!-- Error msg -->
+        <div id="reg-error" style="display:none;background:#fff0f3;border:1px solid #ffc0cb;border-radius:10px;padding:10px 12px;font-size:13px;color:#c0392b;margin-bottom:12px;line-height:1.4"></div>
+
+        <!-- Submit -->
+        <button id="reg-submit-btn" onclick="submitRegistration()" style="width:100%;padding:16px;background:linear-gradient(135deg,#6C5CE7,#fd79a8);color:#fff;border:none;border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;margin-top:4px" id="reg-lbl-submit"></button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
@@ -557,33 +637,35 @@ const T = lang === 'ar' ? {
   loading: 'جاري التحميل...',
   complete_label: 'اكتمال الملف الشخصي',
   tab_photos: '📸 صور',
-  tab_basic: '👤 عني',
-  tab_contact: '💌 تواصل',
+  tab_basic: '👤 بياناتي',
   tab_looking: '❤️ أبحث',
   tab_interests: '🎯 اهتمامات',
   tab_education: '🎓 تعليم',
   tab_location: '📍 موقع',
+  tab_privacy: '🔒 خصوصية',
+  tab_entities: '🗂️ كياناتي',
+  tab_feedback: '📨 ملاحظات',
   photos_title: 'صور الملف الشخصي',
   photos_hint: 'اضغط على أي مربع لإضافة صورة (حتى 9 صور)',
-  name_title: 'الاسم والنبذة',
-  first_name: 'الاسم الأول',
-  last_name: 'اسم العائلة',
+  name_title: 'الاسم *',
+  first_name: 'الاسم الأول *',
+  last_name: 'اسم العائلة *',
+  bio_title: 'نبذة شخصية (اختياري)',
   bio: 'نبذة عني',
   bio_ph: 'اكتب شيئاً عن نفسك...',
-  bday_title: 'الجنس وتاريخ الميلاد',
-  gender: 'الجنس',
+  bday_title: 'الجنس وتاريخ الميلاد *',
+  gender: 'الجنس *',
   g_male: 'ذكر',
   g_female: 'أنثى',
-  birthdate: 'تاريخ الميلاد',
+  birthdate: 'تاريخ الميلاد *',
   zodiac_title: 'البرج',
   zodiac_auto: 'البرج المحسوب تلقائياً:',
   social_title: 'الحالة الاجتماعية',
   children: 'لديّ أطفال',
-  contact_title: 'معلومات التواصل',
-  email: 'البريد الإلكتروني',
-  phone: 'رقم الهاتف',
-  phone_hint: 'يمكنك تعديل رقم هاتفك في أي وقت',
-  save_phone: 'حفظ',
+  contact_title: 'معلومات التواصل *',
+  email: 'البريد الإلكتروني *',
+  phone: 'رقم الهاتف المحمول *',
+  phone_hint: 'مطلوب — يمكنك تعديله في أي وقت',
   looking_title: 'ماذا تبحث عن؟',
   looking_hint: 'يمكنك اختيار أكثر من خيار',
   hobbies_title: 'الهوايات',
@@ -607,9 +689,8 @@ const T = lang === 'ar' ? {
   photo_del_confirm: 'حذف هذه الصورة؟',
   rating_label: 'تقييمك من الآخرين',
   max_photos: 'الحد الأقصى 9 صور',
-  tab_privacy: '🔒 خصوصية',
   priv_edit_title: '✏️ تعديل بياناتي',
-  priv_edit_sub: 'انتقل إلى قسم المعلومات الأساسية لتعديل بياناتك',
+  priv_edit_sub: 'تعديل الاسم، الهاتف، البريد، الجنس وتاريخ الميلاد',
   priv_title: 'إعدادات الخصوصية',
   priv_hide_label: 'إخفاء حسابي',
   priv_hide_desc: 'عند التفعيل لن يظهر ملفك الشخصي للمستخدمين الآخرين',
@@ -619,39 +700,62 @@ const T = lang === 'ar' ? {
   priv_phone_desc: 'السماح للآخرين برؤية رقم هاتفك في ملفك الشخصي',
   priv_phone_on: '📞 مُظهر',
   priv_phone_off: '🔕 مخفي',
-  lbl_manage_link: '🗂️ كياناتي',
-  lbl_feedback_link: '📨 الملاحظات',
+  entities_title: 'كياناتي',
+  entities_desc: 'أنشئ وأدر كياناتك (متاجر، مطاعم، خدمات، وأكثر)',
+  entities_btn: '🗂️ إدارة كياناتي',
+  feedback_title: 'الملاحظات والاقتراحات',
+  feedback_desc: 'شاركنا برأيك وساعدنا على تحسين التطبيق',
+  feedback_btn: '📨 إرسال ملاحظة',
+  reg_title: 'أهلاً بك! 👋',
+  reg_subtitle: 'يرجى إكمال بياناتك الأساسية للمتابعة',
+  reg_fname: 'الاسم الأول *',
+  reg_lname: 'اسم العائلة *',
+  reg_phone: 'رقم الهاتف المحمول *',
+  reg_email: 'البريد الإلكتروني *',
+  reg_gender: 'الجنس *',
+  reg_bdate: 'تاريخ الميلاد *',
+  reg_bio: 'نبذة عنك (اختياري)',
+  reg_submit: '✅ حفظ والمتابعة',
+  reg_g_male: 'ذكر',
+  reg_g_female: 'أنثى',
+  reg_err_name: '❗ يرجى إدخال الاسم الأول واسم العائلة',
+  reg_err_phone: '❗ يرجى إدخال رقم الهاتف',
+  reg_err_email: '❗ يرجى إدخال بريد إلكتروني صحيح',
+  reg_err_gender: '❗ يرجى اختيار الجنس',
+  reg_err_bdate: '❗ يرجى إدخال تاريخ الميلاد',
 } : {
   loading: 'Loading...',
   complete_label: 'Profile completion',
   tab_photos: '📸 Photos',
-  tab_basic: '👤 About',
-  tab_contact: '💌 Contact',
+  tab_basic: '👤 My Data',
   tab_looking: '❤️ Looking',
   tab_interests: '🎯 Interests',
   tab_education: '🎓 Education',
   tab_location: '📍 Location',
+  tab_privacy: '🔒 Privacy',
+  tab_entities: '🗂️ Entities',
+  tab_feedback: '📨 Feedback',
   photos_title: 'Profile Photos',
   photos_hint: 'Tap any box to add a photo (up to 9 photos)',
-  name_title: 'Name & About',
-  first_name: 'First Name',
-  last_name: 'Last Name',
+  name_title: 'Name *',
+  first_name: 'First Name *',
+  last_name: 'Last Name *',
+  bio_title: 'About Me (optional)',
   bio: 'About Me',
   bio_ph: 'Write something about yourself...',
-  bday_title: 'Gender & Birthday',
-  gender: 'Gender',
+  bday_title: 'Gender & Birthday *',
+  gender: 'Gender *',
   g_male: 'Male',
   g_female: 'Female',
-  birthdate: 'Date of Birth',
+  birthdate: 'Date of Birth *',
   zodiac_title: 'Zodiac Sign',
   zodiac_auto: 'Auto-calculated zodiac:',
   social_title: 'Social Status',
   children: 'I have children',
-  contact_title: 'Contact Info',
-  email: 'Email Address',
-  phone: 'Phone Number',
-  phone_hint: 'You can edit your phone number at any time',
-  save_phone: 'Save',
+  contact_title: 'Contact Info *',
+  email: 'Email Address *',
+  phone: 'Mobile Phone *',
+  phone_hint: 'Required — you can update it anytime',
   looking_title: 'What are you looking for?',
   looking_hint: 'You can select multiple options',
   hobbies_title: 'Hobbies',
@@ -675,9 +779,8 @@ const T = lang === 'ar' ? {
   photo_del_confirm: 'Delete this photo?',
   rating_label: 'Your rating',
   max_photos: 'Maximum 9 photos allowed',
-  tab_privacy: '🔒 Privacy',
-  priv_edit_title: '✏️ Edit My Profile',
-  priv_edit_sub: 'Go to Basic Info section to update your details',
+  priv_edit_title: '✏️ Edit My Data',
+  priv_edit_sub: 'Update name, phone, email, gender & birthdate',
   priv_title: 'Privacy Settings',
   priv_hide_label: 'Hide My Account',
   priv_hide_desc: 'When enabled, your profile will not appear to other users',
@@ -687,8 +790,29 @@ const T = lang === 'ar' ? {
   priv_phone_desc: 'Allow others to see your phone number on your profile',
   priv_phone_on: '📞 Shown',
   priv_phone_off: '🔕 Hidden',
-  lbl_manage_link: '🗂️ My Entities',
-  lbl_feedback_link: '📨 Send Feedback',
+  entities_title: 'My Entities',
+  entities_desc: 'Create and manage your entities (stores, restaurants, services, and more)',
+  entities_btn: '🗂️ Manage My Entities',
+  feedback_title: 'Feedback & Suggestions',
+  feedback_desc: 'Share your thoughts and help us improve the app',
+  feedback_btn: '📨 Send Feedback',
+  reg_title: 'Welcome! 👋',
+  reg_subtitle: 'Please complete your profile to continue',
+  reg_fname: 'First Name *',
+  reg_lname: 'Last Name *',
+  reg_phone: 'Mobile Phone *',
+  reg_email: 'Email Address *',
+  reg_gender: 'Gender *',
+  reg_bdate: 'Date of Birth *',
+  reg_bio: 'About You (optional)',
+  reg_submit: '✅ Save & Continue',
+  reg_g_male: 'Male',
+  reg_g_female: 'Female',
+  reg_err_name: '❗ Please enter your first and last name',
+  reg_err_phone: '❗ Please enter your phone number',
+  reg_err_email: '❗ Please enter a valid email address',
+  reg_err_gender: '❗ Please select your gender',
+  reg_err_bdate: '❗ Please enter your date of birth',
 };
 
 // ── Apply static labels ───────────────────────────────────────
@@ -699,6 +823,7 @@ document.getElementById('lbl-photos-hint').textContent    = T.photos_hint;
 document.getElementById('lbl-name-title').textContent     = T.name_title;
 document.getElementById('lbl-first-name').textContent     = T.first_name;
 document.getElementById('lbl-last-name').textContent      = T.last_name;
+document.getElementById('lbl-bio-title').textContent      = T.bio_title;
 document.getElementById('lbl-bio').textContent            = T.bio;
 document.getElementById('lbl-bday-title').textContent     = T.bday_title;
 document.getElementById('lbl-gender').textContent         = T.gender;
@@ -712,9 +837,6 @@ document.getElementById('lbl-contact-title').textContent  = T.contact_title;
 document.getElementById('lbl-email').textContent          = T.email;
 document.getElementById('lbl-phone-disp').textContent     = T.phone;
 document.getElementById('lbl-phone-hint').textContent     = T.phone_hint;
-document.getElementById('btn-save-phone').title          = T.save_phone;
-document.getElementById('lbl-manage-link').textContent    = T.lbl_manage_link;
-document.getElementById('lbl-feedback-link').textContent  = T.lbl_feedback_link;
 document.getElementById('lbl-looking-title').textContent  = T.looking_title;
 document.getElementById('lbl-looking-hint').textContent   = T.looking_hint;
 document.getElementById('lbl-hobbies-title').textContent  = T.hobbies_title;
@@ -734,6 +856,26 @@ document.getElementById('f-bio').placeholder              = T.bio_ph;
 document.getElementById('save-hint').textContent          = lang==='ar'
   ? '💡 زر الحفظ يحفظ بيانات جميع التبويبات دفعة واحدة'
   : '💡 Save button saves all tabs at once';
+document.getElementById('lbl-entities-title').textContent = T.entities_title;
+document.getElementById('lbl-entities-desc').textContent  = T.entities_desc;
+document.getElementById('lbl-entities-btn').textContent   = T.entities_btn;
+document.getElementById('lbl-feedback-title').textContent = T.feedback_title;
+document.getElementById('lbl-feedback-desc').textContent  = T.feedback_desc;
+document.getElementById('lbl-feedback-btn').textContent   = T.feedback_btn;
+
+// ── Registration modal labels ─────────────────────────────────
+document.getElementById('reg-title').textContent      = T.reg_title;
+document.getElementById('reg-subtitle').textContent   = T.reg_subtitle;
+document.getElementById('reg-lbl-fname').textContent  = T.reg_fname;
+document.getElementById('reg-lbl-lname').textContent  = T.reg_lname;
+document.getElementById('reg-lbl-phone').textContent  = T.reg_phone;
+document.getElementById('reg-lbl-email').textContent  = T.reg_email;
+document.getElementById('reg-lbl-gender').textContent = T.reg_gender;
+document.getElementById('reg-lbl-bdate').textContent  = T.reg_bdate;
+document.getElementById('reg-lbl-bio').textContent    = T.reg_bio;
+document.getElementById('reg-submit-btn').textContent = T.reg_submit;
+document.getElementById('reg-lbl-g-male').textContent = T.reg_g_male;
+document.getElementById('reg-lbl-g-female').textContent = T.reg_g_female;
 
 // ── Privacy section labels ────────────────────────────────────
 document.getElementById('lbl-priv-edit-title').textContent  = T.priv_edit_title;
@@ -744,12 +886,17 @@ document.getElementById('lbl-priv-hide-desc').textContent   = T.priv_hide_desc;
 document.getElementById('lbl-priv-phone-label').textContent = T.priv_phone_label;
 document.getElementById('lbl-priv-phone-desc').textContent  = T.priv_phone_desc;
 
-// ── Update tab labels ─────────────────────────────────────────
-const tabLabels = { photos: T.tab_photos, basic: T.tab_basic, contact: T.tab_contact,
+// ── Update tab labels (preserve badges inside buttons) ────────
+const tabLabels = {
+  photos: T.tab_photos, basic: T.tab_basic,
   looking: T.tab_looking, interests: T.tab_interests,
-  education: T.tab_education, location: T.tab_location, privacy: T.tab_privacy };
+  education: T.tab_education, location: T.tab_location,
+  privacy: T.tab_privacy, entities: T.tab_entities, feedback: T.tab_feedback
+};
 document.querySelectorAll('.tab-btn').forEach(btn => {
+  const badge = btn.querySelector('.tab-done');
   btn.textContent = tabLabels[btn.dataset.tab] || btn.textContent;
+  if (badge) btn.appendChild(badge);
 });
 
 // ── Zodiac data ───────────────────────────────────────────────
@@ -1371,9 +1518,12 @@ async function togglePhone() {
 // ═══════════════════════════════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════════════════════════════
-const TAB_IDS = { photos:'sec-photos', basic:'sec-basic', contact:'sec-contact',
+const TAB_IDS = {
+  photos:'sec-photos', basic:'sec-basic',
   looking:'sec-looking', interests:'sec-interests', education:'sec-education',
-  location:'sec-location', privacy:'sec-privacy' };
+  location:'sec-location', privacy:'sec-privacy',
+  entities:'sec-entities', feedback:'sec-feedback'
+};
 
 function switchToTab(tabName) {
   document.querySelectorAll('.tab-btn').forEach(b => {
@@ -1389,8 +1539,9 @@ function switchToTab(tabName) {
     target.scrollIntoView({behavior:'smooth', block:'start'});
   }
   // Show/hide save bar
+  const noSave = ['privacy','entities','feedback'];
   const savebar = document.getElementById('save-bar');
-  if (savebar) savebar.style.display = (tabName === 'privacy') ? 'none' : 'block';
+  if (savebar) savebar.style.display = noSave.includes(tabName) ? 'none' : 'block';
 }
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
