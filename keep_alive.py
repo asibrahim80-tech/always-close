@@ -3382,31 +3382,40 @@ def _run_bot_polling():
         relay_any_message))
     bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_buttons))
 
-    async def _async_polling():
-        """Async polling loop — avoids signal-handler restriction of run_polling()."""
+    from telegram.error import Conflict as _Conflict
+    from telegram import Update as _Update2
+
+    async def _async_main():
+        """Start polling using the low-level async API (safe from non-main threads)."""
+        async def _err_handler(update, ctx):
+            if isinstance(ctx.error, _Conflict):
+                _ka_logger.warning("Bot Conflict — another instance is polling. Stopping.")
+                raise _Conflict("conflict")
+            _ka_logger.error(f"Handler error: {ctx.error}")
+
+        bot_app.add_error_handler(_err_handler)
         await bot_app.initialize()
         await bot_app.start()
         _ka_logger.info("🚀 Bot polling started (production gunicorn thread mode)")
         await bot_app.updater.start_polling(
-            allowed_updates=Update.ALL_TYPES,
+            allowed_updates=_Update2.ALL_TYPES,
             drop_pending_updates=False,
             poll_interval=1.0,
             timeout=20,
-            error_callback=lambda err: _ka_logger.warning(f"Polling error: {err}"),
         )
-        # Keep running until stopped
+        # Block forever — the updater runs in background tasks
         await asyncio.Event().wait()
 
     retry_delay = 5
     while True:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(_async_polling())
+            loop.run_until_complete(_async_main())
         except (KeyboardInterrupt, SystemExit):
             break
-        except Conflict:
-            _ka_logger.warning("Bot Conflict — another instance owns polling.")
+        except _Conflict:
+            _ka_logger.warning("Bot Conflict — yielding polling to another instance.")
             try:
                 import os as _os3; _os3.remove(_BOT_LOCK)
             except Exception:
