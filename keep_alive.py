@@ -3327,7 +3327,9 @@ def _acquire_bot_lock() -> bool:
 
 def _run_bot_polling():
     """Run Telegram bot polling — called inside a daemon thread in production."""
+    import asyncio
     import time as _t
+
     if not _acquire_bot_lock():
         _ka_logger.info("Bot lock held by another worker — skipping polling here.")
         return
@@ -3349,8 +3351,6 @@ def _run_bot_polling():
     except Exception as _e:
         _ka_logger.error(f"Bot import error: {_e}")
         return
-
-    _ka_logger.info("🚀 Bot polling started (production gunicorn mode)")
 
     bot_app = (
         ApplicationBuilder()
@@ -3382,15 +3382,29 @@ def _run_bot_polling():
         relay_any_message))
     bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_buttons))
 
+    async def _async_polling():
+        """Async polling loop — avoids signal-handler restriction of run_polling()."""
+        await bot_app.initialize()
+        await bot_app.start()
+        _ka_logger.info("🚀 Bot polling started (production gunicorn thread mode)")
+        await bot_app.updater.start_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=False,
+            poll_interval=1.0,
+            timeout=20,
+            error_callback=lambda err: _ka_logger.warning(f"Polling error: {err}"),
+        )
+        # Keep running until stopped
+        await asyncio.Event().wait()
+
     retry_delay = 5
     while True:
         try:
-            bot_app.run_polling(
-                allowed_updates=Update.ALL_TYPES,
-                drop_pending_updates=False,
-                poll_interval=1.0,
-                timeout=20,
-            )
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(_async_polling())
+        except (KeyboardInterrupt, SystemExit):
+            break
         except Conflict:
             _ka_logger.warning("Bot Conflict — another instance owns polling.")
             try:
@@ -3402,8 +3416,11 @@ def _run_bot_polling():
             _ka_logger.error(f"Bot polling crashed: {_exc}. Retry in {retry_delay}s…")
             _t.sleep(retry_delay)
             retry_delay = min(retry_delay * 2, 60)
-        else:
-            break
+        finally:
+            try:
+                loop.close()
+            except Exception:
+                pass
 
 
 def _self_ping_loop():
