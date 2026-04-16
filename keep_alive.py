@@ -3382,45 +3382,83 @@ def _run_bot_polling():
         relay_any_message))
     bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_buttons))
 
-    from telegram.error import Conflict as _Conflict
+    from telegram.error import Conflict as _Conflict, NetworkError as _NetError
     from telegram import Update as _Update2
 
     async def _async_main():
-        """Start polling using the low-level async API (safe from non-main threads)."""
+        """Manual polling loop — avoids Updater's signal-handler + Conflict issues."""
         async def _err_handler(update, ctx):
-            if isinstance(ctx.error, _Conflict):
-                _ka_logger.warning("Bot Conflict — another instance is polling. Stopping.")
-                raise _Conflict("conflict")
-            _ka_logger.error(f"Handler error: {ctx.error}")
+            _ka_logger.error(f"Handler exception [update={update}]: {ctx.error}", exc_info=ctx.error)
 
         bot_app.add_error_handler(_err_handler)
         await bot_app.initialize()
         await bot_app.start()
-        _ka_logger.info("🚀 Bot polling started (production gunicorn thread mode)")
-        await bot_app.updater.start_polling(
-            allowed_updates=_Update2.ALL_TYPES,
-            drop_pending_updates=False,
-            poll_interval=1.0,
-            timeout=20,
-        )
-        # Block forever — the updater runs in background tasks
-        await asyncio.Event().wait()
+        _ka_logger.info("🚀 Bot manual polling started (production gunicorn thread mode)")
+
+        # Delete any existing webhook to ensure polling works
+        await bot_app.bot.delete_webhook(drop_pending_updates=False)
+
+        offset = 0
+        inner_delay = 1
+        while True:
+            try:
+                updates = await asyncio.wait_for(
+                    bot_app.bot.get_updates(
+                        offset=offset,
+                        timeout=20,
+                        allowed_updates=_Update2.ALL_TYPES,
+                    ),
+                    timeout=30,
+                )
+                inner_delay = 1  # reset on success
+                for upd in updates:
+                    await bot_app.process_update(upd)
+                    offset = upd.update_id + 1
+            except _Conflict:
+                _ka_logger.warning("getUpdates Conflict — raising to outer handler")
+                raise
+            except asyncio.TimeoutError:
+                pass  # normal long-poll timeout, continue
+            except _NetError as _ne:
+                _ka_logger.warning(f"Network error in polling: {_ne}. Retry in {inner_delay}s…")
+                await asyncio.sleep(inner_delay)
+                inner_delay = min(inner_delay * 2, 30)
+            except Exception as _ex:
+                _ka_logger.error(f"Unexpected polling error: {_ex}. Retry in {inner_delay}s…")
+                await asyncio.sleep(inner_delay)
+                inner_delay = min(inner_delay * 2, 30)
 
     retry_delay = 5
+    conflict_retries = 0
+    MAX_CONFLICT_RETRIES = 10
+
     while True:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             loop.run_until_complete(_async_main())
+            break  # clean exit
         except (KeyboardInterrupt, SystemExit):
             break
         except _Conflict:
-            _ka_logger.warning("Bot Conflict — yielding polling to another instance.")
+            conflict_retries += 1
+            wait = min(30 * conflict_retries, 120)
+            _ka_logger.warning(
+                f"Bot Conflict (try {conflict_retries}/{MAX_CONFLICT_RETRIES}) — "
+                f"waiting {wait}s for old session to expire…"
+            )
+            if conflict_retries >= MAX_CONFLICT_RETRIES:
+                _ka_logger.error("Too many Conflict errors — giving up bot polling.")
+                break
+            _t.sleep(wait)
+            # Re-acquire lock before retrying
             try:
                 import os as _os3; _os3.remove(_BOT_LOCK)
             except Exception:
                 pass
-            break
+            if not _acquire_bot_lock():
+                _ka_logger.warning("Lock still held — another worker will handle bot.")
+                break
         except Exception as _exc:
             _ka_logger.error(f"Bot polling crashed: {_exc}. Retry in {retry_delay}s…")
             _t.sleep(retry_delay)
