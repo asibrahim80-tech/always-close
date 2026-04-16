@@ -1368,6 +1368,13 @@ async function loadProfile() {
     // Initial completeness calc (after all state is loaded)
     calcCompletion();
 
+    // Check if registration is required (first time user or missing required fields)
+    const requiredMissing =
+      !p.first_name || !p.last_name || !p.phone || !p.email || !p.gender || !p.birthdate;
+    if (requiredMissing) {
+      showRegistrationModal(p);
+    }
+
   } catch(e) {
     console.error(e);
     showToast('Error');
@@ -1380,29 +1387,33 @@ async function loadProfile() {
 function calcCompletion() {
   const v = (id) => (document.getElementById(id)?.value || '').trim();
 
-  // score fields (each = 1 point out of 10)
+  // score fields (each = 1 point out of 12)
   const fields = [
-    /* photos tab   */ mainPhotoUrl || photosState.length > 0,
-    /* basic: bio   */ v('f-bio').length >= 10,
-    /* basic: gender*/ !!genderState[0],
-    /* basic: bday  */ !!v('f-birthdate'),
-    /* contact      */ !!v('f-email'),
+    /* photos       */ mainPhotoUrl || photosState.length > 0,
+    /* first name   */ !!v('f-first-name'),
+    /* last name    */ !!v('f-last-name'),
+    /* phone        */ !!v('f-phone'),
+    /* email        */ !!v('f-email'),
+    /* gender       */ !!genderState[0],
+    /* birthdate    */ !!v('f-birthdate'),
+    /* bio          */ v('f-bio').length >= 10,
     /* looking      */ purposeState.length > 0,
     /* hobbies      */ hobbiesState.length >= 2,
     /* edu          */ !!document.getElementById('f-edu')?.value,
     /* location city*/ !!v('f-city'),
-    /* social status*/ !!socialState[0],
   ];
   const score = Math.round((fields.filter(Boolean).length / fields.length) * 100);
 
   document.getElementById('hdr-complete-fill').style.width = score + '%';
   document.getElementById('hdr-complete-pct').textContent  = score + '%';
 
-  // Update tab badges
+  // Update tab badges — basic tab is done when required fields are filled
+  const basicDone = !!v('f-first-name') && !!v('f-last-name') &&
+                    !!v('f-phone') && !!v('f-email') &&
+                    !!genderState[0] && !!v('f-birthdate');
   const badges = {
     photos:    mainPhotoUrl || photosState.length > 0,
-    basic:     v('f-bio').length >= 10 && !!genderState[0],
-    contact:   !!v('f-email'),
+    basic:     basicDone,
     looking:   purposeState.length > 0,
     interests: hobbiesState.length >= 1,
     education: !!document.getElementById('f-edu')?.value,
@@ -1415,7 +1426,7 @@ function calcCompletion() {
 }
 
 // Attach live update to all inputs
-['f-first-name','f-last-name','f-bio','f-birthdate','f-email',
+['f-first-name','f-last-name','f-bio','f-birthdate','f-email','f-phone',
  'f-profession','f-university','f-school','f-country','f-city','f-neighborhood','f-edu'
 ].forEach(id => {
   const el = document.getElementById(id);
@@ -1483,20 +1494,93 @@ function openFeedback() {
   else window.open(url, '_blank');
 }
 
-async function savePhone() {
-  if (!uid) return;
-  const phone = document.getElementById('f-phone').value.trim();
+// ═══════════════════════════════════════════════════════════════
+// REGISTRATION MODAL
+// ═══════════════════════════════════════════════════════════════
+let regGender = '';
+
+function showRegistrationModal(profile) {
+  // Pre-fill any existing data
+  if (profile) {
+    document.getElementById('reg-first-name').value = profile.first_name || '';
+    document.getElementById('reg-last-name').value  = profile.last_name  || '';
+    document.getElementById('reg-phone').value      = profile.phone      || '';
+    document.getElementById('reg-email').value      = profile.email      || '';
+    document.getElementById('reg-bio').value        = profile.bio        || '';
+    document.getElementById('reg-birthdate').value  = profile.birthdate  || '';
+    if (profile.gender) selectRegGender(profile.gender);
+  }
+  document.getElementById('reg-modal').style.display = 'block';
+}
+
+function selectRegGender(val) {
+  regGender = val;
+  document.getElementById('reg-g-male').classList.toggle('active', val === 'Male');
+  document.getElementById('reg-g-female').classList.toggle('active', val === 'Female');
+}
+
+async function submitRegistration() {
+  const firstName = document.getElementById('reg-first-name').value.trim();
+  const lastName  = document.getElementById('reg-last-name').value.trim();
+  const phone     = document.getElementById('reg-phone').value.trim();
+  const email     = document.getElementById('reg-email').value.trim();
+  const birthdate = document.getElementById('reg-birthdate').value;
+  const bio       = document.getElementById('reg-bio').value.trim();
+  const errEl     = document.getElementById('reg-error');
+
+  const showErr = (msg) => {
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+    errEl.scrollIntoView({behavior:'smooth', block:'center'});
+  };
+
+  errEl.style.display = 'none';
+
+  if (!firstName || !lastName) return showErr(T.reg_err_name);
+  if (!phone) return showErr(T.reg_err_phone);
+  if (!email || !email.includes('@')) return showErr(T.reg_err_email);
+  if (!regGender) return showErr(T.reg_err_gender);
+  if (!birthdate) return showErr(T.reg_err_bdate);
+
+  const btn = document.getElementById('reg-submit-btn');
+  btn.disabled = true;
+  btn.textContent = T.saving;
+
   try {
-    const res = await fetch('/api/profile/update_phone', {
+    const res = await fetch('/api/profile/save', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({uid, phone})
+      body: JSON.stringify({
+        uid, first_name: firstName, last_name: lastName,
+        phone, email, gender: regGender, birthdate, bio,
+        zodiac: '', social_status: '', has_children: false,
+        education: '', profession: '', university: '', school: '',
+        country: '', city: '', neighborhood: '',
+        hobbies: [], habits: [], personality_traits: [], purpose: [],
+      })
     }).then(r=>r.json());
+
     if (res.ok) {
-      showToast(lang==='ar' ? '✅ تم حفظ رقم الهاتف' : '✅ Phone number saved');
+      document.getElementById('reg-modal').style.display = 'none';
+      // Sync main form fields
+      document.getElementById('f-first-name').value = firstName;
+      document.getElementById('f-last-name').value  = lastName;
+      document.getElementById('f-phone').value      = phone;
+      document.getElementById('f-email').value      = email;
+      document.getElementById('f-birthdate').value  = birthdate;
+      document.getElementById('f-bio').value        = bio;
+      buildGenderChips(regGender);
+      genderState[0] = regGender;
+      calcCompletion();
+      showToast(lang==='ar' ? '✅ تم تسجيل بياناتك بنجاح' : '✅ Profile saved successfully');
     } else {
-      showToast(lang==='ar' ? '❌ فشل الحفظ' : '❌ Failed to save');
+      showErr((lang==='ar' ? '❌ خطأ: ' : '❌ Error: ') + (res.error || ''));
     }
-  } catch(e) { console.error(e); }
+  } catch(e) {
+    showErr(lang==='ar' ? '❌ خطأ في الاتصال' : '❌ Connection error');
+  }
+
+  btn.disabled = false;
+  btn.textContent = T.reg_submit;
 }
 
 async function togglePhone() {
@@ -1564,6 +1648,7 @@ document.getElementById('save-btn').addEventListener('click', async () => {
     bio:                document.getElementById('f-bio').value.trim(),
     birthdate:          document.getElementById('f-birthdate').value,
     email:              document.getElementById('f-email').value.trim(),
+    phone:              document.getElementById('f-phone').value.trim(),
     zodiac:             zodiacState[0] || '',
     social_status:      socialState[0] || '',
     has_children:       hasChildren,
@@ -1634,10 +1719,12 @@ function showToast(msg, duration) {
   setTimeout(() => t.classList.remove('show'), duration || 2200);
 }
 
-// ── MAX DATE for birthdate (18 years ago) ─────────────────────
+// ── MAX DATE for birthdate (13 years ago) ─────────────────────
 const today = new Date();
 today.setFullYear(today.getFullYear() - 13);
-document.getElementById('f-birthdate').max = today.toISOString().split('T')[0];
+const maxDate = today.toISOString().split('T')[0];
+document.getElementById('f-birthdate').max   = maxDate;
+document.getElementById('reg-birthdate').max = maxDate;
 
 // ── Start ────────────────────────────────────────────────────
 loadProfile();

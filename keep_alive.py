@@ -273,7 +273,7 @@ def api_profile_save():
         current = cur.data[0]
 
         # ── Scalar fields (TEXT / BOOLEAN / INTEGER) ───────────
-        TEXT_COLS   = ["first_name","last_name","bio","email","zodiac",
+        TEXT_COLS   = ["first_name","last_name","bio","email","phone","zodiac",
                        "social_status","education","profession",
                        "university","school","country","city","neighborhood"]
         ARRAY_COLS  = ["hobbies","habits","personality_traits","purpose"]
