@@ -858,7 +858,7 @@ def api_nearby(telegram_id):
 
         # ── Current user ────────────────────────────────────────
         me_res = supabase.table("users_v1") \
-            .select("id, username, photo_url, latitude, longitude, recorded_at") \
+            .select("id, username, photo_url") \
             .eq("telegram_id", telegram_id) \
             .execute()
 
@@ -879,13 +879,8 @@ def api_nearby(telegram_id):
             my_lat = float(my_loc.data[0]["latitude"])
             my_lng = float(my_loc.data[0]["longitude"])
             my_rec = my_loc.data[0].get("recorded_at")
-        elif me_res.data[0].get("latitude") and me_res.data[0].get("longitude"):
-            # Fallback: use coordinates stored directly in users_v1
-            my_lat = float(me_res.data[0]["latitude"])
-            my_lng = float(me_res.data[0]["longitude"])
-            my_rec = me_res.data[0].get("recorded_at")
         else:
-            # No location at all — return minimal response so GPS can bootstrap
+            # No server location yet — return profile info so GPS can bootstrap marker
             return jsonify({
                 "me": {"lat": None, "lng": None, "name": my_name,
                         "photo_url": my_photo, "last_seen": None, "is_active": False},
@@ -2066,19 +2061,13 @@ def api_update_location():
         now_iso = datetime.now(timezone.utc).isoformat()
         geo     = geohash2.encode(lat, lng, precision=7)
 
-        # Update users_v1 with latest position
+        # Resolve user DB id from telegram_id
         me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
         if not me.data:
             return jsonify({"ok": False, "error": "user not found"}), 404
         my_id = me.data[0]["id"]
 
-        supabase.table("users_v1").update({
-            "latitude":    lat,
-            "longitude":   lng,
-            "recorded_at": now_iso,
-        }).eq("id", my_id).execute()
-
-        # Upsert into user_locations_v1 (the table the map reads from)
+        # Upsert into user_locations_v1 (the ONLY location table the map reads from)
         existing = supabase.table("user_locations_v1") \
             .select("id").eq("user_id", my_id).limit(1).execute()
         loc_data = {
