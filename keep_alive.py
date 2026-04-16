@@ -32,9 +32,12 @@ _photo_cache = {}
 
 
 def _resolve_photo(file_id: str, bot_token: str) -> str | None:
-    """Convert Telegram file_id → HTTPS URL (cached)."""
+    """Convert Telegram file_id → HTTPS URL (cached). Local URLs are passed through."""
     if not file_id:
         return None
+    # Already a URL or local path — return as-is
+    if file_id.startswith("http://") or file_id.startswith("https://") or file_id.startswith("/"):
+        return file_id
     if file_id in _photo_cache:
         return _photo_cache[file_id]
     try:
