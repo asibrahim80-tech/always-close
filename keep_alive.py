@@ -2041,6 +2041,7 @@ def api_set_entity_icon():
 def api_update_location():
     """Receive live GPS from the browser and persist it to Supabase."""
     try:
+        import geohash2
         data = request.get_json(force=True) or {}
         uid  = int(data.get('uid', 0))
         lat  = float(data.get('lat', 0))
@@ -2048,14 +2049,42 @@ def api_update_location():
         acc  = float(data.get('accuracy', 999))
         if not uid:
             return jsonify({"ok": False, "error": "missing uid"}), 400
-        # Only accept fixes better than 200 m accuracy
-        if acc > 200:
+        # Accept fixes up to 1000m accuracy (poor GPS still better than nothing)
+        if acc > 1000:
             return jsonify({"ok": False, "error": "accuracy too low"}), 200
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        geo     = geohash2.encode(lat, lng, precision=7)
+
+        # Update users_v1 with latest position
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "user not found"}), 404
+        my_id = me.data[0]["id"]
+
         supabase.table("users_v1").update({
             "latitude":    lat,
             "longitude":   lng,
-            "recorded_at": datetime.now(timezone.utc).isoformat(),
-        }).eq("telegram_id", uid).execute()
+            "recorded_at": now_iso,
+        }).eq("id", my_id).execute()
+
+        # Upsert into user_locations_v1 (the table the map reads from)
+        existing = supabase.table("user_locations_v1") \
+            .select("id").eq("user_id", my_id).limit(1).execute()
+        loc_data = {
+            "latitude":    lat,
+            "longitude":   lng,
+            "geohash":     geo,
+            "source":      "browser",
+            "recorded_at": now_iso,
+        }
+        if existing.data:
+            supabase.table("user_locations_v1") \
+                .update(loc_data).eq("id", existing.data[0]["id"]).execute()
+        else:
+            loc_data["user_id"] = my_id
+            supabase.table("user_locations_v1").insert(loc_data).execute()
+
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
