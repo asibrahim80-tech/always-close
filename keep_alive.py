@@ -3305,6 +3305,107 @@ def api_feedback_submit():
         return jsonify({"ok": False, "error": str(e)})
 
 
+_BOT_LOCK = "/tmp/always_close_bot.lock"
+
+
+def _acquire_bot_lock() -> bool:
+    """Return True if this process should run the bot (only one worker should)."""
+    import os as _os2
+    my_pid = _os2.getpid()
+    if _os2.path.exists(_BOT_LOCK):
+        try:
+            with open(_BOT_LOCK) as _f:
+                old_pid = int(_f.read().strip())
+            _os2.kill(old_pid, 0)
+            return False   # Another process is already running the bot
+        except (ProcessLookupError, ValueError, OSError):
+            pass
+    with open(_BOT_LOCK, "w") as _f:
+        _f.write(str(my_pid))
+    return True
+
+
+def _run_bot_polling():
+    """Run Telegram bot polling — called inside a daemon thread in production."""
+    import time as _t
+    if not _acquire_bot_lock():
+        _ka_logger.info("Bot lock held by another worker — skipping polling here.")
+        return
+
+    try:
+        from config import BOT_TOKEN
+        from handlers import (
+            start, handle_contact, handle_location, handle_buttons,
+            handle_edit_choice, handle_text_buttons, handle_web_app_data,
+            exit_chat, relay_any_message,
+        )
+        from lang import btn_regex
+        from telegram import Update
+        from telegram.ext import (
+            ApplicationBuilder, CommandHandler, MessageHandler,
+            CallbackQueryHandler, filters,
+        )
+        from telegram.error import Conflict
+    except Exception as _e:
+        _ka_logger.error(f"Bot import error: {_e}")
+        return
+
+    _ka_logger.info("🚀 Bot polling started (production gunicorn mode)")
+
+    bot_app = (
+        ApplicationBuilder()
+        .token(BOT_TOKEN)
+        .connect_timeout(30)
+        .read_timeout(30)
+        .write_timeout(30)
+        .pool_timeout(30)
+        .build()
+    )
+
+    bot_app.add_handler(CommandHandler("start", start))
+    bot_app.add_handler(MessageHandler(filters.CONTACT,  handle_contact))
+    bot_app.add_handler(MessageHandler(filters.LOCATION, handle_location))
+    bot_app.add_handler(CallbackQueryHandler(handle_buttons))
+    bot_app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
+    bot_app.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(btn_regex("exit_chat")), exit_chat))
+    bot_app.add_handler(MessageHandler(
+        filters.TEXT & (
+            filters.Regex(btn_regex("edit_gender")) |
+            filters.Regex(btn_regex("edit_birthdate")) |
+            filters.Regex(btn_regex("edit_bio"))
+        ), handle_edit_choice))
+    bot_app.add_handler(MessageHandler(
+        (filters.PHOTO | filters.Sticker.ALL | filters.Document.ALL |
+         filters.VIDEO | filters.VOICE | filters.AUDIO |
+         filters.VIDEO_NOTE | filters.ANIMATION) & ~filters.COMMAND,
+        relay_any_message))
+    bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_buttons))
+
+    retry_delay = 5
+    while True:
+        try:
+            bot_app.run_polling(
+                allowed_updates=Update.ALL_TYPES,
+                drop_pending_updates=False,
+                poll_interval=1.0,
+                timeout=20,
+            )
+        except Conflict:
+            _ka_logger.warning("Bot Conflict — another instance owns polling.")
+            try:
+                import os as _os3; _os3.remove(_BOT_LOCK)
+            except Exception:
+                pass
+            break
+        except Exception as _exc:
+            _ka_logger.error(f"Bot polling crashed: {_exc}. Retry in {retry_delay}s…")
+            _t.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 60)
+        else:
+            break
+
+
 def _self_ping_loop():
     """Ping our own /health every 4 minutes to prevent Replit from sleeping."""
     _raw = os.environ.get("REPLIT_DOMAINS", "")
@@ -3341,3 +3442,17 @@ def keep_alive():
     ping_thread = Thread(target=_self_ping_loop, name="self-pinger")
     ping_thread.daemon = True
     ping_thread.start()
+
+
+# ── Auto-start bot when loaded by gunicorn in production ──────────────────
+# When gunicorn imports this module (main:app → keep_alive.app), we detect
+# production via REPLIT_DEPLOYMENT and spin up the bot polling in a thread.
+def _maybe_start_bot_in_production():
+    if not os.environ.get("REPLIT_DEPLOYMENT"):
+        return
+    _ka_logger.info("Production detected (REPLIT_DEPLOYMENT) — starting bot thread…")
+    bot_thread = Thread(target=_run_bot_polling, name="bot-polling", daemon=True)
+    bot_thread.start()
+
+
+_maybe_start_bot_in_production()
