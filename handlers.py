@@ -97,12 +97,11 @@ def is_profile_complete(u: dict) -> bool:
 
 
 def restricted_keyboard(lang: str, tg_id: int) -> ReplyKeyboardMarkup:
-    """Keyboard before profile is complete: share phone + open profile only."""
+    """Keyboard before profile is complete: only My Profile button."""
     def wb(path: str) -> WebAppInfo:
         sep = "&" if "?" in path else "?"
         return WebAppInfo(url=f"https://{DOMAIN}{path}{sep}uid={tg_id}&lang={lang}")
     return ReplyKeyboardMarkup([
-        [KeyboardButton(T(lang, "btn_share_phone"), request_contact=True)],
         [KeyboardButton(T(lang, "btn_profile"), web_app=wb("/profile"))],
     ], resize_keyboard=True)
 
@@ -151,68 +150,79 @@ def edit_keyboard(lang: str) -> ReplyKeyboardMarkup:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tg_user = update.effective_user
     tg_id   = tg_user.id
-    lang    = detect_lang(tg_user.language_code)
-    context.user_data["lang"] = lang
-    context.user_data.pop("step", None)
+    logger.info(f"[start] invoked by tg_id={tg_id}")
 
-    SELECT_COLS = "id,language,first_name,last_name,phone,email,gender,birthdate"
-    user_res = supabase.table("users_v1").select(SELECT_COLS).eq("telegram_id", tg_id).execute()
-
-    if not user_res.data:
-        # ── New user: create record from Telegram data immediately ────────
-        supabase.table("users_v1").insert({
-            "telegram_id": tg_id,
-            "username":    tg_user.username   or "",
-            "first_name":  tg_user.first_name or "",
-            "last_name":   tg_user.last_name  or "",
-            "language":    lang,
-            "is_active":   True,
-            "is_visible":  True,
-        }).execute()
-        complete = False
-    else:
-        u = user_res.data[0]
-        stored_lang = u.get("language") or "en"
-        if stored_lang != lang:
-            supabase.table("users_v1").update({"language": lang}).eq("telegram_id", tg_id).execute()
-        complete = is_profile_complete(u)
-
-    display_name = f"{tg_user.first_name or ''} {tg_user.last_name or ''}".strip()
-
-    if complete:
-        keyboard = main_keyboard(lang, tg_id)
-        greeting = (
-            f"🤍 {T(lang, 'welcome_back')}\n\n"
-            f"👤 {display_name}"
-        ) if display_name else T(lang, "welcome_back")
-    else:
-        keyboard = restricted_keyboard(lang, tg_id)
-        hint = (
-            "📋 يرجى مشاركة رقمك ثم إكمال ملفك الشخصي للوصول لجميع الميزات"
-            if lang == "ar" else
-            "📋 Please share your phone then complete your profile to unlock all features"
-        )
-        greeting = (
-            f"🤍 {T(lang, 'welcome_new')}\n\n"
-            f"👤 {display_name}\n\n"
-            f"{hint}"
-        ) if display_name else f"🤍 {T(lang, 'welcome_new')}\n\n{hint}"
-
-    # ── Attempt to send Telegram profile photo with caption ────────────
     try:
-        photos = await tg_user.get_profile_photos(limit=1)
-        if photos.total_count > 0:
-            photo_file_id = photos.photos[0][-1].file_id
-            await update.message.reply_photo(
-                photo=photo_file_id,
-                caption=greeting,
-                reply_markup=keyboard,
-            )
-            return
-    except Exception as _photo_err:
-        logger.warning(f"Could not fetch profile photo for {tg_id}: {_photo_err}")
+        lang = detect_lang(tg_user.language_code)
+        context.user_data["lang"] = lang
+        context.user_data.pop("step", None)
 
-    await update.message.reply_text(greeting, reply_markup=keyboard)
+        SELECT_COLS = "id,language,first_name,last_name,phone,email,gender,birthdate"
+        user_res = supabase.table("users_v1").select(SELECT_COLS).eq("telegram_id", tg_id).execute()
+
+        if not user_res.data:
+            # ── New user: create record from Telegram data immediately ──
+            supabase.table("users_v1").insert({
+                "telegram_id": tg_id,
+                "username":    tg_user.username   or "",
+                "first_name":  tg_user.first_name or "",
+                "last_name":   tg_user.last_name  or "",
+                "language":    lang,
+                "is_active":   True,
+                "is_visible":  True,
+            }).execute()
+            complete = False
+            logger.info(f"[start] new user created: {tg_id}")
+        else:
+            u = user_res.data[0]
+            stored_lang = u.get("language") or "en"
+            if stored_lang != lang:
+                supabase.table("users_v1").update({"language": lang}).eq("telegram_id", tg_id).execute()
+            complete = is_profile_complete(u)
+            logger.info(f"[start] returning user {tg_id} complete={complete}")
+
+        display_name = f"{tg_user.first_name or ''} {tg_user.last_name or ''}".strip()
+
+        if complete:
+            keyboard = main_keyboard(lang, tg_id)
+            greeting = f"🤍 {T(lang, 'welcome_back')}\n\n👤 {display_name}" if display_name else T(lang, "welcome_back")
+        else:
+            keyboard = restricted_keyboard(lang, tg_id)
+            hint = (
+                "📋 أكمل ملفك الشخصي للوصول لجميع الميزات"
+                if lang == "ar" else
+                "📋 Complete your profile to unlock all features"
+            )
+            greeting = (
+                f"🤍 {T(lang, 'welcome_new')}\n\n👤 {display_name}\n\n{hint}"
+                if display_name else
+                f"🤍 {T(lang, 'welcome_new')}\n\n{hint}"
+            )
+
+        # ── Try to send Telegram profile photo with caption ──────────
+        try:
+            photos = await tg_user.get_profile_photos(limit=1)
+            if photos.total_count > 0:
+                photo_file_id = photos.photos[0][-1].file_id
+                await update.message.reply_photo(
+                    photo=photo_file_id,
+                    caption=greeting,
+                    reply_markup=keyboard,
+                )
+                logger.info(f"[start] replied with photo to {tg_id}")
+                return
+        except Exception as _photo_err:
+            logger.warning(f"[start] photo fetch failed for {tg_id}: {_photo_err}")
+
+        await update.message.reply_text(greeting, reply_markup=keyboard)
+        logger.info(f"[start] replied with text to {tg_id}")
+
+    except Exception as _e:
+        logger.error(f"[start] FATAL error for {tg_id}: {_e}", exc_info=True)
+        try:
+            await update.message.reply_text("⚠️ حدث خطأ، يرجى المحاولة مجدداً / An error occurred, please try again.")
+        except Exception:
+            pass
 
 
 # =========================================================
