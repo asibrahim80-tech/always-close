@@ -88,6 +88,25 @@ def display_gender(gender: str, lang: str) -> str:
 # KEYBOARDS
 # =========================================================
 
+REQUIRED_PROFILE_FIELDS = ("first_name", "last_name", "phone", "email", "gender", "birthdate")
+
+
+def is_profile_complete(u: dict) -> bool:
+    """True only when all mandatory profile fields are filled."""
+    return all(bool(u.get(f)) for f in REQUIRED_PROFILE_FIELDS)
+
+
+def restricted_keyboard(lang: str, tg_id: int) -> ReplyKeyboardMarkup:
+    """Keyboard before profile is complete: share phone + open profile only."""
+    def wb(path: str) -> WebAppInfo:
+        sep = "&" if "?" in path else "?"
+        return WebAppInfo(url=f"https://{DOMAIN}{path}{sep}uid={tg_id}&lang={lang}")
+    return ReplyKeyboardMarkup([
+        [KeyboardButton(T(lang, "btn_share_phone"), request_contact=True)],
+        [KeyboardButton(T(lang, "btn_profile"), web_app=wb("/profile"))],
+    ], resize_keyboard=True)
+
+
 def main_keyboard(lang: str, tg_id: int = 0) -> ReplyKeyboardMarkup:
     def wb(path: str) -> WebAppInfo:
         sep = "&" if "?" in path else "?"
@@ -131,39 +150,55 @@ def edit_keyboard(lang: str) -> ReplyKeyboardMarkup:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tg_user = update.effective_user
-    tg_id = tg_user.id
-    lang = detect_lang(tg_user.language_code)
+    tg_id   = tg_user.id
+    lang    = detect_lang(tg_user.language_code)
     context.user_data["lang"] = lang
-    context.user_data.pop("step", None)  # clear any old setup step
+    context.user_data.pop("step", None)
 
-    user = supabase.table("users_v1").select("id, language, first_name").eq("telegram_id", tg_id).execute()
+    SELECT_COLS = "id,language,first_name,last_name,phone,email,gender,birthdate"
+    user_res = supabase.table("users_v1").select(SELECT_COLS).eq("telegram_id", tg_id).execute()
 
-    if not user.data:
-        # New user — create basic record immediately using Telegram data
+    if not user_res.data:
+        # ── New user: create record from Telegram data immediately ────────
         supabase.table("users_v1").insert({
             "telegram_id": tg_id,
-            "username": tg_user.username or "",
-            "first_name": tg_user.first_name or "",
-            "last_name": tg_user.last_name or "",
-            "language": lang,
-            "is_active": True,
-            "is_visible": True,
+            "username":    tg_user.username   or "",
+            "first_name":  tg_user.first_name or "",
+            "last_name":   tg_user.last_name  or "",
+            "language":    lang,
+            "is_active":   True,
+            "is_visible":  True,
         }).execute()
-        welcome_text = T(lang, "welcome_new")
+        complete = False
     else:
-        # Returning user — update language in DB if changed
-        stored_lang = user.data[0].get("language") or "en"
+        u = user_res.data[0]
+        stored_lang = u.get("language") or "en"
         if stored_lang != lang:
             supabase.table("users_v1").update({"language": lang}).eq("telegram_id", tg_id).execute()
-        welcome_text = T(lang, "welcome_back")
+        complete = is_profile_complete(u)
 
-    # Build display name from Telegram profile
     display_name = f"{tg_user.first_name or ''} {tg_user.last_name or ''}".strip()
-    greeting = f"{welcome_text}\n\n👤 {display_name}" if display_name else welcome_text
 
-    keyboard = main_keyboard(lang, tg_id)
+    if complete:
+        keyboard = main_keyboard(lang, tg_id)
+        greeting = (
+            f"🤍 {T(lang, 'welcome_back')}\n\n"
+            f"👤 {display_name}"
+        ) if display_name else T(lang, "welcome_back")
+    else:
+        keyboard = restricted_keyboard(lang, tg_id)
+        hint = (
+            "📋 يرجى مشاركة رقمك ثم إكمال ملفك الشخصي للوصول لجميع الميزات"
+            if lang == "ar" else
+            "📋 Please share your phone then complete your profile to unlock all features"
+        )
+        greeting = (
+            f"🤍 {T(lang, 'welcome_new')}\n\n"
+            f"👤 {display_name}\n\n"
+            f"{hint}"
+        ) if display_name else f"🤍 {T(lang, 'welcome_new')}\n\n{hint}"
 
-    # Try to send profile photo alongside the welcome message
+    # ── Attempt to send Telegram profile photo with caption ────────────
     try:
         photos = await tg_user.get_profile_photos(limit=1)
         if photos.total_count > 0:
@@ -177,7 +212,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as _photo_err:
         logger.warning(f"Could not fetch profile photo for {tg_id}: {_photo_err}")
 
-    # Fallback — text only
     await update.message.reply_text(greeting, reply_markup=keyboard)
 
 
@@ -320,12 +354,29 @@ async def handle_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # =========================================================
 
 async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    lang = get_lang(update, context)
+    lang  = get_lang(update, context)
+    tg_id = update.effective_user.id
     phone = update.message.contact.phone_number
-    supabase.table("users_v1").update({"phone": phone}).eq(
-        "telegram_id", update.effective_user.id
-    ).execute()
-    await update.message.reply_text(T(lang, "phone_saved"))
+
+    supabase.table("users_v1").update({"phone": phone}).eq("telegram_id", tg_id).execute()
+
+    # Check if profile is now complete after phone save
+    u_res = supabase.table("users_v1").select(
+        "first_name,last_name,phone,email,gender,birthdate"
+    ).eq("telegram_id", tg_id).execute()
+
+    if u_res.data and is_profile_complete({**u_res.data[0], "phone": phone}):
+        unlock_msg = (
+            "✅ تم حفظ رقمك\n🎉 ملفك مكتمل! جميع الميزات متاحة الآن 🚀"
+            if lang == "ar" else
+            "✅ Phone saved\n🎉 Profile complete! All features are now unlocked 🚀"
+        )
+        await update.message.reply_text(unlock_msg, reply_markup=main_keyboard(lang, tg_id))
+    else:
+        await update.message.reply_text(
+            T(lang, "phone_saved"),
+            reply_markup=restricted_keyboard(lang, tg_id)
+        )
 
 
 # =========================================================

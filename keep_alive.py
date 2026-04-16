@@ -242,6 +242,56 @@ def api_toggle_phone():
 
 
 # ── Profile: save ─────────────────────────────────────────────────────────
+def _send_unlock_keyboard(tg_id: int, lang: str) -> None:
+    """Send the full main keyboard to the user via Telegram Bot API (direct HTTP)."""
+    try:
+        from config import BOT_TOKEN as _TK
+        from lang import T as _T
+        import httpx as _req
+
+        _raw = os.environ.get("REPLIT_DOMAINS", "")
+        _domain = (
+            os.environ.get("APP_DOMAIN", "").strip()
+            or (_raw.split(",")[0].strip() if _raw else "")
+            or os.environ.get("REPLIT_DEV_DOMAIN", "")
+        )
+
+        def _url(path):
+            sep = "&" if "?" in path else "?"
+            return f"https://{_domain}{path}{sep}uid={tg_id}&lang={lang}"
+
+        keyboard = {
+            "keyboard": [
+                [{"text": _T(lang, "btn_profile"),  "web_app": {"url": _url("/profile")}},
+                 {"text": _T(lang, "btn_map"),       "web_app": {"url": _url("/map")}}],
+                [{"text": _T(lang, "btn_settings"),  "web_app": {"url": _url("/settings")}},
+                 {"text": _T(lang, "btn_public_chat"), "web_app": {"url": _url("/public-chat")}}],
+                [{"text": _T(lang, "btn_users_list"),  "web_app": {"url": _url("/users")}},
+                 {"text": _T(lang, "btn_view_nearby"), "web_app": {"url": _url("/users?nearby=1")}}],
+                [{"text": _T(lang, "btn_objects_list"), "web_app": {"url": _url("/objects")}},
+                 {"text": _T(lang, "btn_create_object"), "web_app": {"url": _url("/create-object")}}],
+                [{"text": _T(lang, "btn_matches_requests"), "web_app": {"url": _url("/likes")}}],
+            ],
+            "resize_keyboard": True,
+        }
+        msg = (
+            "🎉 تم اكتمال ملفك الشخصي!\nجميع الميزات متاحة الآن 🚀"
+            if lang == "ar" else
+            "🎉 Your profile is complete!\nAll features are now unlocked 🚀"
+        )
+        _req.post(
+            f"https://api.telegram.org/bot{_TK}/sendMessage",
+            json={"chat_id": tg_id, "text": msg, "reply_markup": keyboard},
+            timeout=10.0,
+        )
+        _ka_logger.info(f"[unlock_keyboard] sent to {tg_id}")
+    except Exception as _e:
+        _ka_logger.error(f"[unlock_keyboard] failed for {tg_id}: {_e}")
+
+
+_REQUIRED_FIELDS = ("first_name", "last_name", "phone", "email", "gender", "birthdate")
+
+
 @app.route('/api/profile/save', methods=['POST'])
 @limiter.limit("20 per minute")
 def api_profile_save():
@@ -258,7 +308,7 @@ def api_profile_save():
         # ── Fetch current row for completeness calc ────────────
         SCALAR_SELECT = ("id,bio,email,zodiac,social_status,education,profession,"
                          "country,city,hobbies,purpose,photo_url,gender,birthdate,"
-                         "profile_complete")
+                         "profile_complete,first_name,last_name,phone,language")
         try:
             cur = supabase.table("users_v1").select(SCALAR_SELECT) \
                 .eq("telegram_id", uid).execute()
@@ -376,9 +426,17 @@ def api_profile_save():
                         _log.error(f"[profile/save] array col {col} FAILED: {e_col}")
 
         if saved_scalar or saved_arrays:
+            # ── Check if profile JUST became complete → send unlock keyboard ──
+            was_complete = all(bool(current.get(f)) for f in _REQUIRED_FIELDS)
+            now_complete = all(bool(merged.get(f))  for f in _REQUIRED_FIELDS)
+            if not was_complete and now_complete:
+                user_lang = merged.get("language") or current.get("language") or "ar"
+                Thread(target=_send_unlock_keyboard, args=(uid, user_lang), daemon=True).start()
+
             return jsonify({
                 "ok": True,
                 "profile_complete": pct,
+                "just_unlocked": (not was_complete and now_complete),
                 "saved_scalar": saved_scalar,
                 "saved_arrays": saved_arrays,
                 "array_err": array_err,

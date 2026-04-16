@@ -570,7 +570,10 @@
     <div style="background:#fff;border-radius:24px;width:100%;max-width:480px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)">
       <!-- Header -->
       <div style="background:linear-gradient(135deg,#6C5CE7,#fd79a8);padding:24px 20px 20px;text-align:center">
-        <div style="font-size:48px;margin-bottom:8px">👋</div>
+        <div id="reg-tg-photo-wrap" style="display:none;margin-bottom:10px">
+          <img id="reg-tg-photo" src="" alt="" style="width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,.7);object-fit:cover">
+        </div>
+        <div id="reg-emoji-icon" style="font-size:48px;margin-bottom:8px">👋</div>
         <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:4px" id="reg-title"></div>
         <div style="font-size:13px;color:rgba(255,255,255,.8)" id="reg-subtitle"></div>
       </div>
@@ -1500,7 +1503,7 @@ function openFeedback() {
 let regGender = '';
 
 function showRegistrationModal(profile) {
-  // Pre-fill any existing data
+  // 1. Pre-fill from DB profile
   if (profile) {
     document.getElementById('reg-first-name').value = profile.first_name || '';
     document.getElementById('reg-last-name').value  = profile.last_name  || '';
@@ -1510,6 +1513,26 @@ function showRegistrationModal(profile) {
     document.getElementById('reg-birthdate').value  = profile.birthdate  || '';
     if (profile.gender) selectRegGender(profile.gender);
   }
+
+  // 2. Fill missing fields from Telegram WebApp user data
+  const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+  if (tgUser) {
+    if (!document.getElementById('reg-first-name').value && tgUser.first_name)
+      document.getElementById('reg-first-name').value = tgUser.first_name;
+    if (!document.getElementById('reg-last-name').value && tgUser.last_name)
+      document.getElementById('reg-last-name').value = tgUser.last_name;
+
+    // Show Telegram profile photo in modal header if available
+    const photoSrc = tgUser.photo_url || (profile && profile.photo_url) || null;
+    const regAvatarWrap = document.getElementById('reg-tg-photo-wrap');
+    if (photoSrc && regAvatarWrap) {
+      document.getElementById('reg-tg-photo').src = photoSrc;
+      regAvatarWrap.style.display = 'block';
+      const emojiIcon = document.getElementById('reg-emoji-icon');
+      if (emojiIcon) emojiIcon.style.display = 'none';
+    }
+  }
+
   document.getElementById('reg-modal').style.display = 'block';
 }
 
