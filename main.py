@@ -14,7 +14,7 @@ from telegram.ext import (
 )
 
 from config import BOT_TOKEN
-from keep_alive import keep_alive
+from keep_alive import keep_alive, app  # noqa: F401 — app exposed for gunicorn (main:app)
 from lang import btn_regex
 from handlers import (
     start,
