@@ -87,11 +87,30 @@
     #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#222;color:#fff;border-radius:20px;padding:9px 20px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap}
     #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-    /* RTL */
-    body.rtl{direction:rtl}
-    body.rtl .char-hint{text-align:left}
-    body.rtl .banner-del{right:auto;left:8px}
+    /* Location picker */
+  .loc-btn{width:100%;padding:13px;border:2px dashed #8e44ad;border-radius:14px;background:#faf5ff;color:#8e44ad;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px}
+  .loc-btn.confirmed{border-style:solid;background:#f3e5f5;border-color:#6c3483;color:#6c3483}
+  .loc-btn:active{opacity:.8}
+  .loc-confirmed-info{margin-top:10px;padding:10px 12px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;font-size:12px;color:#166534;display:none}
+  .loc-confirmed-info.show{display:block}
+  /* Location modal */
+  #loc-modal{display:none;position:fixed;inset:0;z-index:9999;background:#000;flex-direction:column}
+  #loc-modal.open{display:flex}
+  #loc-modal-header{background:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+  #loc-modal-header h2{flex:1;font-size:16px;font-weight:700;color:#111}
+  #loc-modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#555;padding:4px 8px;border-radius:8px}
+  #loc-map{flex:1;width:100%}
+  #loc-confirm-bar{background:#fff;padding:12px 16px;flex-shrink:0;box-shadow:0 -2px 10px rgba(0,0,0,.1)}
+  #loc-confirm-btn{width:100%;padding:14px;background:linear-gradient(135deg,#8e44ad,#6c3483);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s}
+  #loc-confirm-btn:active{opacity:.8}
+  #loc-hint-bar{text-align:center;font-size:12px;color:#666;padding:6px 16px 0;flex-shrink:0;background:#fff}
+  /* RTL */
+  body.rtl{direction:rtl}
+  body.rtl .char-hint{text-align:left}
+  body.rtl .banner-del{right:auto;left:8px}
   </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 <div id="header">
@@ -184,8 +203,32 @@
   </div>
 </div>
 
+<!-- Location Picker (fixed entities only) -->
+<div class="section" id="location-section" style="display:none">
+  <div class="sec-title" id="sec-location">Location *</div>
+  <button class="loc-btn" id="pick-loc-btn" onclick="openLocationPicker()">
+    <span>📍</span><span id="pick-loc-lbl">Set Location on Map</span>
+  </button>
+  <div class="loc-confirmed-info" id="loc-confirmed-info">
+    <span id="loc-confirmed-text">✅ Location confirmed</span>
+  </div>
+</div>
+
 <button id="submit-btn" disabled>✨ <span id="btn-text">Create Entity</span></button>
 <div id="toast"></div>
+
+<!-- Location Picker Modal -->
+<div id="loc-modal">
+  <div id="loc-modal-header">
+    <button id="loc-modal-close" onclick="closeLocationPicker()">✕</button>
+    <h2 id="loc-modal-title">Set Location</h2>
+  </div>
+  <div id="loc-hint-bar"><span id="loc-hint-text">Drag the pin to your entity's location (within 20m)</span></div>
+  <div id="loc-map"></div>
+  <div id="loc-confirm-bar">
+    <button id="loc-confirm-btn" onclick="confirmLocation()">✅ <span id="loc-confirm-lbl">Confirm Location</span></button>
+  </div>
+</div>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
@@ -219,6 +262,16 @@
       ok:'✅ تم إنشاء الكيان!', limit:'❌ وصلت للحد الأقصى (5 كيانات)',
       no_loc:'⚠️ شارك موقعك أولاً', err:'❌ حدث خطأ',
       name_req:'⚠️ الاسم مطلوب', type_req:'⚠️ اختر نوع الكيان',
+      loc_req:'⚠️ حدد الموقع على الخريطة أولاً',
+      sec_location:'الموقع *',
+      pick_loc_lbl:'تحديد الموقع على الخريطة',
+      pick_loc_lbl_done:'✅ تم تحديد الموقع — اضغط لتغييره',
+      loc_confirmed_text:'✅ تم تثبيت الموقع بنجاح',
+      loc_modal_title:'تحديد الموقع',
+      loc_hint_text:'اسحب الدبوس لتحديد موقع الكيان (في نطاق ٢٠ متر)',
+      loc_confirm_lbl:'✅ تأكيد الموقع',
+      loc_getting:'جاري تحديد موقعك…',
+      loc_no_gps:'⚠️ تعذّر تحديد موقعك. افتح الخريطة الرئيسية أولاً لمشاركة موقعك.',
     },
     en:{
       page_title:'✨ Create Entity',
@@ -244,6 +297,16 @@
       ok:'✅ Entity created!', limit:'❌ Limit reached (5 entities)',
       no_loc:'⚠️ Share your location first', err:'❌ Error occurred',
       name_req:'⚠️ Name is required', type_req:'⚠️ Please select a type',
+      loc_req:'⚠️ Please set location on map first',
+      sec_location:'Location *',
+      pick_loc_lbl:'Set Location on Map',
+      pick_loc_lbl_done:'✅ Location set — tap to change',
+      loc_confirmed_text:'✅ Location confirmed',
+      loc_modal_title:'Set Location',
+      loc_hint_text:'Drag the pin to your entity\'s exact spot (within 20m)',
+      loc_confirm_lbl:'Confirm Location',
+      loc_getting:'Getting your location…',
+      loc_no_gps:'⚠️ Could not get your location. Open the main map first.',
     }
   }[lang] || {};
 
@@ -273,6 +336,12 @@
   document.getElementById('dur-3d').textContent           = T.dur_3d;
   document.getElementById('dur-1w').textContent           = T.dur_1w;
   document.getElementById('dur-1m').textContent           = T.dur_1m;
+  document.getElementById('sec-location').textContent     = T.sec_location;
+  document.getElementById('pick-loc-lbl').textContent     = T.pick_loc_lbl;
+  document.getElementById('loc-confirmed-text').textContent = T.loc_confirmed_text;
+  document.getElementById('loc-modal-title').textContent  = T.loc_modal_title;
+  document.getElementById('loc-hint-text').textContent    = T.loc_hint_text;
+  document.getElementById('loc-confirm-lbl').textContent  = T.loc_confirm_lbl;
 
   /* Type definitions */
   const FIXED_TYPES = [
@@ -321,6 +390,129 @@
   let selectedMapIcon = '';
   let bannerFile    = null;
 
+  /* Location picker state */
+  let pickedLat = null;
+  let pickedLng = null;
+  let userGpsLat = null;
+  let userGpsLng = null;
+  let locMap = null;
+  let locMarker = null;
+  let locCircle = null;
+  let locUserDot = null;
+  const MAX_RADIUS = 20; // meters
+
+  /* Get GPS silently on load */
+  (function fetchGps() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        userGpsLat = pos.coords.latitude;
+        userGpsLng = pos.coords.longitude;
+        try { localStorage.setItem('ac_last_gps_' + uid, JSON.stringify({lat:userGpsLat,lng:userGpsLng})); } catch(e){}
+      },
+      () => {
+        try {
+          const gc = JSON.parse(localStorage.getItem('ac_last_gps_' + uid) || 'null');
+          if (gc && gc.lat != null) { userGpsLat = gc.lat; userGpsLng = gc.lng; }
+        } catch(e){}
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+    );
+  })();
+
+  /* Clamp latlng to within maxDist meters of center */
+  function clampToRadius(centerLat, centerLng, lat, lng, maxDist) {
+    const R = 6371000;
+    const dLat = (lat - centerLat) * Math.PI / 180;
+    const dLng = (lng - centerLng) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(centerLat*Math.PI/180)*Math.cos(lat*Math.PI/180)*Math.sin(dLng/2)**2;
+    const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    if (dist <= maxDist) return {lat, lng};
+    const ratio = maxDist / dist;
+    return {
+      lat: centerLat + (lat - centerLat) * ratio,
+      lng: centerLng + (lng - centerLng) * ratio
+    };
+  }
+
+  function openLocationPicker() {
+    if (!userGpsLat) {
+      showToast(T.loc_no_gps || '⚠️ Could not get your location');
+      return;
+    }
+    document.getElementById('loc-modal').classList.add('open');
+
+    setTimeout(() => {
+      if (!locMap) {
+        locMap = L.map('loc-map', { zoomControl: true, maxZoom: 22 });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors', maxZoom: 22
+        }).addTo(locMap);
+      }
+
+      const startLat = pickedLat !== null ? pickedLat : userGpsLat;
+      const startLng = pickedLng !== null ? pickedLng : userGpsLng;
+
+      locMap.setView([userGpsLat, userGpsLng], 20);
+
+      /* Remove old layers */
+      if (locMarker) locMap.removeLayer(locMarker);
+      if (locCircle) locMap.removeLayer(locCircle);
+      if (locUserDot) locMap.removeLayer(locUserDot);
+
+      /* User GPS blue dot */
+      locUserDot = L.circleMarker([userGpsLat, userGpsLng], {
+        radius: 10, color: '#fff', weight: 3,
+        fillColor: '#3b82f6', fillOpacity: 1
+      }).addTo(locMap);
+
+      /* 20m radius circle */
+      locCircle = L.circle([userGpsLat, userGpsLng], {
+        radius: MAX_RADIUS, color: '#3b82f6', weight: 2,
+        fillColor: '#3b82f6', fillOpacity: 0.12, dashArray: '6 4'
+      }).addTo(locMap);
+
+      /* Draggable pin icon */
+      const pinIcon = L.divIcon({
+        className: '',
+        html: `<div style="display:flex;flex-direction:column;align-items:center">
+          <div style="width:42px;height:42px;background:#8e44ad;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:20px">📍</div>
+          <div style="width:3px;height:14px;background:#8e44ad;border-radius:2px"></div>
+        </div>`,
+        iconSize: [42, 56],
+        iconAnchor: [21, 56]
+      });
+
+      locMarker = L.marker([startLat, startLng], { icon: pinIcon, draggable: true }).addTo(locMap);
+
+      locMarker.on('drag', function(e) {
+        const p = e.latlng;
+        const clamped = clampToRadius(userGpsLat, userGpsLng, p.lat, p.lng, MAX_RADIUS);
+        if (clamped.lat !== p.lat || clamped.lng !== p.lng) {
+          locMarker.setLatLng([clamped.lat, clamped.lng]);
+        }
+      });
+
+      locMap.invalidateSize();
+    }, 80);
+  }
+
+  function closeLocationPicker() {
+    document.getElementById('loc-modal').classList.remove('open');
+  }
+
+  function confirmLocation() {
+    if (!locMarker) return;
+    const ll = locMarker.getLatLng();
+    pickedLat = ll.lat;
+    pickedLng = ll.lng;
+    closeLocationPicker();
+    document.getElementById('pick-loc-btn').classList.add('confirmed');
+    document.getElementById('pick-loc-lbl').textContent = T.pick_loc_lbl_done;
+    document.getElementById('loc-confirmed-info').classList.add('show');
+    updateSubmit();
+  }
+
   /* Mobility toggle */
   function setMobility(mobile) {
     isMobile = mobile;
@@ -331,6 +523,7 @@
     selectedEmoji = '';
     document.getElementById('custom-type-wrap').classList.remove('show');
     document.getElementById('map-icon-section').classList.remove('show');
+    document.getElementById('location-section').style.display = mobile ? 'none' : 'block';
     updateSubmit();
   }
 
@@ -475,7 +668,8 @@
   });
 
   function updateSubmit() {
-    document.getElementById('submit-btn').disabled = !(nameInput.value.trim() && selectedType);
+    const locOk = isMobile || pickedLat !== null;
+    document.getElementById('submit-btn').disabled = !(nameInput.value.trim() && selectedType && locOk);
   }
 
   let toastTimer;
@@ -510,6 +704,7 @@
     const name = nameInput.value.trim();
     if (!name) return showToast(T.name_req);
     if (!selectedType) return showToast(T.type_req);
+    if (!isMobile && pickedLat === null) return showToast(T.loc_req);
 
     const btn = document.getElementById('submit-btn');
     btn.disabled = true;
@@ -517,8 +712,16 @@
     try {
       const catalog = catalogItems.filter(i => i && i.trim());
 
-      // Get accurate live GPS (fallback: cached)
-      const { lat: gpsLat, lng: gpsLng } = await getLiveGps();
+      // For fixed: use map-picked coordinates; for mobile: get live GPS
+      let finalLat, finalLng;
+      if (!isMobile) {
+        finalLat = pickedLat;
+        finalLng = pickedLng;
+      } else {
+        const { lat: gpsLat, lng: gpsLng } = await getLiveGps();
+        finalLat = gpsLat;
+        finalLng = gpsLng;
+      }
 
       const res = await fetch('/api/object/create', {
         method: 'POST',
@@ -533,8 +736,8 @@
           is_mobile: isMobile,
           expires: selectedDur,
           catalog,
-          lat: gpsLat,
-          lng: gpsLng,
+          lat: finalLat,
+          lng: finalLng,
         })
       });
       const data = await res.json();
@@ -566,6 +769,8 @@
 
   /* Init */
   buildTypeGrid();
+  /* Show location section for fixed entities (default) */
+  document.getElementById('location-section').style.display = 'block';
 </script>
 </body>
 </html>
