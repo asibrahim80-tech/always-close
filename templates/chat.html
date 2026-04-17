@@ -168,7 +168,7 @@ let socket    = null;
 
 // ── Init socket ──────────────────────────────────────────────────────────────
 function initSocket() {
-  socket = io({ transports: ['websocket','polling'] });
+  socket = io({ transports: ['polling','websocket'] });
   socket.on('connect', () => {
     socket.emit('connect_user', { user_id: uid, username: uname });
     socket.emit('who_is_online', {});
