@@ -163,6 +163,33 @@
       border:1px solid rgba(124,58,237,.2);
     }
 
+    /* ── Object/Entity pin (teal) ── */
+    .obj-pin-wrap{display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none}
+    .obj-pin-icon{
+      width:54px;height:54px;
+      background:#fff;
+      border:3.5px solid #0891b2;
+      border-radius:50%;
+      box-shadow:0 4px 14px rgba(8,145,178,.4),0 2px 6px rgba(0,0,0,.2);
+      display:flex;align-items:center;justify-content:center;
+      font-size:30px;line-height:1;position:relative;
+    }
+    .obj-pin-icon::after{
+      content:'';position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);
+      border:7px solid transparent;border-top:12px solid #0891b2;
+    }
+    .obj-pin-label{
+      margin-top:14px;
+      background:rgba(255,255,255,.95);
+      color:#0e7490;
+      font-size:11px;font-weight:700;
+      border-radius:8px;padding:2px 9px;
+      white-space:nowrap;max-width:110px;
+      overflow:hidden;text-overflow:ellipsis;
+      box-shadow:0 1px 5px rgba(0,0,0,.15);
+      border:1px solid rgba(8,145,178,.2);
+    }
+
     /* ── Store pin (white circle, emoji visible) ── */
     .store-pin-wrap{display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none}
     .store-pin-icon{
@@ -999,6 +1026,91 @@
       .catch(() => {});
   }
 
+  // ── Object / Entity markers ───────────────────────────────────────────
+  const objectMarkers = {};
+
+  function _objEmoji(object_type) {
+    const map = {
+      event:'🎉', group:'👥', service:'🛎️', project:'📋',
+      sale:'💰', art:'🎨', sport:'⚽', study:'📚',
+      health:'💊', travel:'✈️', food:'🍽️', tech:'💻',
+      volunteer:'🤝', animal:'🐾', music:'🎵', other:'📌',
+    };
+    return map[object_type] || '📌';
+  }
+
+  function makeObjectIcon(name, object_type) {
+    const emoji = _objEmoji(object_type);
+    const label = name.length > 14 ? name.slice(0,13) + '…' : name;
+    const html = `<div class="obj-pin-wrap">
+      <div class="obj-pin-icon">${emoji}</div>
+      <div class="obj-pin-label">${label}</div>
+    </div>`;
+    return L.divIcon({ html, className: '', iconAnchor: [27, 80] });
+  }
+
+  function loadObjects() {
+    if (!uid) return;
+    fetch(`/api/objects/${uid}`)
+      .then(r => r.json())
+      .then(data => {
+        const objs = data.objects || [];
+        Object.values(objectMarkers).forEach(m => map.removeLayer(m));
+        Object.keys(objectMarkers).forEach(k => delete objectMarkers[k]);
+
+        objs.forEach(o => {
+          if (!o.lat || !o.lng) return;          // mobile or no location
+          const icon = makeObjectIcon(o.name, o.object_type);
+          const m = L.marker([o.lat, o.lng], { icon, zIndexOffset: 300 }).addTo(map);
+          const dist    = o.distance != null ? `${o.distance} ${L_.km}` : '';
+          const members = o.members || 0;
+          const purposeRow = o.purpose
+            ? `<div style="font-size:12px;opacity:.8;margin-bottom:4px">📝 ${o.purpose}</div>` : '';
+          let expiresRow = '';
+          if (o.expires_at) {
+            const daysLeft = Math.ceil((new Date(o.expires_at) - Date.now()) / 86400000);
+            expiresRow = daysLeft > 0
+              ? `<div style="font-size:11px;color:#e67e22;margin-bottom:4px">⏳ ${daysLeft}d</div>`
+              : `<div style="font-size:11px;color:#e74c3c;margin-bottom:4px">⚠️ ${lang==='ar'?'منتهي':'Expired'}</div>`;
+          }
+          const mobileBadge = o.is_mobile
+            ? `<span style="display:inline-block;background:#e0f2fe;color:#0369a1;border-radius:8px;padding:2px 8px;font-size:11px;margin-bottom:4px">🚶 ${lang==='ar'?'متنقل':'Mobile'}</span>` : '';
+          const joinBtn = !o.is_member && !o.is_creator
+            ? `<button onclick="joinObject(${o.id})" style="flex:1;padding:8px 4px;background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">✅ ${lang==='ar'?'انضمام':'Join'}</button>` : '';
+          const catBtn = `<button onclick="openMapCatalog('object',${o.id},'${o.name.replace(/'/g,"\\'")}',${JSON.stringify(lang==='ar'?{service:'🛎️ خدمات',event:'🎉 فعاليات',info:'ℹ️ معلومات',contact:'📞 تواصل',offer:'🎁 عروض',other:'📋 أخرى'}:{service:'🛎️ Services',event:'🎉 Events',info:'ℹ️ Info',contact:'📞 Contact',offer:'🎁 Offers',other:'📋 Other'})});" style="flex:1;padding:8px 4px;background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">📋 ${lang==='ar'?'الكتالوج':'Catalog'}</button>`;
+          const editBtn = o.is_creator
+            ? `<button onclick="openEntityEdit('object',${o.id},'${o.name.replace(/'/g,"\\'")}','${(o.purpose||'').replace(/'/g,"\\'")}','')" style="padding:8px 9px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;font-size:15px;cursor:pointer" title="${lang==='ar'?'تعديل':'Edit'}">✏️</button>` : '';
+          m.bindPopup(`
+            <div style="padding:10px;min-width:175px">
+              <div style="font-weight:700;font-size:15px;margin-bottom:5px">${_objEmoji(o.object_type)} ${o.name}</div>
+              ${mobileBadge}
+              ${purposeRow}
+              ${expiresRow}
+              <div style="font-size:11px;opacity:.6;margin-bottom:8px">👥 ${members}${dist ? ' &nbsp;📍 ' + dist : ''}</div>
+              <div style="display:flex;gap:6px">
+                ${joinBtn || catBtn}
+                ${editBtn}
+              </div>
+            </div>
+          `);
+          objectMarkers[o.id] = m;
+        });
+      })
+      .catch(() => {});
+  }
+
+  function joinObject(objectId) {
+    fetch('/api/object/join', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ uid, object_id: objectId })
+    }).then(r=>r.json()).then(d => {
+      if (d.ok) {
+        loadObjects();
+        map.closePopup();
+      }
+    }).catch(()=>{});
+  }
+
   // ══════════════════════════════════════════════════════════════════════
   // LIVE GPS TRACKING — smart permission + watchPosition
   // ══════════════════════════════════════════════════════════════════════
@@ -1655,8 +1767,10 @@
   startCountdown();
   loadRooms();
   loadStores();
+  loadObjects();
   setInterval(loadRooms, 5000);
   setInterval(loadStores, 5000);
+  setInterval(loadObjects, 8000);
 </script>
 
 <script>
