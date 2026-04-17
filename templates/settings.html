@@ -263,6 +263,7 @@
       gender:'إظهار النوع', dist:'أقصى مسافة', age:'الفئة العمرية',
       speed:'سرعة التحرك', speedHint:'تتحكم في سرعة الجويستيك على الخريطة',
       zoom:'مقياس الخريطة الافتراضي', zoomHint:'أكبر = تقريب أكثر (عرض أقرب)',
+      mapEmoji:'أيقونة الدبوس على الخريطة', emojiHint:'تستبدل الحرف الأول على خريطتك',
       visible:'ظهور على الخريطة', phone:'إظهار رقم الهاتف',
       likes:'إعجابات جديدة', matches:'تطابقات جديدة', rooms:'طلبات الغرف',
       save:'💾 حفظ الإعدادات', any:'أي', anyAge:'أي',
@@ -274,6 +275,7 @@
       gender:'Show Gender', dist:'Max Distance', age:'Age Range',
       speed:'Move Speed', speedHint:'Controls joystick movement speed on map',
       zoom:'Default Zoom Level', zoomHint:'Higher = more zoomed in (closer view)',
+      mapEmoji:'Map Pin Icon', emojiHint:'Replaces your letter on the map',
       visible:'Visible on Map', phone:'Show Phone Number',
       likes:'New Likes', matches:'New Matches', rooms:'Room Requests',
       save:'💾 Save Settings', any:'Any', anyAge:'Any',
@@ -294,6 +296,8 @@
   document.getElementById('l-speed-hint').textContent= L_.speedHint;
   document.getElementById('l-zoom').textContent      = L_.zoom;
   document.getElementById('l-zoom-hint').textContent = L_.zoomHint;
+  document.getElementById('l-map-emoji').textContent = L_.mapEmoji;
+  document.getElementById('l-emoji-hint').textContent= L_.emojiHint;
   document.getElementById('l-visible').textContent   = L_.visible;
   document.getElementById('l-phone').textContent     = L_.phone;
   document.getElementById('l-likes').textContent     = L_.likes;

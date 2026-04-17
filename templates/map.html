@@ -618,23 +618,28 @@
     const fbBg = isMe ? '#e74c3c' : isActive ? '#2ecc71' : '#3498db';
     const fz   = Math.max(10, Math.round(iSz * 0.40));
 
+    // Use custom emoji for "me" pin when set (overrides initial letter, never overrides photo)
+    const displayLabel = (isMe && myMapEmoji) ? myMapEmoji : initial;
+    const emojiStyle   = (isMe && myMapEmoji) ? 'font-size:' + Math.round(iSz * 0.52) + 'px' :
+                                                 'font-size:' + fz + 'px;font-weight:700';
+
     let content;
-    if (photoUrl) {
+    if (photoUrl && !(isMe && myMapEmoji)) {
       content = `
         <img src="${photoUrl}"
           style="width:${iSz}px;height:${iSz}px;object-fit:cover;display:block;border-radius:50%;flex-shrink:0"
           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
         <div style="display:none;width:${iSz}px;height:${iSz}px;border-radius:50%;
-          background:${fbBg};color:#fff;font-size:${fz}px;font-weight:700;
+          background:${fbBg};color:#fff;${emojiStyle};
           align-items:center;justify-content:center;flex-shrink:0">
-          ${initial}
+          ${displayLabel}
         </div>`;
     } else {
       content = `
         <div style="width:${iSz}px;height:${iSz}px;border-radius:50%;
-          background:${fbBg};color:#fff;font-size:${fz}px;font-weight:700;
+          background:${fbBg};color:#fff;${emojiStyle};
           display:flex;align-items:center;justify-content:center">
-          ${initial}
+          ${displayLabel}
         </div>`;
     }
 
@@ -791,10 +796,12 @@
   // ── Settings from localStorage ──────────────────────────────────────────
   let speedMult   = 3;
   let defaultZoom = 18;
+  let myMapEmoji  = '';   // custom emoji for "me" pin ('' = use letter/photo)
   try {
     const sv = JSON.parse(localStorage.getItem('ac_settings') || '{}');
     if (sv.speed)      speedMult   = sv.speed;
     if (sv.zoom_level) defaultZoom = sv.zoom_level;
+    if (sv.map_emoji)  myMapEmoji  = sv.map_emoji;
   } catch(e) {}
 
   // ══════════════════════════════════════════════════════════════════════

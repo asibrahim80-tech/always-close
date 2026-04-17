@@ -505,11 +505,12 @@ def api_profile_photo_add():
             supabase.storage.from_(bucket).upload(
                 path=storage_path,
                 file=content,
-                file_options={"content-type": ctype, "upsert": "true"},
+                file_options={"content-type": ctype, "upsert": True},
             )
             photo_url = supabase.storage.from_(bucket).get_public_url(storage_path)
         except Exception as _se:
             # Fallback: save to local disk (works in dev, not persisted in prod)
+            logging.warning(f"Supabase Storage upload failed: {_se} — falling back to local disk")
             os.makedirs("static/profile_photos", exist_ok=True)
             local_fname = f"static/profile_photos/u{my_id}_{_uuid.uuid4().hex[:8]}.{ext}"
             with open(local_fname, "wb") as fout:
