@@ -1282,6 +1282,18 @@ function makeEmptySlot(slot, isMain) {
   slot.appendChild(lbl);
 }
 
+function triggerPhotoUpload(slotIndex) {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.style.display = 'none';
+  const isMain = (slotIndex === -1 || slotIndex === 0);
+  inp.addEventListener('change', () => handlePhotoUpload(inp, isMain));
+  document.body.appendChild(inp);
+  inp.click();
+  inp.addEventListener('change', () => inp.remove(), { once: true });
+}
+
 function makeFileLabel(isMain) {
   const lbl = document.createElement('label');
   lbl.style = 'position:absolute;inset:0;cursor:pointer;display:flex;align-items:center;justify-content:center';
