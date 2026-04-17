@@ -499,6 +499,13 @@
     try {
       const catalog = catalogItems.filter(i => i && i.trim());
 
+      // Read cached GPS so entity gets coordinates even before server-save
+      let gpsLat = null, gpsLng = null;
+      try {
+        const gc = JSON.parse(localStorage.getItem('ac_last_gps_' + uid) || 'null');
+        if (gc && gc.lat != null && gc.lng != null) { gpsLat = gc.lat; gpsLng = gc.lng; }
+      } catch(e) {}
+
       const res = await fetch('/api/object/create', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
@@ -512,6 +519,8 @@
           is_mobile: isMobile,
           expires: selectedDur,
           catalog,
+          lat: gpsLat,
+          lng: gpsLng,
         })
       });
       const data = await res.json();

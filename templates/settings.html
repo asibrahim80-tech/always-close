@@ -59,6 +59,12 @@
     }
     .chip.active{background:#e74c3c;border-color:#e74c3c;color:#fff}
     .chip:active{opacity:.75}
+    .emoji-btn{
+      width:44px;height:44px;border-radius:12px;border:2px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.06);font-size:22px;cursor:pointer;transition:all .15s;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .emoji-btn.active{border-color:#e74c3c;background:rgba(231,76,60,.2);}
     .chip-sub{
       font-size:11px;color:rgba(255,255,255,.4);
       padding:0 14px 12px;
@@ -180,6 +186,31 @@
       <span class="slider-val" id="zoom-val">18</span>
     </div>
     <div class="chip-sub" id="l-zoom-hint">Higher = more zoomed in (closer view)</div>
+
+    <div class="row" style="margin-top:12px">
+      <div class="row-label"><span class="row-ico">📌</span><span id="l-map-emoji">Map Pin Icon</span></div>
+    </div>
+    <div id="emoji-picker" style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 8px">
+      <button class="emoji-btn active" data-em="">👤</button>
+      <button class="emoji-btn" data-em="😊">😊</button>
+      <button class="emoji-btn" data-em="😎">😎</button>
+      <button class="emoji-btn" data-em="🤩">🤩</button>
+      <button class="emoji-btn" data-em="😍">😍</button>
+      <button class="emoji-btn" data-em="🥳">🥳</button>
+      <button class="emoji-btn" data-em="🤖">🤖</button>
+      <button class="emoji-btn" data-em="👻">👻</button>
+      <button class="emoji-btn" data-em="🐱">🐱</button>
+      <button class="emoji-btn" data-em="🐸">🐸</button>
+      <button class="emoji-btn" data-em="🦊">🦊</button>
+      <button class="emoji-btn" data-em="🐺">🐺</button>
+      <button class="emoji-btn" data-em="🐧">🐧</button>
+      <button class="emoji-btn" data-em="🦁">🦁</button>
+      <button class="emoji-btn" data-em="🐯">🐯</button>
+      <button class="emoji-btn" data-em="🌟">🌟</button>
+      <button class="emoji-btn" data-em="❤️">❤️</button>
+      <button class="emoji-btn" data-em="🔥">🔥</button>
+    </div>
+    <div class="chip-sub" id="l-emoji-hint">Replaces your letter on the map</div>
   </div>
 </div>
 
@@ -328,6 +359,19 @@
     markDirty();
   });
 
+  // ── Emoji picker ──
+  let selectedEmoji = saved.map_emoji || '';
+  document.querySelectorAll('#emoji-picker .emoji-btn').forEach(btn => {
+    if (btn.dataset.em === selectedEmoji) btn.classList.add('active');
+    else btn.classList.remove('active');
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#emoji-picker .emoji-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedEmoji = btn.dataset.em;
+      markDirty();
+    });
+  });
+
   // ── Chip interaction ──
   ['gender-chips','dist-chips','age-chips'].forEach(gid => {
     document.querySelectorAll(`#${gid} .chip`).forEach(chip => {
@@ -373,6 +417,7 @@
       n_likes:    toggleOn('t-likes'),
       n_matches:  toggleOn('t-matches'),
       n_rooms:    toggleOn('t-rooms'),
+      map_emoji:  selectedEmoji,
     };
     localStorage.setItem(KEY, JSON.stringify(data));
     dirty = false;

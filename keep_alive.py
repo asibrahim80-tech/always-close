@@ -182,13 +182,16 @@ def api_profile_get(telegram_id):
         u = me.data[0]
         u["photo_url"] = _resolve_photo(u.get("photo_url"), BOT_TOKEN)
 
-        # Extra photos (table may not exist yet)
+        # Extra photos (table may not exist yet) — resolve any Telegram file_ids
         try:
             photos = supabase.table("user_photos_v1") \
                 .select("id,photo_url,order_num") \
                 .eq("user_id", u["id"]) \
                 .order("order_num").execute()
-            u["extra_photos"] = photos.data or []
+            extra = photos.data or []
+            for p in extra:
+                p["photo_url"] = _resolve_photo(p.get("photo_url"), BOT_TOKEN)
+            u["extra_photos"] = extra
         except Exception:
             u["extra_photos"] = []
 
@@ -481,15 +484,37 @@ def api_profile_photo_add():
             return jsonify({"ok": False, "error": "not_found"})
         my_id = me.data[0]["id"]
 
-        # Save file
-        os.makedirs("static/profile_photos", exist_ok=True)
         ext = (f.filename.rsplit(".", 1)[-1].lower()
                if f.filename and "." in f.filename else "jpg")
         if ext not in ("jpg", "jpeg", "png", "webp"):
             ext = "jpg"
-        fname     = f"static/profile_photos/u{my_id}_{_uuid.uuid4().hex[:8]}.{ext}"
-        photo_url = f"/{fname}"
-        f.save(fname)
+        content = f.read()
+
+        # ── Upload to Supabase Storage (permanent, cross-environment URLs) ──
+        photo_url = None
+        try:
+            bucket = "profile-photos"
+            storage_path = f"u{my_id}/{_uuid.uuid4().hex}.{ext}"
+            ct_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg",
+                      "png": "image/png", "webp": "image/webp"}
+            ctype = ct_map.get(ext, "image/jpeg")
+            try:
+                supabase.storage.create_bucket(bucket, options={"public": True})
+            except Exception:
+                pass  # bucket already exists
+            supabase.storage.from_(bucket).upload(
+                path=storage_path,
+                file=content,
+                file_options={"content-type": ctype, "upsert": "true"},
+            )
+            photo_url = supabase.storage.from_(bucket).get_public_url(storage_path)
+        except Exception as _se:
+            # Fallback: save to local disk (works in dev, not persisted in prod)
+            os.makedirs("static/profile_photos", exist_ok=True)
+            local_fname = f"static/profile_photos/u{my_id}_{_uuid.uuid4().hex[:8]}.{ext}"
+            with open(local_fname, "wb") as fout:
+                fout.write(content)
+            photo_url = f"/{local_fname}"
 
         if is_main:
             # Update main profile photo in users_v1
@@ -2857,6 +2882,10 @@ def api_object_create():
         if (existing.count or 0) >= 5:
             return jsonify({"ok": False, "error": "limit_reached"})
 
+        # Accept lat/lng from client as fallback (sent by create_object page)
+        req_lat = data.get("lat")
+        req_lng = data.get("lng")
+
         loc = supabase.table("user_locations_v1").select("latitude,longitude") \
             .eq("user_id", creator_id).limit(1).execute()
 
@@ -2871,6 +2900,9 @@ def api_object_create():
         if loc.data:
             record["latitude"]  = loc.data[0]["latitude"]
             record["longitude"] = loc.data[0]["longitude"]
+        elif req_lat is not None and req_lng is not None:
+            record["latitude"]  = float(req_lat)
+            record["longitude"] = float(req_lng)
         if expires_at:
             record["expires_at"] = expires_at
 
