@@ -35,12 +35,13 @@ _PHOTO_TTL = 45 * 60  # 45 minutes — Telegram CDN links expire after ~1h
 
 
 def _resolve_photo(file_id: str, bot_token: str) -> str | None:
-    """Convert Telegram file_id → HTTPS URL (cached+TTL). Local URLs are passed through."""
+    """Convert Telegram file_id → HTTPS URL (cached+TTL). Local URLs/data-URIs passed through."""
     import time as _time
     if not file_id:
         return None
-    # Already a URL or local path — return as-is
-    if file_id.startswith("http://") or file_id.startswith("https://") or file_id.startswith("/"):
+    # Already a URL, data URI, or local path — return as-is
+    if (file_id.startswith("http://") or file_id.startswith("https://")
+            or file_id.startswith("/") or file_id.startswith("data:")):
         return file_id
     now = _time.monotonic()
     cached = _photo_cache.get(file_id)
@@ -469,12 +470,23 @@ def api_profile_save():
 
 
 # ── Profile: add photo (main or extra) ────────────────────────────────────
+def _process_image_to_data_url(content: bytes, max_size: int = 400, quality: int = 72) -> str:
+    """Resize image, compress as JPEG, return data:image/jpeg;base64,... string."""
+    from PIL import Image
+    import io, base64
+    img = Image.open(io.BytesIO(content)).convert("RGB")
+    img.thumbnail((max_size, max_size), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=quality, optimize=True)
+    b64 = base64.b64encode(buf.getvalue()).decode()
+    return f"data:image/jpeg;base64,{b64}"
+
+
 @app.route('/api/profile/photo/add', methods=['POST'])
 @limiter.limit('10 per minute')
 def api_profile_photo_add():
     try:
         from database import supabase
-        import uuid as _uuid
         uid     = int(request.form.get("uid", 0))
         f       = request.files.get("image")
         is_main = request.form.get("is_main") == "1"
@@ -486,46 +498,23 @@ def api_profile_photo_add():
             return jsonify({"ok": False, "error": "not_found"})
         my_id = me.data[0]["id"]
 
-        ext = (f.filename.rsplit(".", 1)[-1].lower()
-               if f.filename and "." in f.filename else "jpg")
-        if ext not in ("jpg", "jpeg", "png", "webp"):
-            ext = "jpg"
         content = f.read()
 
-        # ── Upload to Supabase Storage (permanent, cross-environment URLs) ──
-        photo_url = None
+        # ── Resize + compress → base64 data URL (persistent, no bucket needed) ──
         try:
-            bucket = "profile-photos"
-            storage_path = f"u{my_id}/{_uuid.uuid4().hex}.{ext}"
-            ct_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg",
-                      "png": "image/png", "webp": "image/webp"}
-            ctype = ct_map.get(ext, "image/jpeg")
-            try:
-                supabase.storage.create_bucket(bucket, options={"public": True})
-            except Exception:
-                pass  # bucket already exists
-            supabase.storage.from_(bucket).upload(
-                path=storage_path,
-                file=content,
-                file_options={"content-type": ctype, "upsert": True},
-            )
-            photo_url = supabase.storage.from_(bucket).get_public_url(storage_path)
-        except Exception as _se:
-            # Fallback: save to local disk (works in dev, not persisted in prod)
-            logging.warning(f"Supabase Storage upload failed: {_se} — falling back to local disk")
-            os.makedirs("static/profile_photos", exist_ok=True)
-            local_fname = f"static/profile_photos/u{my_id}_{_uuid.uuid4().hex[:8]}.{ext}"
-            with open(local_fname, "wb") as fout:
-                fout.write(content)
-            photo_url = f"/{local_fname}"
+            # Main photo stored small (150px) → fast map pins & lists
+            # Extra photos stored larger (400px) → profile gallery
+            sz = 150 if is_main else 400
+            photo_url = _process_image_to_data_url(content, max_size=sz, quality=75)
+        except Exception as _ie:
+            logging.warning(f"Image processing failed: {_ie}")
+            return jsonify({"ok": False, "error": "invalid_image"})
 
         if is_main:
-            # Update main profile photo in users_v1
             supabase.table("users_v1").update({"photo_url": photo_url}) \
                 .eq("telegram_id", uid).execute()
             return jsonify({"ok": True, "photo_url": photo_url, "is_main": True})
         else:
-            # Max 9 extra photos
             existing = supabase.table("user_photos_v1").select("id", count="exact") \
                 .eq("user_id", my_id).execute()
             if (existing.count or 0) >= 9:
@@ -557,15 +546,10 @@ def api_profile_photo_delete():
             return jsonify({"ok": False, "error": "not_found"})
         my_id = me.data[0]["id"]
 
-        row = supabase.table("user_photos_v1").select("id,photo_url,user_id") \
+        row = supabase.table("user_photos_v1").select("id,user_id") \
             .eq("id", photo_id).execute()
         if not row.data or row.data[0]["user_id"] != my_id:
             return jsonify({"ok": False, "error": "forbidden"})
-
-        # Delete file
-        path = row.data[0]["photo_url"].lstrip("/")
-        if os.path.exists(path):
-            os.remove(path)
 
         supabase.table("user_photos_v1").delete().eq("id", photo_id).execute()
         return jsonify({"ok": True})
