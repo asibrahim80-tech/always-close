@@ -556,9 +556,12 @@
   // ── Position state ──────────────────────────────────────────────────────
   let gpsLatLng       = null;   // latest live GPS (from watchPosition only)
   let myLatLng        = null;   // displayed pin position (moves with joystick)
-  let myPhoto         = null;   // me profile photo URL
-  let myInitial       = '?';
   let joystickRoaming = false;  // true only while user is moving via joystick
+
+  // Seed photo from Telegram avatar immediately (before API returns)
+  const _tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+  let myPhoto   = _tgUser?.photo_url || null;
+  let myInitial = _tgUser ? (_tgUser.first_name || _tgUser.username || '?')[0].toUpperCase() : '?';
 
   function isRoaming() { return joystickRoaming; }
 
@@ -708,9 +711,12 @@
         if (data.error) return;
 
         const me = data.me;
-        // Update profile info from server
-        if (!myPhoto && me.photo_url) myPhoto = me.photo_url;
+        // Always prefer server photo/name (DB > Telegram avatar fallback)
+        const prevPhoto = myPhoto;
+        if (me.photo_url) myPhoto = me.photo_url;
         if (me.name) myInitial = (me.name || '?')[0].toUpperCase();
+        // If photo just arrived and marker exists, refresh icon immediately
+        if (prevPhoto !== myPhoto && meMarker) refreshMeMarker();
 
         // Only use server position as fallback if GPS hasn't arrived yet AND server has a position
         if (me.lat && me.lng) {
