@@ -1,30 +1,15 @@
 """
-chat_db.py — Direct psycopg2 access to the local Replit postgres for chat tables.
-Keeps chat data separate from Supabase (used for user profiles/locations).
+chat_db.py — Supabase client access for chat tables.
+All chat data: conversations, participants, messages lives in Supabase.
 """
-import os
 import logging
-import psycopg2
-import psycopg2.extras
-from contextlib import contextmanager
 
 log = logging.getLogger(__name__)
 
-_DB_URL = os.environ.get("DATABASE_URL", "")
 
-
-@contextmanager
-def _conn():
-    """Context-manager that yields a psycopg2 connection (auto-commit, RealDictCursor)."""
-    conn = psycopg2.connect(_DB_URL, cursor_factory=psycopg2.extras.RealDictCursor)
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+def _sb():
+    from database import supabase
+    return supabase
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -32,114 +17,175 @@ def _conn():
 # ─────────────────────────────────────────────────────────────────────────────
 
 def get_user_conversations(user_id: str) -> list[dict]:
-    """Return all conversations the user participates in, ordered by latest message."""
-    sql = """
-        SELECT
-            c.id              AS conversation_id,
-            c.type,
-            c.name,
-            c.created_at,
-            m.content         AS last_message,
-            m.created_at      AS last_message_at,
-            m.sender_id       AS last_sender_id,
-            (SELECT COUNT(*) FROM messages
-             WHERE conversation_id = c.id
-               AND sender_id != %s
-               AND status != 'seen')   AS unread_count
-        FROM conversations c
-        JOIN participants p ON p.conversation_id = c.id AND p.user_id = %s
-        LEFT JOIN LATERAL (
-            SELECT content, created_at, sender_id
-            FROM messages
-            WHERE conversation_id = c.id
-            ORDER BY created_at DESC
-            LIMIT 1
-        ) m ON TRUE
-        ORDER BY COALESCE(m.created_at, c.created_at) DESC
     """
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, (str(user_id), str(user_id)))
-            rows = cur.fetchall()
-    return [dict(r) for r in rows]
+    Return all conversations the user participates in,
+    enriched with last message and unread count, ordered by latest activity.
+    """
+    sb = _sb()
+    uid = str(user_id)
+
+    # Step 1: Get all conversation IDs this user belongs to
+    p_res = sb.table("participants") \
+              .select("conversation_id") \
+              .eq("user_id", uid) \
+              .execute()
+
+    if not p_res.data:
+        return []
+
+    conv_ids = [r["conversation_id"] for r in p_res.data]
+
+    # Step 2: Get conversation metadata
+    c_res = sb.table("conversations") \
+              .select("id,type,name,created_by,created_at") \
+              .in_("id", conv_ids) \
+              .execute()
+
+    convs = {c["id"]: c for c in (c_res.data or [])}
+
+    # Step 3: Get last message per conversation
+    last_msgs = {}
+    for cid in conv_ids:
+        m = sb.table("messages") \
+              .select("content,created_at,sender_id") \
+              .eq("conversation_id", cid) \
+              .order("created_at", desc=True) \
+              .limit(1) \
+              .execute()
+        if m.data:
+            last_msgs[cid] = m.data[0]
+
+    # Step 4: Count unread per conversation
+    unread_counts = {}
+    for cid in conv_ids:
+        u = sb.table("messages") \
+              .select("id", count="exact") \
+              .eq("conversation_id", cid) \
+              .neq("sender_id", uid) \
+              .neq("status", "seen") \
+              .execute()
+        unread_counts[cid] = u.count or 0
+
+    # Step 5: Assemble result
+    result = []
+    for cid in conv_ids:
+        c = convs.get(cid)
+        if not c:
+            continue
+        lm = last_msgs.get(cid, {})
+        result.append({
+            "conversation_id": cid,
+            "type":            c.get("type"),
+            "name":            c.get("name"),
+            "created_at":      c.get("created_at"),
+            "last_message":    lm.get("content"),
+            "last_message_at": lm.get("created_at"),
+            "last_sender_id":  lm.get("sender_id"),
+            "unread_count":    unread_counts.get(cid, 0),
+        })
+
+    # Sort by latest activity
+    result.sort(
+        key=lambda x: x.get("last_message_at") or x.get("created_at") or "",
+        reverse=True
+    )
+    return result
 
 
 def get_unread_counts(user_id: str) -> list[dict]:
-    """Return {conv_id, count} for conversations with unread messages."""
-    sql = """
-        SELECT conversation_id AS conv_id, COUNT(*) AS count
-        FROM messages m
-        JOIN participants p ON p.conversation_id = m.conversation_id AND p.user_id = %s
-        WHERE m.sender_id != %s AND m.status != 'seen'
-        GROUP BY m.conversation_id
-    """
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, (str(user_id), str(user_id)))
-            rows = cur.fetchall()
-    return [dict(r) for r in rows]
+    """Return [{conv_id, count}] for conversations with unread messages."""
+    sb  = _sb()
+    uid = str(user_id)
+
+    p_res = sb.table("participants") \
+              .select("conversation_id") \
+              .eq("user_id", uid) \
+              .execute()
+    if not p_res.data:
+        return []
+
+    result = []
+    for row in p_res.data:
+        cid = row["conversation_id"]
+        u   = sb.table("messages") \
+                .select("id", count="exact") \
+                .eq("conversation_id", cid) \
+                .neq("sender_id", uid) \
+                .neq("status", "seen") \
+                .execute()
+        if u.count:
+            result.append({"conv_id": cid, "count": u.count})
+    return result
 
 
 def start_private_conversation(user_a: str, user_b: str) -> dict:
-    """
-    Return (or create) a private conversation between two users.
-    Returns the conversation dict.
-    """
-    sql_find = """
-        SELECT c.id AS conversation_id, c.type, c.name, c.created_at
-        FROM conversations c
-        JOIN participants p1 ON p1.conversation_id = c.id AND p1.user_id = %s
-        JOIN participants p2 ON p2.conversation_id = c.id AND p2.user_id = %s
-        WHERE c.type = 'private'
-        LIMIT 1
-    """
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql_find, (str(user_a), str(user_b)))
-            row = cur.fetchone()
-            if row:
-                return dict(row)
-            # Create new private conversation
-            cur.execute(
-                "INSERT INTO conversations (type) VALUES ('private') RETURNING id, type, name, created_at",
-                ()
-            )
-            conv = dict(cur.fetchone())
-            cid = conv["id"]
-            cur.execute(
-                "INSERT INTO participants (conversation_id, user_id) VALUES (%s,%s),(%s,%s)",
-                (cid, str(user_a), cid, str(user_b))
-            )
-            conv["conversation_id"] = cid
-            return conv
+    """Return (or create) a private conversation between two users."""
+    sb = _sb()
+    ua, ub = str(user_a), str(user_b)
+
+    # Find all convs user_a is in
+    a_res = sb.table("participants").select("conversation_id").eq("user_id", ua).execute()
+    a_ids = {r["conversation_id"] for r in (a_res.data or [])}
+
+    # Find all convs user_b is in
+    b_res = sb.table("participants").select("conversation_id").eq("user_id", ub).execute()
+    b_ids = {r["conversation_id"] for r in (b_res.data or [])}
+
+    # Intersection = shared conversations
+    shared = a_ids & b_ids
+    if shared:
+        # Pick the first private conversation
+        for cid in shared:
+            c = sb.table("conversations").select("id,type,name,created_at") \
+                  .eq("id", cid).eq("type", "private").execute()
+            if c.data:
+                d = c.data[0]
+                d["conversation_id"] = d["id"]
+                return d
+
+    # Create new private conversation
+    c_res = sb.table("conversations") \
+              .insert({"type": "private", "created_by": ua}) \
+              .execute()
+    conv  = c_res.data[0]
+    cid   = conv["id"]
+
+    # Add both participants
+    sb.table("participants").insert([
+        {"conversation_id": cid, "user_id": ua},
+        {"conversation_id": cid, "user_id": ub},
+    ]).execute()
+
+    conv["conversation_id"] = cid
+    return conv
 
 
 def create_group_conversation(name: str, creator_id: str) -> dict:
-    """Create a new group conversation and add the creator as first participant."""
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO conversations (type,name,created_by) VALUES ('group',%s,%s) RETURNING id,type,name,created_at",
-                (name, str(creator_id))
-            )
-            conv = dict(cur.fetchone())
-            cur.execute(
-                "INSERT INTO participants (conversation_id,user_id) VALUES (%s,%s)",
-                (conv["id"], str(creator_id))
-            )
-            conv["conversation_id"] = conv["id"]
-            return conv
+    """Create a new group conversation and add the creator."""
+    sb  = _sb()
+    uid = str(creator_id)
+
+    c_res = sb.table("conversations") \
+              .insert({"type": "group", "name": name, "created_by": uid}) \
+              .execute()
+    conv  = c_res.data[0]
+    cid   = conv["id"]
+
+    sb.table("participants") \
+      .insert({"conversation_id": cid, "user_id": uid}) \
+      .execute()
+
+    conv["conversation_id"] = cid
+    return conv
 
 
 def add_participant(conv_id: str, user_id: str) -> bool:
     """Add a user to a group conversation (idempotent)."""
     try:
-        with _conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO participants (conversation_id,user_id) VALUES (%s,%s) ON CONFLICT DO NOTHING",
-                    (conv_id, str(user_id))
-                )
+        _sb().table("participants") \
+             .upsert({"conversation_id": conv_id, "user_id": str(user_id)},
+                     on_conflict="conversation_id,user_id") \
+             .execute()
         return True
     except Exception as e:
         log.warning(f"add_participant error: {e}")
@@ -147,13 +193,26 @@ def add_participant(conv_id: str, user_id: str) -> bool:
 
 
 def is_participant(conv_id: str, user_id: str) -> bool:
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT 1 FROM participants WHERE conversation_id=%s AND user_id=%s",
-                (conv_id, str(user_id))
-            )
-            return cur.fetchone() is not None
+    r = _sb().table("participants") \
+             .select("id") \
+             .eq("conversation_id", conv_id) \
+             .eq("user_id", str(user_id)) \
+             .limit(1) \
+             .execute()
+    return bool(r.data)
+
+
+def get_conv_info(conv_id: str) -> dict | None:
+    r = _sb().table("conversations") \
+             .select("id,type,name,created_by,created_at") \
+             .eq("id", conv_id) \
+             .limit(1) \
+             .execute()
+    if not r.data:
+        return None
+    d = r.data[0]
+    d["conversation_id"] = d["id"]
+    return d
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -161,55 +220,34 @@ def is_participant(conv_id: str, user_id: str) -> bool:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def get_messages(conv_id: str, limit: int = 50, before: str | None = None) -> list[dict]:
-    """Return messages for a conversation (newest first then reversed for display)."""
+    """Return messages for a conversation in chronological order."""
+    sb = _sb()
+    q  = sb.table("messages") \
+           .select("id,conversation_id,sender_id,content,status,created_at") \
+           .eq("conversation_id", conv_id) \
+           .order("created_at", desc=True) \
+           .limit(limit)
+
     if before:
-        sql = """
-            SELECT id, conversation_id, sender_id, content, status, created_at
-            FROM messages
-            WHERE conversation_id = %s AND created_at < %s
-            ORDER BY created_at DESC LIMIT %s
-        """
-        params = (conv_id, before, limit)
-    else:
-        sql = """
-            SELECT id, conversation_id, sender_id, content, status, created_at
-            FROM messages
-            WHERE conversation_id = %s
-            ORDER BY created_at DESC LIMIT %s
-        """
-        params = (conv_id, limit)
+        q = q.lt("created_at", before)
 
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-            rows = cur.fetchall()
-
-    msgs = [dict(r) for r in rows]
-    msgs.reverse()  # chronological order for display
-    # Serialize UUIDs and datetimes
-    for m in msgs:
-        m["id"]              = str(m["id"])
-        m["conversation_id"] = str(m["conversation_id"])
-        m["created_at"]      = m["created_at"].isoformat() if hasattr(m["created_at"], "isoformat") else str(m["created_at"])
+    res  = q.execute()
+    msgs = list(reversed(res.data or []))   # chronological order
     return msgs
 
 
 def insert_message(conv_id: str, sender_id: str, content: str) -> dict | None:
     """Insert a new message and return it."""
-    sql = """
-        INSERT INTO messages (conversation_id, sender_id, content, status)
-        VALUES (%s, %s, %s, 'sent')
-        RETURNING id, conversation_id, sender_id, content, status, created_at
-    """
     try:
-        with _conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, (conv_id, str(sender_id), content))
-                row = dict(cur.fetchone())
-        row["id"]              = str(row["id"])
-        row["conversation_id"] = str(row["conversation_id"])
-        row["created_at"]      = row["created_at"].isoformat()
-        return row
+        res = _sb().table("messages") \
+                   .insert({
+                       "conversation_id": conv_id,
+                       "sender_id":       str(sender_id),
+                       "content":         content,
+                       "status":          "sent",
+                   }) \
+                   .execute()
+        return res.data[0] if res.data else None
     except Exception as e:
         log.error(f"insert_message error: {e}")
         return None
@@ -217,58 +255,39 @@ def insert_message(conv_id: str, sender_id: str, content: str) -> dict | None:
 
 def mark_delivered(conv_id: str, user_id: str):
     """Mark sent messages (from others) in this conversation as delivered."""
-    sql = """
-        UPDATE messages SET status='delivered'
-        WHERE conversation_id=%s AND sender_id!=%s AND status='sent'
-    """
     try:
-        with _conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, (conv_id, str(user_id)))
+        _sb().table("messages") \
+             .update({"status": "delivered"}) \
+             .eq("conversation_id", conv_id) \
+             .eq("status", "sent") \
+             .neq("sender_id", str(user_id)) \
+             .execute()
     except Exception as e:
         log.warning(f"mark_delivered error: {e}")
 
 
 def mark_seen(conv_id: str, user_id: str):
     """Mark all messages from others in this conversation as seen."""
-    sql = """
-        UPDATE messages SET status='seen'
-        WHERE conversation_id=%s AND sender_id!=%s AND status IN ('sent','delivered')
-    """
     try:
-        with _conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, (conv_id, str(user_id)))
+        _sb().table("messages") \
+             .update({"status": "seen"}) \
+             .eq("conversation_id", conv_id) \
+             .neq("sender_id", str(user_id)) \
+             .in_("status", ["sent", "delivered"]) \
+             .execute()
     except Exception as e:
         log.warning(f"mark_seen error: {e}")
 
 
-def get_conv_info(conv_id: str) -> dict | None:
-    """Get basic conversation metadata."""
-    with _conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT id, type, name, created_by, created_at FROM conversations WHERE id=%s",
-                (conv_id,)
-            )
-            row = cur.fetchone()
-    if not row:
-        return None
-    d = dict(row)
-    d["id"] = str(d["id"])
-    return d
-
+# ─────────────────────────────────────────────────────────────────────────────
+# SERIALIZATION HELPER
+# ─────────────────────────────────────────────────────────────────────────────
 
 def serialize_convs(convs: list[dict]) -> list[dict]:
-    """Serialize UUID/datetime fields in conversation rows."""
-    out = []
+    """Ensure all fields are JSON-serializable (Supabase already returns strings)."""
+    result = []
     for c in convs:
         d = dict(c)
-        d["conversation_id"] = str(d["conversation_id"])
-        if d.get("created_at"):
-            d["created_at"] = d["created_at"].isoformat() if hasattr(d["created_at"], "isoformat") else str(d["created_at"])
-        if d.get("last_message_at"):
-            d["last_message_at"] = d["last_message_at"].isoformat() if hasattr(d["last_message_at"], "isoformat") else str(d["last_message_at"])
         d["unread_count"] = int(d.get("unread_count") or 0)
-        out.append(d)
-    return out
+        result.append(d)
+    return result

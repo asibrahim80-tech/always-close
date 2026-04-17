@@ -32,7 +32,7 @@ The app runs via `python main.py`. This starts:
 - `flask-socketio` + `simple-websocket` — Real-time WebSocket server (threading mode)
 - `flask-limiter` — Rate limiting for API endpoints
 - `supabase` — Database client (for users, locations, photos, etc.)
-- `psycopg2-binary` — Direct postgres connection for chat tables (local Replit DB)
+- `psycopg2-binary` — Available but no longer used for chat (chat migrated to Supabase)
 - `geohash2` — Geospatial indexing for nearby user/room/store search
 - `httpx` — HTTP client (resolving Telegram photo URLs)
 - `openai` — AI features
@@ -54,11 +54,11 @@ Tables used:
 New files:
 - `socketio_init.py` — SocketIO instance (threading mode, no eventlet)
 - `chat_handlers.py` — All SocketIO event handlers (join/leave room, send_msg, typing, mark_seen, online/offline)
-- `chat_db.py` — Direct psycopg2 DB functions for chat (using local Replit postgres / DATABASE_URL)
+- `chat_db.py` — Supabase client functions for chat (conversations, participants, messages)
 - `templates/chat.html` — Conversation list (WhatsApp-like dark theme, RTL, real-time unread counts)
 - `templates/chat_room.html` — Chat room (bubbles, typing indicator, status icons ✓/✓✓/✓✓👁, emoji picker)
 
-Chat DB tables (local Replit postgres, NOT Supabase):
+Chat DB tables (Supabase — same project as all other tables):
 - `conversations` — id(uuid), type(private/group/public), name, created_by, created_at
 - `participants` — conversation_id, user_id(TEXT = Telegram ID), joined_at
 - `messages` — conversation_id, sender_id(TEXT), content, status(sent/delivered/seen), created_at
