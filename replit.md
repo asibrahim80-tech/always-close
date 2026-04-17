@@ -29,8 +29,10 @@ The app runs via `python main.py`. This starts:
 ## Key Dependencies
 - `python-telegram-bot>=20.0` — Telegram bot framework
 - `flask` — Web server for the Mini App
+- `flask-socketio` + `simple-websocket` — Real-time WebSocket server (threading mode)
 - `flask-limiter` — Rate limiting for API endpoints
-- `supabase` — Database client
+- `supabase` — Database client (for users, locations, photos, etc.)
+- `psycopg2-binary` — Direct postgres connection for chat tables (local Replit DB)
 - `geohash2` — Geospatial indexing for nearby user/room/store search
 - `httpx` — HTTP client (resolving Telegram photo URLs)
 - `openai` — AI features
@@ -47,6 +49,36 @@ Tables used:
 - `rooms_v1` / `room_members_v1` — Group rooms
 - `stores_v1` / `store_members_v1` — Stores/businesses
 - `objects_v1` / `object_members_v1` — Objects (item listings)
+
+## Real-time Chat System (New)
+New files:
+- `socketio_init.py` — SocketIO instance (threading mode, no eventlet)
+- `chat_handlers.py` — All SocketIO event handlers (join/leave room, send_msg, typing, mark_seen, online/offline)
+- `chat_db.py` — Direct psycopg2 DB functions for chat (using local Replit postgres / DATABASE_URL)
+- `templates/chat.html` — Conversation list (WhatsApp-like dark theme, RTL, real-time unread counts)
+- `templates/chat_room.html` — Chat room (bubbles, typing indicator, status icons ✓/✓✓/✓✓👁, emoji picker)
+
+Chat DB tables (local Replit postgres, NOT Supabase):
+- `conversations` — id(uuid), type(private/group/public), name, created_by, created_at
+- `participants` — conversation_id, user_id(TEXT = Telegram ID), joined_at
+- `messages` — conversation_id, sender_id(TEXT), content, status(sent/delivered/seen), created_at
+
+Page routes:
+- `GET /chat?uid=<tg_id>` — Chat list
+- `GET /chat/<conv_id>?uid=<tg_id>` — Chat room
+
+API routes:
+- `GET /api/chat/conversations?uid=<tg_id>` — User's conversations
+- `GET /api/chat/unread?uid=<tg_id>` — Unread counts
+- `GET /api/chat/messages/<conv_id>` — Messages (paginated)
+- `POST /api/chat/group/create` — Create group {uid, name}
+- `POST /api/chat/private/start` — Start/get private conv {uid, target_uid}
+- `POST /api/chat/group/join` — Join group {uid, conv_id}
+
+SocketIO events (client → server): connect_user, join_conv, leave_conv, send_msg, typing, stop_typing, mark_seen, who_is_online
+SocketIO events (server → client): new_msg, msg_seen, user_typing, user_stop_typing, user_online, user_offline, online_list
+
+Note: `run()` in keep_alive.py uses `socketio.run(app, allow_unsafe_werkzeug=True)` instead of `app.run()`.
 
 ## Migration Notes (Replit)
 - Fixed `requirements.txt`: removed conflicting dummy `telegram` package, kept `python-telegram-bot`

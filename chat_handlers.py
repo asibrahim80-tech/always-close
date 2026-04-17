@@ -30,7 +30,7 @@ def on_connect():
 
 
 @socketio.on("disconnect")
-def on_disconnect():
+def on_disconnect(reason=None):
     sid  = request.sid
     meta = sid_meta.pop(sid, None)
     if not meta:
@@ -40,8 +40,8 @@ def on_disconnect():
         online_users.pop(uid, None)
         for conv_typers in typing_in_conv.values():
             conv_typers.pop(uid, None)
-        socketio.emit("user_offline", {"user_id": uid}, broadcast=True)
-    log.debug(f"[socket] disconnect uid={uid}")
+        socketio.emit("user_offline", {"user_id": uid}, to=None)
+    log.debug(f"[socket] disconnect uid={uid} reason={reason}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ def on_connect_user(data):
         return
     sid_meta[request.sid]  = {"user_id": uid, "username": username}
     online_users[uid]       = request.sid
-    socketio.emit("user_online", {"user_id": uid}, broadcast=True)
+    socketio.emit("user_online", {"user_id": uid}, to=None)
     log.debug(f"[socket] online uid={uid}")
 
 
