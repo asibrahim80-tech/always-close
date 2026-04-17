@@ -26,16 +26,36 @@
     .mob-btn.sel-fixed{border-color:#8e44ad;background:#f3e5f5;color:#8e44ad}
     .mob-btn.sel-mobile{border-color:#2471a3;background:#e8f4fb;color:#2471a3}
 
-    /* Type grid */
-    .type-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-    .type-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:12px;border:1.5px solid #e0e0e0;background:#fafafa;cursor:pointer;transition:all .15s;font-family:inherit}
-    .type-btn:active{transform:scale(.95)}
-    .type-btn.selected{background:#f3e5f5;border-color:#8e44ad}
-    .type-btn.mobile-type.selected{background:#e8f4fb;border-color:#2471a3}
-    .type-emoji-lbl{font-size:22px;line-height:1}
-    .type-name{font-size:10px;font-weight:600;color:#555;text-align:center;line-height:1.2}
-    .type-btn.selected .type-name{color:#8e44ad}
-    .type-btn.mobile-type.selected .type-name{color:#2471a3}
+    /* Type dropdown trigger */
+    .type-select-btn{width:100%;padding:13px 15px;border:1.5px solid #ddd;border-radius:14px;background:#fafafa;cursor:pointer;font-family:inherit;font-size:14px;display:flex;align-items:center;gap:10px;transition:all .2s;text-align:start}
+    .type-select-btn:active{background:#f3e5f5}
+    .type-select-btn.has-val{border-color:#8e44ad;background:#faf5ff}
+    .type-select-btn.mobile-val{border-color:#2471a3;background:#f0f8ff}
+    .type-sel-emoji{font-size:24px;flex-shrink:0;line-height:1}
+    .type-sel-label{flex:1;font-weight:600;color:#333}
+    .type-sel-placeholder{flex:1;color:#aaa;font-weight:400}
+    .type-sel-arrow{color:#aaa;font-size:16px;flex-shrink:0;transition:transform .2s}
+    .type-select-btn.open .type-sel-arrow{transform:rotate(180deg)}
+    /* Bottom sheet */
+    #type-sheet-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:8000;backdrop-filter:blur(2px)}
+    #type-sheet-overlay.open{display:block}
+    #type-sheet{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:22px 22px 0 0;z-index:8001;max-height:75vh;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1)}
+    #type-sheet.open{transform:translateY(0)}
+    #type-sheet-handle{width:40px;height:4px;background:#e0e0e0;border-radius:4px;margin:10px auto 0}
+    #type-sheet-hdr{padding:12px 16px 10px;font-size:15px;font-weight:700;color:#111;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:8px}
+    #type-sheet-list{overflow-y:auto;flex:1;padding:6px 0 20px}
+    .type-list-item{width:100%;padding:13px 18px;background:none;border:none;font-family:inherit;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background .12s;text-align:start}
+    .type-list-item:active{background:#f5f5f5}
+    .type-list-item.selected{background:#faf5ff}
+    .type-list-ico{font-size:26px;width:36px;text-align:center;flex-shrink:0}
+    .type-list-name{flex:1;font-weight:500;color:#222}
+    .type-list-item.selected .type-list-name{color:#8e44ad;font-weight:700}
+    .type-list-check{font-size:16px;color:#8e44ad;opacity:0;transition:opacity .15s}
+    .type-list-item.selected .type-list-check{opacity:1}
+    .type-list-sep{height:1px;background:#f5f5f5;margin:4px 18px}
+    .type-list-item.mobile-item.selected{background:#f0f8ff}
+    .type-list-item.mobile-item.selected .type-list-name{color:#2471a3}
+    .type-list-item.mobile-item.selected .type-list-check{color:#2471a3}
 
     /* Custom type */
     #custom-type-wrap{display:none;margin-top:12px}
@@ -136,7 +156,12 @@
 <!-- Entity Type -->
 <div class="section">
   <div class="sec-title" id="sec-type">Entity Type</div>
-  <div class="type-grid" id="type-grid"></div>
+  <button class="type-select-btn" id="type-select-btn" onclick="openTypeSheet()">
+    <span class="type-sel-emoji" id="type-sel-emoji" style="display:none"></span>
+    <span class="type-sel-placeholder" id="type-sel-placeholder">…</span>
+    <span class="type-sel-label" id="type-sel-label" style="display:none"></span>
+    <span class="type-sel-arrow">▾</span>
+  </button>
 
   <!-- Custom "Other" type -->
   <div id="custom-type-wrap">
@@ -146,6 +171,14 @@
     <div class="emoji-picker-row" id="emoji-quick"></div>
     <input class="field-input" id="custom-emoji-input" maxlength="4" placeholder="✏️">
   </div>
+</div>
+
+<!-- Type bottom sheet -->
+<div id="type-sheet-overlay" onclick="closeTypeSheet()"></div>
+<div id="type-sheet">
+  <div id="type-sheet-handle"></div>
+  <div id="type-sheet-hdr"><span id="type-sheet-title-txt">نوع الكيان</span></div>
+  <div id="type-sheet-list"></div>
 </div>
 
 <!-- Map Icon -->
@@ -272,6 +305,8 @@
       loc_confirm_lbl:'✅ تأكيد الموقع',
       loc_getting:'جاري تحديد موقعك…',
       loc_no_gps:'⚠️ تعذّر تحديد موقعك. افتح الخريطة الرئيسية أولاً لمشاركة موقعك.',
+      type_placeholder:'اختر نوع الكيان…',
+      type_sheet_title:'نوع الكيان',
     },
     en:{
       page_title:'✨ Create Entity',
@@ -307,6 +342,8 @@
       loc_confirm_lbl:'Confirm Location',
       loc_getting:'Getting your location…',
       loc_no_gps:'⚠️ Could not get your location. Open the main map first.',
+      type_placeholder:'Choose entity type…',
+      type_sheet_title:'Entity Type',
     }
   }[lang] || {};
 
@@ -342,9 +379,12 @@
   document.getElementById('loc-modal-title').textContent  = T.loc_modal_title;
   document.getElementById('loc-hint-text').textContent    = T.loc_hint_text;
   document.getElementById('loc-confirm-lbl').textContent  = T.loc_confirm_lbl;
+  document.getElementById('type-sel-placeholder').textContent = T.type_placeholder;
+  document.getElementById('type-sheet-title-txt').textContent = T.type_sheet_title;
 
   /* Type definitions */
   const FIXED_TYPES = [
+    {key:'منزل',emoji:'🏠',ar:'منزل',en:'Home'},
     {key:'متجر',emoji:'🏪',ar:'متجر',en:'Store'},
     {key:'غرفة',emoji:'🚪',ar:'غرفة',en:'Room'},
     {key:'مطعم',emoji:'🍔',ar:'مطعم',en:'Restaurant'},
@@ -518,39 +558,77 @@
     isMobile = mobile;
     document.getElementById('btn-fixed').className  = 'mob-btn' + (mobile ? '' : ' sel-fixed');
     document.getElementById('btn-mobile').className = 'mob-btn' + (mobile ? ' sel-mobile' : '');
-    buildTypeGrid();
     selectedType  = '';
     selectedEmoji = '';
+    resetTypeSelector();
     document.getElementById('custom-type-wrap').classList.remove('show');
     document.getElementById('map-icon-section').classList.remove('show');
     document.getElementById('location-section').style.display = mobile ? 'none' : 'block';
     updateSubmit();
   }
 
-  /* Build type grid */
-  function buildTypeGrid() {
-    const grid = document.getElementById('type-grid');
-    grid.innerHTML = '';
-    const list = isMobile ? MOBILE_TYPES : [...FIXED_TYPES, OTHER_TYPE];
-    list.forEach(t => {
-      const btn = document.createElement('button');
-      btn.className = 'type-btn' + (isMobile ? ' mobile-type' : '');
-      btn.dataset.key = t.key;
-      btn.innerHTML = `<span class="type-emoji-lbl">${t.emoji}</span><span class="type-name">${isAr ? t.ar : t.en}</span>`;
-      btn.addEventListener('click', () => selectType(t, btn));
-      grid.appendChild(btn);
-    });
+  /* Reset type selector display */
+  function resetTypeSelector() {
+    const btn = document.getElementById('type-select-btn');
+    btn.classList.remove('has-val','mobile-val','open');
+    document.getElementById('type-sel-emoji').style.display = 'none';
+    document.getElementById('type-sel-label').style.display = 'none';
+    document.getElementById('type-sel-placeholder').style.display = '';
   }
 
-  function selectType(t, btn) {
-    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
+  /* Open type bottom sheet */
+  function openTypeSheet() {
+    const list = document.getElementById('type-sheet-list');
+    list.innerHTML = '';
+    const types = isMobile ? MOBILE_TYPES : [...FIXED_TYPES, OTHER_TYPE];
+    types.forEach((t, idx) => {
+      if (idx > 0 && !isMobile) {
+        const sep = document.createElement('div');
+        sep.className = 'type-list-sep';
+        list.appendChild(sep);
+      }
+      const item = document.createElement('button');
+      item.className = 'type-list-item' + (isMobile ? ' mobile-item' : '') + (selectedType === t.key ? ' selected' : '');
+      item.innerHTML = `
+        <span class="type-list-ico">${t.emoji}</span>
+        <span class="type-list-name">${isAr ? t.ar : t.en}</span>
+        <span class="type-list-check">✓</span>`;
+      item.addEventListener('click', () => selectTypeFromSheet(t));
+      list.appendChild(item);
+    });
+    document.getElementById('type-sheet-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('type-sheet').classList.add('open'), 10);
+    document.getElementById('type-select-btn').classList.add('open');
+  }
+
+  /* Close type bottom sheet */
+  function closeTypeSheet() {
+    document.getElementById('type-sheet').classList.remove('open');
+    document.getElementById('type-sheet-overlay').classList.remove('open');
+    document.getElementById('type-select-btn').classList.remove('open');
+  }
+
+  /* Select type from sheet */
+  function selectTypeFromSheet(t) {
     selectedType  = t.key;
     selectedEmoji = t.emoji;
     const isOther = t.key === 'أخرى';
+
+    /* Update trigger button */
+    const btn = document.getElementById('type-select-btn');
+    btn.classList.remove('has-val','mobile-val');
+    btn.classList.add(isMobile ? 'mobile-val' : 'has-val');
+    document.getElementById('type-sel-emoji').textContent = t.emoji;
+    document.getElementById('type-sel-emoji').style.display = '';
+    document.getElementById('type-sel-label').textContent = isAr ? t.ar : t.en;
+    document.getElementById('type-sel-label').style.display = '';
+    document.getElementById('type-sel-placeholder').style.display = 'none';
+
     document.getElementById('custom-type-wrap').classList.toggle('show', isOther);
     document.getElementById('map-icon-section').classList.toggle('show', true);
     if (isOther) { selectedType = ''; selectedEmoji = ''; }
+
+    closeTypeSheet();
     updateSubmit();
   }
 
@@ -768,7 +846,6 @@
   });
 
   /* Init */
-  buildTypeGrid();
   /* Show location section for fixed entities (default) */
   document.getElementById('location-section').style.display = 'block';
 </script>
