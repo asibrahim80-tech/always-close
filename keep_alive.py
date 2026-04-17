@@ -9,10 +9,12 @@ import time
 import logging
 
 from security import sanitize_text, sanitize_int, get_remote_addr
+from socketio_init import socketio
 
 _ka_logger = logging.getLogger("keep_alive")
 
 app = Flask(__name__)
+socketio.init_app(app)
 
 # ── Rate Limiting ─────────────────────────────────────────────────────────────
 limiter = Limiter(
@@ -3657,8 +3659,114 @@ def _self_ping_loop():
             _ka_logger.warning(f"Self-ping failed: {e}")
 
 
+# ══════════════════════════════════════════════════════════════════════════
+#  CHAT  — page routes
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.route('/chat')
+def chat_list_page():
+    return render_template('chat.html')
+
+
+@app.route('/chat/<conv_id>')
+def chat_room_page(conv_id):
+    return render_template('chat_room.html', conv_id=conv_id)
+
+
+# ── Chat API routes ────────────────────────────────────────────────────────
+
+@app.route('/api/chat/conversations')
+def api_chat_conversations():
+    """Return all conversations for a user."""
+    try:
+        import chat_db
+        uid = str(request.args.get('uid', '')).strip()
+        if not uid:
+            return jsonify({"ok": False, "error": "uid required"})
+        convs = chat_db.get_user_conversations(uid)
+        return jsonify({"ok": True, "data": chat_db.serialize_convs(convs)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/chat/unread')
+def api_chat_unread():
+    """Return unread counts per conversation for a user."""
+    try:
+        import chat_db
+        uid = str(request.args.get('uid', '')).strip()
+        if not uid:
+            return jsonify({"ok": False, "error": "uid required"})
+        rows = chat_db.get_unread_counts(uid)
+        return jsonify({"ok": True, "data": rows})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/chat/messages/<conv_id>')
+def api_chat_messages(conv_id):
+    """Return paginated messages for a conversation."""
+    try:
+        import chat_db
+        limit  = min(int(request.args.get('limit', 50)), 100)
+        before = request.args.get('before')
+        msgs   = chat_db.get_messages(conv_id, limit=limit, before=before)
+        return jsonify({"ok": True, "data": msgs})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/chat/group/create', methods=['POST'])
+def api_chat_group_create():
+    """Create a new group conversation."""
+    try:
+        import chat_db
+        body = request.get_json(silent=True) or {}
+        uid  = str(body.get('uid', '')).strip()
+        name = sanitize_text(str(body.get('name', '')).strip(), max_len=80)
+        if not uid or not name:
+            return jsonify({"ok": False, "error": "uid and name required"})
+        conv = chat_db.create_group_conversation(name, uid)
+        conv["conversation_id"] = str(conv.get("id") or conv.get("conversation_id"))
+        return jsonify({"ok": True, "data": conv})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/chat/private/start', methods=['POST'])
+def api_chat_private_start():
+    """Start or retrieve a private conversation between two users."""
+    try:
+        import chat_db
+        body   = request.get_json(silent=True) or {}
+        user_a = str(body.get('uid', '')).strip()
+        user_b = str(body.get('target_uid', '')).strip()
+        if not user_a or not user_b:
+            return jsonify({"ok": False, "error": "uid and target_uid required"})
+        conv = chat_db.start_private_conversation(user_a, user_b)
+        return jsonify({"ok": True, "data": conv})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route('/api/chat/group/join', methods=['POST'])
+def api_chat_group_join():
+    """Add user to an existing group conversation."""
+    try:
+        import chat_db
+        body    = request.get_json(silent=True) or {}
+        uid     = str(body.get('uid', '')).strip()
+        conv_id = str(body.get('conv_id', '')).strip()
+        if not uid or not conv_id:
+            return jsonify({"ok": False, "error": "uid and conv_id required"})
+        ok = chat_db.add_participant(conv_id, uid)
+        return jsonify({"ok": ok})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
 def run():
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
 
 
 def keep_alive():
@@ -3671,6 +3779,10 @@ def keep_alive():
     ping_thread = Thread(target=_self_ping_loop, name="self-pinger")
     ping_thread.daemon = True
     ping_thread.start()
+
+
+# ── Register SocketIO chat event handlers ─────────────────────────────────
+import chat_handlers  # noqa: F401, E402 — registers @socketio.on decorators
 
 
 # ── Auto-start bot when loaded by gunicorn in production ──────────────────
