@@ -226,11 +226,19 @@
     btn.disabled = true;
     btn.textContent = '⏳';
 
+    // Read cached GPS coords so the room gets coordinates even before server-save
+    let gpsLat = null, gpsLng = null;
+    try {
+      const gpsKey = 'ac_last_gps_' + (uid || 'x');
+      const gc = JSON.parse(localStorage.getItem(gpsKey) || 'null');
+      if (gc && gc.lat != null && gc.lng != null) { gpsLat = gc.lat; gpsLng = gc.lng; }
+    } catch(e) {}
+
     try {
       const res = await fetch('/api/room/create', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({uid, name, purpose, nature: selectedNature, expires: selectedExpires}),
+        body: JSON.stringify({uid, name, purpose, nature: selectedNature, expires: selectedExpires, lat: gpsLat, lng: gpsLng}),
       }).then(r => r.json());
 
       if (res.ok) {

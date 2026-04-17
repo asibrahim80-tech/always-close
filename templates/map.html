@@ -558,9 +558,9 @@
   let myLatLng        = null;   // displayed pin position (moves with joystick)
   let joystickRoaming = false;  // true only while user is moving via joystick
 
-  // Seed photo from Telegram avatar immediately (before API returns)
+  // Seed initial letter from Telegram name (photo comes from server only)
   const _tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-  let myPhoto   = _tgUser?.photo_url || null;
+  let myPhoto   = null;  // photo always comes from server (initDataUnsafe.photo_url is a blocked Telegram CDN URL)
   let myInitial = _tgUser ? (_tgUser.first_name || _tgUser.username || '?')[0].toUpperCase() : '?';
 
   function isRoaming() { return joystickRoaming; }
@@ -820,9 +820,8 @@
       if (!myLatLng || (joyDir.lat === 0 && joyDir.lng === 0)) return;
       const s = joyStep();
       myLatLng = [myLatLng[0] + joyDir.lat * s, myLatLng[1] + joyDir.lng * s];
-      if (meMarker) meMarker.setLatLng(myLatLng);
+      if (meMarker) meMarker.setLatLng(myLatLng);  // only move pin, never rebuild HTML
       map.panTo(myLatLng, { animate: true, duration: 0.1 });
-      refreshMeMarker();
     }, 80);
   }
 

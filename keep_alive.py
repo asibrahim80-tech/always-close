@@ -27,33 +27,38 @@ def rate_limit_handler(e):
     return jsonify({"ok": False, "error": "too_many_requests",
                     "message": "طلبات كثيرة جداً، انتظر لحظة / Too many requests"}), 429
 
-# Simple in-memory photo URL cache  {file_id: photo_url}
-_photo_cache = {}
+# In-memory photo URL cache  {file_id: {"url": str, "ts": float}}
+_photo_cache: dict = {}
+_PHOTO_TTL = 45 * 60  # 45 minutes — Telegram CDN links expire after ~1h
 
 
 def _resolve_photo(file_id: str, bot_token: str) -> str | None:
-    """Convert Telegram file_id → HTTPS URL (cached). Local URLs are passed through."""
+    """Convert Telegram file_id → HTTPS URL (cached+TTL). Local URLs are passed through."""
+    import time as _time
     if not file_id:
         return None
     # Already a URL or local path — return as-is
     if file_id.startswith("http://") or file_id.startswith("https://") or file_id.startswith("/"):
         return file_id
-    if file_id in _photo_cache:
-        return _photo_cache[file_id]
+    now = _time.monotonic()
+    cached = _photo_cache.get(file_id)
+    if cached and (now - cached["ts"]) < _PHOTO_TTL:
+        return cached["url"]
     try:
         r = httpx.get(
             f"https://api.telegram.org/bot{bot_token}/getFile",
             params={"file_id": file_id},
-            timeout=5,
+            timeout=4,
         )
         if r.status_code == 200:
             fp  = r.json()["result"]["file_path"]
             url = f"https://api.telegram.org/file/bot{bot_token}/{fp}"
-            _photo_cache[file_id] = url
+            _photo_cache[file_id] = {"url": url, "ts": now}
             return url
     except Exception:
         pass
-    return None
+    # Return stale cached URL (better than nothing) if available
+    return cached["url"] if cached else None
 
 
 def _haversine(lat1, lng1, lat2, lng2) -> float:
@@ -895,20 +900,25 @@ def api_nearby(telegram_id):
             .neq("id", my_id) \
             .execute()
 
-        nearby = []
-        for u in all_users.data:
-            loc = supabase.table("user_locations_v1") \
-                .select("latitude, longitude, recorded_at") \
-                .eq("user_id", u["id"]) \
-                .limit(1) \
+        # Batch-fetch ALL user locations in ONE query (avoids N+1)
+        other_ids = [u["id"] for u in (all_users.data or [])]
+        loc_map: dict = {}
+        if other_ids:
+            locs_res = supabase.table("user_locations_v1") \
+                .select("user_id, latitude, longitude, recorded_at") \
+                .in_("user_id", other_ids) \
                 .execute()
+            loc_map = {row["user_id"]: row for row in (locs_res.data or [])}
 
-            if not loc.data:
+        nearby = []
+        for u in (all_users.data or []):
+            loc = loc_map.get(u["id"])
+            if not loc:
                 continue
 
-            ulat = float(loc.data[0]["latitude"])
-            ulng = float(loc.data[0]["longitude"])
-            rec  = loc.data[0].get("recorded_at")
+            ulat = float(loc["latitude"])
+            ulng = float(loc["longitude"])
+            rec  = loc.get("recorded_at")
 
             dist      = _haversine(my_lat, my_lng, ulat, ulng)
             active    = _is_active(rec)
@@ -1111,6 +1121,10 @@ def api_room_create():
         if (existing.count or 0) >= 3:
             return jsonify({"ok": False, "error": "limit_reached"})
 
+        # Accept lat/lng from client as fallback (sent by create_room page)
+        req_lat = data.get("lat")
+        req_lng = data.get("lng")
+
         loc = supabase.table("user_locations_v1").select("latitude,longitude") \
             .eq("user_id", creator_id).limit(1).execute()
 
@@ -1125,6 +1139,9 @@ def api_room_create():
         if loc.data:
             record["latitude"]  = loc.data[0]["latitude"]
             record["longitude"] = loc.data[0]["longitude"]
+        elif req_lat is not None and req_lng is not None:
+            record["latitude"]  = float(req_lat)
+            record["longitude"] = float(req_lng)
         if expires_at:
             record["expires_at"] = expires_at
 
@@ -1574,6 +1591,10 @@ def api_store_create():
         if (existing.count or 0) >= 3:
             return jsonify({"ok": False, "error": "limit_reached"})
 
+        # Accept lat/lng from client as fallback (sent by create_store page)
+        req_lat = data.get("lat")
+        req_lng = data.get("lng")
+
         loc = supabase.table("user_locations_v1").select("latitude,longitude") \
             .eq("user_id", creator_id).limit(1).execute()
 
@@ -1588,6 +1609,9 @@ def api_store_create():
         if loc.data:
             record["latitude"]  = loc.data[0]["latitude"]
             record["longitude"] = loc.data[0]["longitude"]
+        elif req_lat is not None and req_lng is not None:
+            record["latitude"]  = float(req_lat)
+            record["longitude"] = float(req_lng)
         if expires_at:
             record["expires_at"] = expires_at
 
