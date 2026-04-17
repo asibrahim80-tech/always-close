@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>محادثة</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0e1621;--surface:#17212b;--card:#1e2c3a;--border:#2b3a4a;
+    --pr:#2196F3;--pr2:#1565C0;--accent:#5bbeff;
+    --txt:#e8e8e8;--sub:#7d8c9a;--online:#4CAF50;
+    --bubble-me:#2b5278;--bubble-other:#1e2c3a;
+    --seen-color:#4fc3f7;
+  }
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+  /* ── LAYOUT ── */
+  .screen{display:flex;flex-direction:column;height:100dvh}
+  /* ── HEADER ── */
+  .header{
+    background:var(--surface);border-bottom:1px solid var(--border);
+    padding:8px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;
+    min-height:58px;
+  }
+  .back-btn{
+    width:36px;height:36px;border-radius:50%;border:none;background:transparent;
+    color:var(--accent);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  }
+  .hdr-av{
+    width:40px;height:40px;border-radius:50%;background:var(--bubble-me);
+    display:flex;align-items:center;justify-content:center;
+    font-size:17px;font-weight:700;color:#fff;flex-shrink:0;position:relative;overflow:hidden;
+  }
+  .hdr-online{
+    position:absolute;bottom:0;right:0;width:11px;height:11px;
+    border-radius:50%;background:var(--online);border:2px solid var(--surface);
+    display:none;
+  }
+  .hdr-online.show{display:block}
+  .hdr-info{flex:1;min-width:0}
+  .hdr-name{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hdr-status{font-size:12px;color:var(--sub);min-height:16px;transition:color .2s}
+  .hdr-status.online-txt{color:var(--online)}
+  /* ── MESSAGES AREA ── */
+  .msgs-area{
+    flex:1;overflow-y:auto;padding:10px 12px;
+    display:flex;flex-direction:column;gap:2px;
+    scroll-behavior:smooth;
+    background:
+      repeating-linear-gradient(
+        0deg,transparent,transparent 30px,rgba(255,255,255,.01) 30px,rgba(255,255,255,.01) 31px
+      ),var(--bg);
+  }
+  /* ── DATE DIVIDER ── */
+  .date-div{
+    text-align:center;margin:8px 0;
+  }
+  .date-div span{
+    background:rgba(0,0,0,.35);color:var(--sub);font-size:11px;
+    padding:3px 12px;border-radius:12px;
+  }
+  /* ── MESSAGE BUBBLE ── */
+  .msg-wrap{display:flex;flex-direction:column;max-width:82%;animation:popIn .18s ease}
+  .msg-wrap.me{align-self:flex-end;align-items:flex-end}
+  .msg-wrap.them{align-self:flex-start;align-items:flex-start}
+  @keyframes popIn{from{opacity:0;transform:scale(.92) translateY(6px)}to{opacity:1;transform:none}}
+  .bubble{
+    padding:8px 12px;border-radius:18px;
+    font-size:14.5px;line-height:1.45;word-break:break-word;position:relative;
+    max-width:100%;
+  }
+  .msg-wrap.me   .bubble{background:var(--bubble-me);border-bottom-right-radius:4px}
+  .msg-wrap.them .bubble{background:var(--bubble-other);border-bottom-left-radius:4px;border:1px solid var(--border)}
+  /* sender name in groups */
+  .sender-name{font-size:11px;font-weight:600;color:var(--accent);margin-bottom:2px;padding-right:4px}
+  /* ── META (time + status) ── */
+  .msg-meta{
+    display:flex;align-items:center;gap:4px;
+    font-size:10px;color:var(--sub);margin-top:2px;padding:0 4px;
+  }
+  .msg-wrap.me .msg-meta{flex-direction:row-reverse}
+  .status-icon{font-size:12px;color:var(--sub);transition:color .3s}
+  .status-icon.delivered{color:var(--sub)}
+  .status-icon.seen{color:var(--seen-color)}
+  /* ── TYPING INDICATOR ── */
+  .typing-wrap{
+    display:none;align-self:flex-start;padding:4px 0;
+  }
+  .typing-wrap.show{display:flex;align-items:center;gap:6px;animation:popIn .2s ease}
+  .typing-bubble{
+    background:var(--bubble-other);border:1px solid var(--border);
+    border-radius:18px;border-bottom-left-radius:4px;
+    padding:10px 14px;display:flex;gap:4px;align-items:center;
+  }
+  .typing-dot{width:7px;height:7px;border-radius:50%;background:var(--sub);animation:bounce 1.2s infinite}
+  .typing-dot:nth-child(2){animation-delay:.2s}
+  .typing-dot:nth-child(3){animation-delay:.4s}
+  @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+  .typing-label{font-size:11px;color:var(--sub)}
+  /* ── INPUT AREA ── */
+  .input-area{
+    background:var(--surface);border-top:1px solid var(--border);
+    padding:8px 10px;display:flex;align-items:flex-end;gap:8px;flex-shrink:0;
+  }
+  .emoji-btn{
+    width:40px;height:40px;border-radius:50%;border:none;background:transparent;
+    font-size:22px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  }
+  .msg-input-wrap{
+    flex:1;background:var(--card);border:1px solid var(--border);border-radius:22px;
+    padding:8px 14px;display:flex;align-items:flex-end;
+  }
+  .msg-input{
+    flex:1;background:transparent;border:none;outline:none;color:var(--txt);
+    font-size:15px;max-height:120px;resize:none;line-height:1.4;font-family:inherit;
+  }
+  .msg-input::placeholder{color:var(--sub)}
+  .send-btn{
+    width:42px;height:42px;border-radius:50%;border:none;
+    background:var(--pr);cursor:pointer;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;
+    transition:transform .1s,background .1s;
+  }
+  .send-btn:active{transform:scale(.9);background:var(--pr2)}
+  .send-btn:disabled{background:var(--border);cursor:default}
+  /* ── EMOJI PANEL ── */
+  .emoji-panel{
+    display:none;background:var(--surface);border-top:1px solid var(--border);
+    padding:12px;flex-wrap:wrap;gap:4px;max-height:180px;overflow-y:auto;
+  }
+  .emoji-panel.show{display:flex}
+  .ep-em{
+    font-size:26px;width:42px;height:42px;display:flex;align-items:center;
+    justify-content:center;cursor:pointer;border-radius:8px;transition:background .1s;
+  }
+  .ep-em:active{background:var(--card)}
+  /* ── LOAD MORE ── */
+  .load-more-btn{
+    align-self:center;background:rgba(255,255,255,.08);color:var(--sub);
+    border:1px solid var(--border);border-radius:16px;padding:6px 16px;
+    font-size:12px;cursor:pointer;margin:4px 0;
+  }
+  /* ── SCROLL TO BOTTOM ── */
+  .scroll-fab{
+    position:fixed;bottom:80px;left:16px;
+    width:40px;height:40px;border-radius:50%;background:var(--card);border:1px solid var(--border);
+    display:none;align-items:center;justify-content:center;font-size:18px;cursor:pointer;z-index:50;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
+  }
+  .scroll-fab.show{display:flex}
+  .scroll-fab .unread-badge{
+    position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;
+    border-radius:9px;background:var(--pr);color:#fff;font-size:10px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;padding:0 4px;
+  }
+</style>
+</head>
+<body>
+<div class="screen">
+
+  <!-- HEADER -->
+  <div class="header">
+    <button class="back-btn" onclick="goBack()">‹</button>
+    <div class="hdr-av" id="hdr-av">
+      <span id="hdr-av-letter">?</span>
+      <div class="hdr-online" id="hdr-online"></div>
+    </div>
+    <div class="hdr-info">
+      <div class="hdr-name" id="hdr-name">...</div>
+      <div class="hdr-status" id="hdr-status">...</div>
+    </div>
+  </div>
+
+  <!-- MESSAGES -->
+  <div class="msgs-area" id="msgs-area">
+    <div style="text-align:center;padding:30px;color:var(--sub)"><div class="spin" style="margin:auto;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--pr);border-radius:50%;animation:spin .8s linear infinite"></div></div>
+  </div>
+
+  <!-- TYPING INDICATOR -->
+  <div class="typing-wrap" id="typing-wrap" style="padding:0 12px 4px">
+    <div class="typing-bubble">
+      <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+    </div>
+    <span class="typing-label" id="typing-label"></span>
+  </div>
+
+  <!-- EMOJI PANEL -->
+  <div class="emoji-panel" id="emoji-panel"></div>
+
+  <!-- INPUT -->
+  <div class="input-area">
+    <button class="emoji-btn" onclick="toggleEmoji()" title="إيموجي">😊</button>
+    <div class="msg-input-wrap">
+      <textarea class="msg-input" id="msg-input" placeholder="اكتب رسالة..." rows="1"
+        oninput="autoResize(this);onTyping()"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
+    </div>
+    <button class="send-btn" id="send-btn" onclick="sendMsg()">➤</button>
+  </div>
+</div>
+
+<!-- SCROLL FAB -->
+<div class="scroll-fab" id="scroll-fab" onclick="scrollToBottom(true)">
+  ↓<span class="unread-badge" id="new-badge" style="display:none"></span>
+</div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+// ── URL params ────────────────────────────────────────────────────────────────
+const params  = new URLSearchParams(location.search);
+const uid     = params.get('uid')   || '';
+const uname   = params.get('uname') || 'User';
+const lang    = params.get('lang')  || 'ar';
+const convId  = location.pathname.split('/').pop();
+const convName= decodeURIComponent(params.get('cname') || 'محادثة');
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let messages        = [];
+let socket          = null;
+let typingTimer     = null;
+let isTyping        = false;
+let typingUsers     = {};    // { user_id: username }
+let seenIds         = new Set();
+let msgIdSet        = new Set();  // dedup guard
+let oldestMsgAt     = null;
+let loadingOlder    = false;
+let newMsgCount     = 0;
+let isAtBottom      = true;
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+document.getElementById('hdr-name').textContent   = convName;
+document.getElementById('hdr-av-letter').textContent = convName[0]?.toUpperCase() || '?';
+document.getElementById('hdr-status').textContent = lang==='ar' ? 'جارٍ التحميل...' : 'Loading...';
+
+if (window.Telegram?.WebApp) { Telegram.WebApp.ready(); Telegram.WebApp.expand(); }
+
+loadMessages().then(() => initSocket());
+
+// ── Load messages (last 50) ───────────────────────────────────────────────────
+async function loadMessages() {
+  try {
+    const res = await fetch(`/api/chat/messages/${convId}?limit=50`).then(r=>r.json());
+    messages = res.data || [];
+    messages.forEach(m => msgIdSet.add(m.id));
+    if (messages.length) oldestMsgAt = messages[0].created_at;
+    renderMessages();
+    scrollToBottom(false);
+    document.getElementById('hdr-status').textContent = lang==='ar' ? 'متصل' : 'Connected';
+  } catch(e) {
+    document.getElementById('hdr-status').textContent = 'خطأ في التحميل';
+  }
+}
+
+// ── Lazy load older messages ──────────────────────────────────────────────────
+async function loadOlder() {
+  if (loadingOlder || !oldestMsgAt) return;
+  loadingOlder = true;
+  const area  = document.getElementById('msgs-area');
+  const prevH = area.scrollHeight;
+  try {
+    const res = await fetch(`/api/chat/messages/${convId}?before=${encodeURIComponent(oldestMsgAt)}&limit=50`).then(r=>r.json());
+    const older = (res.data || []).filter(m => !msgIdSet.has(m.id));
+    if (older.length) {
+      older.forEach(m => msgIdSet.add(m.id));
+      messages = [...older, ...messages];
+      oldestMsgAt = older[0].created_at;
+      renderMessages();
+      area.scrollTop = area.scrollHeight - prevH;  // keep scroll position
+    } else {
+      document.getElementById('load-more-btn')?.remove();
+    }
+  } catch(e){}
+  loadingOlder = false;
+}
+
+// ── Render all messages ───────────────────────────────────────────────────────
+function renderMessages() {
+  const area = document.getElementById('msgs-area');
+  let html   = '';
+  if (messages.length >= 50) {
+    html += `<button class="load-more-btn" id="load-more-btn" onclick="loadOlder()">
+      ${lang==='ar' ? '⬆ تحميل رسائل أقدم' : '⬆ Load older messages'}</button>`;
+  }
+
+  let lastDate = '';
+  messages.forEach(m => {
+    const d     = new Date(m.created_at);
+    const dStr  = d.toDateString();
+    if (dStr !== lastDate) {
+      html   += `<div class="date-div"><span>${fmtDate(d)}</span></div>`;
+      lastDate = dStr;
+    }
+    html += msgHTML(m);
+  });
+
+  area.innerHTML = html;
+}
+
+// ── Single message bubble HTML ────────────────────────────────────────────────
+function msgHTML(m, isNew = false) {
+  const isMe    = String(m.sender_id) === String(uid);
+  const side    = isMe ? 'me' : 'them';
+  const time    = fmtTime(new Date(m.created_at));
+  const status  = isMe ? statusIcon(m.status) : '';
+  return `
+  <div class="msg-wrap ${side}" id="msg-${m.id}">
+    <div class="bubble">${escHtml(m.content)}</div>
+    <div class="msg-meta">
+      <span>${time}</span>
+      ${status}
+    </div>
+  </div>`;
+}
+
+function statusIcon(s) {
+  if (s === 'seen')      return `<span class="status-icon seen" title="مُشاهَدة">✓✓</span>`;
+  if (s === 'delivered') return `<span class="status-icon delivered" title="وصلت">✓✓</span>`;
+  return                        `<span class="status-icon sent" title="أُرسلت">✓</span>`;
+}
+
+// ── Append single new message (fast, no full re-render) ───────────────────────
+function appendMsg(m) {
+  if (msgIdSet.has(m.id)) return;   // dedup
+  msgIdSet.add(m.id);
+  messages.push(m);
+
+  const area = document.getElementById('msgs-area');
+  const div  = document.createElement('div');
+  div.innerHTML = msgHTML(m, true);
+  area.appendChild(div.firstElementChild);
+
+  if (isAtBottom) {
+    scrollToBottom(true);
+    newMsgCount = 0;
+    updateScrollFab();
+  } else {
+    newMsgCount++;
+    updateScrollFab();
+  }
+}
+
+// ── Update message status icon in-place ──────────────────────────────────────
+function updateMsgStatus(msgId, status) {
+  const el = document.getElementById(`msg-${msgId}`);
+  if (!el) return;
+  const icon = el.querySelector('.status-icon');
+  if (icon) icon.outerHTML = statusIcon(status);
+}
+
+// ── SocketIO ─────────────────────────────────────────────────────────────────
+function initSocket() {
+  socket = io({ transports: ['websocket','polling'] });
+
+  socket.on('connect', () => {
+    socket.emit('connect_user', { user_id: uid, username: uname });
+    socket.emit('join_conv',    { conv_id: convId, user_id: uid });
+    socket.emit('mark_seen',    { conv_id: convId, user_id: uid });
+  });
+
+  // New incoming message
+  socket.on('new_msg', (msg) => {
+    if (msg.conv_id !== convId) return;
+    appendMsg({
+      id:          msg.message_id,
+      sender_id:   msg.sender_id,
+      content:     msg.content,
+      created_at:  msg.created_at,
+      status:      msg.status || 'sent',
+    });
+    // Auto-mark seen if we're in the room
+    if (msg.sender_id !== uid && isAtBottom) {
+      socket.emit('mark_seen', { conv_id: convId, user_id: uid });
+    }
+  });
+
+  // Messages seen by other user
+  socket.on('msg_seen', ({ conv_id, seen_by }) => {
+    if (conv_id !== convId || seen_by === uid) return;
+    // Update all our messages to seen
+    messages.forEach(m => {
+      if (String(m.sender_id) === String(uid) && m.status !== 'seen') {
+        m.status = 'seen';
+        updateMsgStatus(m.id, 'seen');
+      }
+    });
+  });
+
+  // Typing events
+  socket.on('user_typing', ({ conv_id, user_id, username }) => {
+    if (conv_id !== convId || user_id === uid) return;
+    typingUsers[user_id] = username;
+    showTyping();
+  });
+  socket.on('user_stop_typing', ({ conv_id, user_id }) => {
+    if (conv_id !== convId) return;
+    delete typingUsers[user_id];
+    showTyping();
+  });
+
+  // Online / offline
+  socket.on('user_online',  ({ user_id }) => {
+    if (user_id !== uid) updateOnline(true);
+  });
+  socket.on('user_offline', ({ user_id }) => {
+    if (user_id !== uid) updateOnline(false);
+  });
+
+  socket.on('disconnect', () => {
+    document.getElementById('hdr-status').textContent = lang==='ar' ? 'جارٍ إعادة الاتصال...' : 'Reconnecting...';
+  });
+  socket.on('reconnect', () => {
+    socket.emit('join_conv', { conv_id: convId, user_id: uid });
+    document.getElementById('hdr-status').textContent = lang==='ar' ? 'متصل' : 'Online';
+  });
+}
+
+// ── Send message ──────────────────────────────────────────────────────────────
+function sendMsg() {
+  const inp     = document.getElementById('msg-input');
+  const content = inp.value.trim();
+  if (!content || !socket) return;
+
+  const tempId = 'tmp-' + Date.now();
+  socket.emit('send_msg', {
+    conv_id:   convId,
+    sender_id: uid,
+    content,
+    temp_id:   tempId,
+  });
+  inp.value = '';
+  autoResize(inp);
+  stopTyping();
+  closeEmoji();
+}
+
+// ── Typing indicator ──────────────────────────────────────────────────────────
+function onTyping() {
+  if (!socket) return;
+  if (!isTyping) {
+    isTyping = true;
+    socket.emit('typing', { conv_id: convId, user_id: uid, username: uname });
+  }
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(stopTyping, 2000);
+}
+
+function stopTyping() {
+  if (!isTyping || !socket) return;
+  isTyping = false;
+  socket.emit('stop_typing', { conv_id: convId, user_id: uid });
+  clearTimeout(typingTimer);
+}
+
+function showTyping() {
+  const names = Object.values(typingUsers);
+  const wrap  = document.getElementById('typing-wrap');
+  const lbl   = document.getElementById('typing-label');
+  if (names.length) {
+    lbl.textContent = names.join('، ') + (lang==='ar' ? ' يكتب...' : ' typing...');
+    wrap.classList.add('show');
+    scrollToBottom(false);
+  } else {
+    wrap.classList.remove('show');
+  }
+}
+
+// ── Online status ─────────────────────────────────────────────────────────────
+function updateOnline(online) {
+  const dot = document.getElementById('hdr-online');
+  const sts = document.getElementById('hdr-status');
+  dot.classList.toggle('show', online);
+  if (online) { sts.textContent = lang==='ar' ? 'متصل الآن' : 'Online'; sts.classList.add('online-txt'); }
+  else        { sts.textContent = lang==='ar' ? 'غير متصل' : 'Offline'; sts.classList.remove('online-txt'); }
+}
+
+// ── Scroll helpers ────────────────────────────────────────────────────────────
+function scrollToBottom(smooth) {
+  const area = document.getElementById('msgs-area');
+  area.scrollTo({ top: area.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });
+  newMsgCount = 0;
+  updateScrollFab();
+}
+
+function updateScrollFab() {
+  const fab   = document.getElementById('scroll-fab');
+  const badge = document.getElementById('new-badge');
+  fab.classList.toggle('show', !isAtBottom);
+  if (newMsgCount > 0) {
+    badge.textContent = newMsgCount > 99 ? '99+' : newMsgCount;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// Track if user is at bottom
+document.getElementById('msgs-area').addEventListener('scroll', function() {
+  const area  = this;
+  isAtBottom  = area.scrollHeight - area.scrollTop - area.clientHeight < 60;
+  updateScrollFab();
+  if (isAtBottom && newMsgCount > 0) {
+    newMsgCount = 0;
+    updateScrollFab();
+    if (socket) socket.emit('mark_seen', { conv_id: convId, user_id: uid });
+  }
+  if (area.scrollTop < 80) loadOlder();
+});
+
+// ── Emoji panel ───────────────────────────────────────────────────────────────
+const EMOJIS = ['😊','😂','❤️','👍','🔥','😍','🙏','😭','✨','🎉','😅','🤔','💯','😎','🤩',
+                '😢','💪','🥰','🤣','😤','💀','😴','🌹','🎊','🙌','👏','💬','🕊️','💫','🌟',
+                '⭐','🏆','🎯','💡','🚀','🌙','☀️','🌈','❄️','⚡'];
+function buildEmojiPanel() {
+  const panel = document.getElementById('emoji-panel');
+  panel.innerHTML = EMOJIS.map(e =>
+    `<span class="ep-em" onclick="insertEmoji('${e}')">${e}</span>`
+  ).join('');
+}
+function toggleEmoji() {
+  const panel = document.getElementById('emoji-panel');
+  if (!panel.children.length) buildEmojiPanel();
+  panel.classList.toggle('show');
+}
+function closeEmoji() { document.getElementById('emoji-panel').classList.remove('show'); }
+function insertEmoji(e) {
+  const inp = document.getElementById('msg-input');
+  const pos = inp.selectionStart;
+  inp.value = inp.value.slice(0,pos) + e + inp.value.slice(pos);
+  inp.selectionStart = inp.selectionEnd = pos + e.length;
+  inp.focus();
+}
+
+// ── Auto resize textarea ──────────────────────────────────────────────────────
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function goBack() {
+  if (socket) { socket.emit('leave_conv', { conv_id: convId }); socket.disconnect(); }
+  if (document.referrer) history.back();
+  else location.href = `/chat?uid=${uid}&uname=${encodeURIComponent(uname)}&lang=${lang}`;
+}
+
+// ── Formatters ────────────────────────────────────────────────────────────────
+function fmtTime(d) { return d.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}); }
+function fmtDate(d) {
+  const now = new Date(), diff = (now - d) / 86400000;
+  if (diff < 1 && d.getDate()===now.getDate()) return lang==='ar' ? 'اليوم' : 'Today';
+  if (diff < 2) return lang==='ar' ? 'أمس' : 'Yesterday';
+  return d.toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'short'});
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// close emoji panel on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.emoji-btn') && !e.target.closest('#emoji-panel')) closeEmoji();
+});
+</script>
+</body>
+</html>

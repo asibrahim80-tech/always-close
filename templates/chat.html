@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>المحادثات</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0e1621;--surface:#17212b;--card:#1e2c3a;--border:#2b3a4a;
+    --pr:#2196F3;--pr2:#1565C0;--accent:#5bbeff;
+    --txt:#e8e8e8;--sub:#7d8c9a;--online:#4CAF50;--danger:#e74c3c;
+    --bubble-me:#2b5278;--bubble-other:#1e2c3a;
+    --unread:#2196F3;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+  /* ── HEADER ── */
+  .header{
+    position:sticky;top:0;z-index:100;
+    background:var(--surface);border-bottom:1px solid var(--border);
+    padding:12px 16px;display:flex;align-items:center;gap:12px;
+  }
+  .header-title{font-size:18px;font-weight:700;flex:1}
+  .header-sub{font-size:12px;color:var(--sub)}
+  .new-chat-btn{
+    width:38px;height:38px;border-radius:50%;
+    background:var(--pr);border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;
+    transition:background .15s;
+  }
+  .new-chat-btn:active{background:var(--pr2)}
+  /* ── SEARCH ── */
+  .search-wrap{padding:10px 12px;background:var(--surface)}
+  .search-inp{
+    width:100%;background:var(--card);border:1px solid var(--border);border-radius:24px;
+    padding:9px 16px;color:var(--txt);font-size:14px;outline:none;
+  }
+  .search-inp::placeholder{color:var(--sub)}
+  /* ── CONVERSATION LIST ── */
+  .conv-list{overflow-y:auto;flex:1}
+  .conv-item{
+    display:flex;align-items:center;gap:12px;
+    padding:10px 16px;border-bottom:1px solid var(--border);
+    cursor:pointer;transition:background .1s;position:relative;
+  }
+  .conv-item:active{background:var(--card)}
+  /* ── AVATAR ── */
+  .av-wrap{position:relative;flex-shrink:0}
+  .av{
+    width:52px;height:52px;border-radius:50%;
+    background:var(--bubble-me);display:flex;align-items:center;
+    justify-content:center;font-size:22px;font-weight:700;color:#fff;
+    overflow:hidden;
+  }
+  .av img{width:100%;height:100%;object-fit:cover}
+  .online-dot{
+    position:absolute;bottom:1px;right:1px;
+    width:13px;height:13px;border-radius:50%;
+    background:var(--online);border:2px solid var(--bg);display:none;
+  }
+  .online-dot.show{display:block}
+  /* ── CONV INFO ── */
+  .conv-info{flex:1;min-width:0}
+  .conv-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+  .conv-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65%}
+  .conv-time{font-size:11px;color:var(--sub);flex-shrink:0}
+  .conv-bottom{display:flex;justify-content:space-between;align-items:center}
+  .conv-preview{font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80%}
+  .conv-unread{
+    min-width:20px;height:20px;border-radius:10px;
+    background:var(--unread);color:#fff;font-size:11px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;padding:0 5px;
+    display:none;
+  }
+  .conv-unread.show{display:flex}
+  /* ── TYPE BADGE ── */
+  .type-badge{
+    font-size:9px;padding:1px 5px;border-radius:6px;margin-right:4px;
+    vertical-align:middle;font-weight:600;
+  }
+  .type-badge.group{background:rgba(33,150,243,.2);color:#64b5f6}
+  .type-badge.public{background:rgba(76,175,80,.2);color:#81c784}
+  /* ── EMPTY ── */
+  .empty{text-align:center;padding:60px 24px;color:var(--sub)}
+  .empty-icon{font-size:56px;margin-bottom:16px}
+  .empty-title{font-size:17px;font-weight:600;color:var(--txt);margin-bottom:8px}
+  /* ── FAB ── */
+  .fab{
+    position:fixed;bottom:24px;left:20px;
+    width:56px;height:56px;border-radius:50%;
+    background:var(--pr);border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;
+    box-shadow:0 4px 16px rgba(33,150,243,.4);transition:transform .15s;z-index:200;
+  }
+  .fab:active{transform:scale(.93)}
+  /* ── MODAL ── */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;
+    align-items:flex-end;
+  }
+  .modal-overlay.show{display:flex}
+  .modal-sheet{
+    width:100%;background:var(--surface);border-radius:20px 20px 0 0;
+    padding:20px 16px 32px;animation:slideUp .25s ease;
+  }
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .modal-title{font-size:16px;font-weight:700;margin-bottom:16px;text-align:center}
+  .modal-input{
+    width:100%;background:var(--card);border:1px solid var(--border);border-radius:14px;
+    padding:12px 16px;color:var(--txt);font-size:15px;outline:none;margin-bottom:12px;
+  }
+  .modal-btn{
+    width:100%;padding:14px;border-radius:14px;border:none;cursor:pointer;
+    font-size:15px;font-weight:600;transition:opacity .15s;
+  }
+  .modal-btn.primary{background:var(--pr);color:#fff}
+  .modal-btn.primary:active{opacity:.8}
+  .modal-btn.cancel{background:var(--card);color:var(--sub);margin-top:8px}
+  /* ── LOADING ── */
+  .loader{display:flex;justify-content:center;padding:40px}
+  .spin{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--pr);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <div class="header-title" id="h-title">المحادثات</div>
+    <div class="header-sub" id="h-sub">Always Close</div>
+  </div>
+  <button class="new-chat-btn" onclick="openNewChat()" title="محادثة جديدة">✏️</button>
+</div>
+
+<!-- SEARCH -->
+<div class="search-wrap">
+  <input class="search-inp" id="search-inp" placeholder="🔍  بحث..." oninput="filterConvs()">
+</div>
+
+<!-- LIST -->
+<div class="conv-list" id="conv-list">
+  <div class="loader"><div class="spin"></div></div>
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="openNewChat()">✏️</button>
+
+<!-- NEW GROUP MODAL -->
+<div class="modal-overlay" id="new-modal" onclick="if(event.target===this)closeNewChat()">
+  <div class="modal-sheet">
+    <div class="modal-title" id="m-title">محادثة جديدة</div>
+    <input class="modal-input" id="m-name" placeholder="اسم المجموعة...">
+    <button class="modal-btn primary" onclick="createGroup()" id="m-create">✅ إنشاء مجموعة</button>
+    <button class="modal-btn cancel" onclick="closeNewChat()">إلغاء</button>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const params  = new URLSearchParams(location.search);
+const uid     = params.get('uid')  || '';
+const lang    = params.get('lang') || 'ar';
+const uname   = params.get('uname')|| 'User';
+
+let allConvs  = [];
+let socket    = null;
+
+// ── Init socket ──────────────────────────────────────────────────────────────
+function initSocket() {
+  socket = io({ transports: ['websocket','polling'] });
+  socket.on('connect', () => {
+    socket.emit('connect_user', { user_id: uid, username: uname });
+    socket.emit('who_is_online', {});
+  });
+  socket.on('online_list', ({ online }) => {
+    online.forEach(id => markOnline(id, true));
+  });
+  socket.on('user_online',  ({ user_id }) => markOnline(user_id, true));
+  socket.on('user_offline', ({ user_id }) => markOnline(user_id, false));
+  // New message → update preview and unread badge
+  socket.on('new_msg', (msg) => {
+    const conv = allConvs.find(c => c.conversation_id === msg.conv_id);
+    if (!conv) return;
+    conv.last_message    = msg.content;
+    conv.last_message_at = msg.created_at;
+    if (msg.sender_id !== uid) conv._unread = (conv._unread || 0) + 1;
+    renderList();
+  });
+}
+
+// ── Load conversations ────────────────────────────────────────────────────────
+async function loadConvs() {
+  if (!uid) { showEmpty('سجّل دخولك أولاً'); return; }
+  try {
+    const res  = await fetch(`/api/chat/conversations?uid=${uid}`).then(r=>r.json());
+    allConvs   = (res.data || []).map(c => ({...c, _unread:0}));
+    // Compute unread
+    await loadUnreads();
+    renderList();
+    initSocket();
+  } catch(e) {
+    showEmpty('تعذّر تحميل المحادثات');
+  }
+}
+
+async function loadUnreads() {
+  try {
+    const res = await fetch(`/api/chat/unread?uid=${uid}`).then(r=>r.json());
+    (res.data || []).forEach(row => {
+      const c = allConvs.find(c => c.conversation_id === row.conv_id);
+      if (c) c._unread = row.count;
+    });
+  } catch(e) {}
+}
+
+// ── Render list ───────────────────────────────────────────────────────────────
+function renderList() {
+  const q    = document.getElementById('search-inp').value.toLowerCase();
+  const list = allConvs.filter(c => !q || (c.name||'').toLowerCase().includes(q));
+  if (!list.length) { showEmpty('لا توجد محادثات بعد'); return; }
+
+  const el = document.getElementById('conv-list');
+  el.innerHTML = list.map(c => convHTML(c)).join('');
+}
+
+function convHTML(c) {
+  const name    = c.name || (c.type==='private' ? 'خاص' : 'محادثة');
+  const letter  = name[0]?.toUpperCase() || '?';
+  const time    = c.last_message_at ? fmtTime(c.last_message_at) : '';
+  const preview = c.last_message || (lang==='ar' ? 'لا توجد رسائل' : 'No messages yet');
+  const unread  = c._unread || 0;
+  const badge   = c.type === 'group'  ? `<span class="type-badge group">مجموعة</span>` :
+                  c.type === 'public' ? `<span class="type-badge public">عام</span>` : '';
+  return `
+  <div class="conv-item" onclick="openConv('${c.conversation_id}','${escHtml(name)}')" id="ci-${c.conversation_id}">
+    <div class="av-wrap">
+      <div class="av">${letter}</div>
+      <div class="online-dot" id="dot-${c.conversation_id}"></div>
+    </div>
+    <div class="conv-info">
+      <div class="conv-top">
+        <div class="conv-name">${badge}${escHtml(name)}</div>
+        <div class="conv-time">${time}</div>
+      </div>
+      <div class="conv-bottom">
+        <div class="conv-preview">${escHtml(preview)}</div>
+        <div class="conv-unread ${unread>0?'show':''}" id="unread-${c.conversation_id}">${unread>99?'99+':unread||''}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function showEmpty(msg) {
+  document.getElementById('conv-list').innerHTML = `
+    <div class="empty">
+      <div class="empty-icon">💬</div>
+      <div class="empty-title">${msg}</div>
+    </div>`;
+}
+
+function markOnline(userId, online) {
+  // Find all convs that involve this user and mark their dot
+  document.querySelectorAll(`[id^="dot-"]`).forEach(dot => {
+    const cid = dot.id.replace('dot-', '');
+    const c   = allConvs.find(x => x.conversation_id === cid);
+    if (c?.other_user_id === userId) dot.classList.toggle('show', online);
+  });
+}
+
+function filterConvs() { renderList(); }
+
+function openConv(convId, name) {
+  location.href = `/chat/${convId}?uid=${uid}&uname=${encodeURIComponent(uname)}&lang=${lang}&cname=${encodeURIComponent(name)}`;
+}
+
+// ── New group modal ───────────────────────────────────────────────────────────
+function openNewChat()  { document.getElementById('new-modal').classList.add('show'); }
+function closeNewChat() { document.getElementById('new-modal').classList.remove('show'); }
+
+async function createGroup() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) return;
+  const btn = document.getElementById('m-create');
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    const res = await fetch('/api/chat/group/create', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ uid, name })
+    }).then(r=>r.json());
+    if (res.ok) {
+      closeNewChat();
+      document.getElementById('m-name').value = '';
+      loadConvs();
+    }
+  } catch(e){}
+  btn.disabled = false; btn.textContent = '✅ إنشاء مجموعة';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtTime(iso) {
+  const d   = new Date(iso);
+  const now = new Date();
+  const diff= (now - d) / 1000;
+  if (diff < 86400 && d.getDate() === now.getDate())
+    return d.toLocaleTimeString('ar-SA', {hour:'2-digit',minute:'2-digit'});
+  if (diff < 604800)
+    return d.toLocaleDateString('ar-SA', {weekday:'short'});
+  return d.toLocaleDateString('ar-SA', {day:'2-digit',month:'2-digit'});
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+if (window.Telegram?.WebApp) { Telegram.WebApp.ready(); Telegram.WebApp.expand(); }
+loadConvs();
+</script>
+</body>
+</html>
