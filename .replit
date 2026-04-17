@@ -68,12 +68,12 @@ outputType = "webview"
 name = "GitHub Auto Push"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "bash auto_push.sh"
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash sync_from_github.sh"
 
 [[ports]]
 localPort = 5000
@@ -88,3 +88,6 @@ externalPort = 8080
 [userenv.production]
 
 [userenv.shared]
+
+[userenv.development]
+APP_DOMAIN = "3adb2baf-e77a-472a-ae6a-bf7b918c893f-00-3pfs6q83hb6cj.kirk.replit.dev"
