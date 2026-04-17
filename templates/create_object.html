@@ -255,8 +255,12 @@
   <div id="loc-modal-header">
     <button id="loc-modal-close" onclick="closeLocationPicker()">✕</button>
     <h2 id="loc-modal-title">Set Location</h2>
+    <button id="loc-refresh-btn" onclick="refreshLocGps()" style="background:#f3e5f5;border:1.5px solid #8e44ad;color:#6c3483;border-radius:10px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">🔄 GPS</button>
   </div>
-  <div id="loc-hint-bar"><span id="loc-hint-text">Drag the pin to your entity's location (within 20m)</span></div>
+  <div id="loc-acc-bar" style="background:#fff;padding:6px 14px 4px;flex-shrink:0;border-bottom:1px solid #f0f0f0">
+    <span id="loc-acc-badge" style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;display:inline-block">…</span>
+    <span id="loc-hint-text" style="font-size:11px;color:#999;margin-inline-start:6px">اسحب الدبوس لموقع الكيان</span>
+  </div>
   <div id="loc-map"></div>
   <div id="loc-confirm-bar">
     <button id="loc-confirm-btn" onclick="confirmLocation()">✅ <span id="loc-confirm-lbl">Confirm Location</span></button>
@@ -435,32 +439,54 @@
   let pickedLng = null;
   let userGpsLat = null;
   let userGpsLng = null;
+  let userGpsAccuracy = 50; // meters — updated from coords.accuracy
+  let activeRadius = 50;    // actual drag radius used (= GPS accuracy, min 30)
   let locMap = null;
   let locMarker = null;
   let locCircle = null;
+  let locAccCircle = null;
   let locUserDot = null;
-  const MAX_RADIUS = 20; // meters
+  let gpsWatcher = null;
 
-  /* Get GPS silently on load */
-  (function fetchGps() {
+  /* Accuracy badge colors */
+  function _accColor(acc) {
+    if (acc <= 20)  return {c:'#16a34a', bg:'#f0fdf4', lbl: isAr ? `✅ دقة ممتازة (${Math.round(acc)}م)` : `✅ Excellent (${Math.round(acc)}m)`};
+    if (acc <= 50)  return {c:'#d97706', bg:'#fffbeb', lbl: isAr ? `🟡 دقة جيدة (${Math.round(acc)}م)` : `🟡 Good (${Math.round(acc)}m)`};
+    if (acc <= 100) return {c:'#ea580c', bg:'#fff7ed', lbl: isAr ? `🟠 دقة متوسطة (${Math.round(acc)}م)` : `🟠 Fair (${Math.round(acc)}m)`};
+    return           {c:'#dc2626', bg:'#fef2f2', lbl: isAr ? `🔴 دقة ضعيفة (${Math.round(acc)}م) — حرك الدبوس لموقعك الفعلي` : `🔴 Poor accuracy (${Math.round(acc)}m) — drag pin to real spot`};
+  }
+
+  /* Fetch GPS — high accuracy, keep watching to improve */
+  function fetchGps(onSuccess) {
     if (!navigator.geolocation) return;
+    const opts = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
     navigator.geolocation.getCurrentPosition(
       pos => {
-        userGpsLat = pos.coords.latitude;
-        userGpsLng = pos.coords.longitude;
-        try { localStorage.setItem('ac_last_gps_' + uid, JSON.stringify({lat:userGpsLat,lng:userGpsLng})); } catch(e){}
+        userGpsLat      = pos.coords.latitude;
+        userGpsLng      = pos.coords.longitude;
+        userGpsAccuracy = pos.coords.accuracy || 50;
+        activeRadius    = Math.max(userGpsAccuracy, 30);
+        try { localStorage.setItem('ac_last_gps_' + uid, JSON.stringify({lat:userGpsLat,lng:userGpsLng,acc:userGpsAccuracy})); } catch(e){}
+        if (onSuccess) onSuccess();
       },
       () => {
         try {
           const gc = JSON.parse(localStorage.getItem('ac_last_gps_' + uid) || 'null');
-          if (gc && gc.lat != null) { userGpsLat = gc.lat; userGpsLng = gc.lng; }
+          if (gc && gc.lat != null) {
+            userGpsLat = gc.lat; userGpsLng = gc.lng;
+            userGpsAccuracy = gc.acc || 100;
+            activeRadius = Math.max(userGpsAccuracy, 30);
+          }
         } catch(e){}
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+      opts
     );
-  })();
+  }
 
-  /* Clamp latlng to within maxDist meters of center */
+  /* Silent GPS on page load */
+  fetchGps();
+
+  /* Clamp latlng to within maxDist meters of center (haversine) */
   function clampToRadius(centerLat, centerLng, lat, lng, maxDist) {
     const R = 6371000;
     const dLat = (lat - centerLat) * Math.PI / 180;
@@ -473,6 +499,39 @@
       lat: centerLat + (lat - centerLat) * ratio,
       lng: centerLng + (lng - centerLng) * ratio
     };
+  }
+
+  /* Redraw circles & update accuracy badge */
+  function _updateMapLayers() {
+    if (!locMap || !userGpsLat) return;
+    const acc = _accColor(userGpsAccuracy);
+    activeRadius = Math.max(userGpsAccuracy, 30);
+
+    if (locUserDot) locMap.removeLayer(locUserDot);
+    if (locCircle)  locMap.removeLayer(locCircle);
+    if (locAccCircle) locMap.removeLayer(locAccCircle);
+
+    /* Blue GPS dot */
+    locUserDot = L.circleMarker([userGpsLat, userGpsLng], {
+      radius: 9, color: '#fff', weight: 3,
+      fillColor: '#3b82f6', fillOpacity: 1, zIndexOffset: 500
+    }).addTo(locMap);
+
+    /* Accuracy radius circle (dashed, colored by quality) */
+    locCircle = L.circle([userGpsLat, userGpsLng], {
+      radius: activeRadius,
+      color: acc.c, weight: 2,
+      fillColor: acc.c, fillOpacity: 0.10,
+      dashArray: '7 5'
+    }).addTo(locMap);
+
+    /* Update badge */
+    const badge = document.getElementById('loc-acc-badge');
+    if (badge) {
+      badge.textContent = acc.lbl;
+      badge.style.color = acc.c;
+      badge.style.background = acc.bg;
+    }
   }
 
   function openLocationPicker() {
@@ -493,48 +552,51 @@
       const startLat = pickedLat !== null ? pickedLat : userGpsLat;
       const startLng = pickedLng !== null ? pickedLng : userGpsLng;
 
-      locMap.setView([userGpsLat, userGpsLng], 20);
+      /* Zoom to fit the accuracy circle */
+      const zoomLevel = userGpsAccuracy < 20 ? 20 : userGpsAccuracy < 60 ? 18 : userGpsAccuracy < 150 ? 17 : 16;
+      locMap.setView([userGpsLat, userGpsLng], zoomLevel);
 
-      /* Remove old layers */
+      /* Remove old pin */
       if (locMarker) locMap.removeLayer(locMarker);
-      if (locCircle) locMap.removeLayer(locCircle);
-      if (locUserDot) locMap.removeLayer(locUserDot);
 
-      /* User GPS blue dot */
-      locUserDot = L.circleMarker([userGpsLat, userGpsLng], {
-        radius: 10, color: '#fff', weight: 3,
-        fillColor: '#3b82f6', fillOpacity: 1
-      }).addTo(locMap);
+      _updateMapLayers();
 
-      /* 20m radius circle */
-      locCircle = L.circle([userGpsLat, userGpsLng], {
-        radius: MAX_RADIUS, color: '#3b82f6', weight: 2,
-        fillColor: '#3b82f6', fillOpacity: 0.12, dashArray: '6 4'
-      }).addTo(locMap);
-
-      /* Draggable pin icon */
+      /* Draggable pin */
       const pinIcon = L.divIcon({
         className: '',
-        html: `<div style="display:flex;flex-direction:column;align-items:center">
-          <div style="width:42px;height:42px;background:#8e44ad;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font-size:20px">📍</div>
-          <div style="width:3px;height:14px;background:#8e44ad;border-radius:2px"></div>
+        html: `<div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))">
+          <div style="width:44px;height:44px;background:#8e44ad;border-radius:50%;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:22px">📍</div>
+          <div style="width:3px;height:16px;background:#8e44ad;border-radius:2px;margin-top:-2px"></div>
+          <div style="width:8px;height:4px;background:rgba(100,0,150,.25);border-radius:50%"></div>
         </div>`,
-        iconSize: [42, 56],
-        iconAnchor: [21, 56]
+        iconSize: [44, 66],
+        iconAnchor: [22, 64]
       });
 
       locMarker = L.marker([startLat, startLng], { icon: pinIcon, draggable: true }).addTo(locMap);
 
       locMarker.on('drag', function(e) {
         const p = e.latlng;
-        const clamped = clampToRadius(userGpsLat, userGpsLng, p.lat, p.lng, MAX_RADIUS);
-        if (clamped.lat !== p.lat || clamped.lng !== p.lng) {
+        const clamped = clampToRadius(userGpsLat, userGpsLng, p.lat, p.lng, activeRadius);
+        if (Math.abs(clamped.lat - p.lat) > 1e-8 || Math.abs(clamped.lng - p.lng) > 1e-8) {
           locMarker.setLatLng([clamped.lat, clamped.lng]);
         }
       });
 
       locMap.invalidateSize();
     }, 80);
+  }
+
+  /* Refresh GPS button in modal */
+  function refreshLocGps() {
+    const btn = document.getElementById('loc-refresh-btn');
+    if (btn) { btn.textContent = isAr ? '⏳ جاري التحديث…' : '⏳ Refreshing…'; btn.disabled = true; }
+    fetchGps(() => {
+      _updateMapLayers();
+      if (locMap) locMap.setView([userGpsLat, userGpsLng],
+        userGpsAccuracy < 20 ? 20 : userGpsAccuracy < 60 ? 18 : 17);
+      if (btn) { btn.textContent = isAr ? '🔄 تحديث GPS' : '🔄 Refresh GPS'; btn.disabled = false; }
+    });
   }
 
   function closeLocationPicker() {
