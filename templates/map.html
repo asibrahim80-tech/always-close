@@ -584,6 +584,7 @@
   let gpsLatLng       = null;   // latest live GPS (from watchPosition only)
   let myLatLng        = null;   // displayed pin position (moves with joystick)
   let joystickRoaming = false;  // true only while user is moving via joystick
+  let accuracyCircle  = null;   // blue accuracy ring around user pin
 
   // Seed initial letter from Telegram name (photo comes from server only)
   const _tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
@@ -1153,6 +1154,25 @@
     return null;
   }
 
+  function updateAccuracyCircle(lat, lng, acc) {
+    if (!uid) return; // guests don't get accuracy ring
+    const pos = [lat, lng];
+    if (accuracyCircle) {
+      accuracyCircle.setLatLng(pos).setRadius(acc);
+    } else {
+      accuracyCircle = L.circle(pos, {
+        radius: acc,
+        color: '#2563eb',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.08,
+        weight: 1.5,
+        opacity: 0.5,
+        interactive: false,
+        pane: 'shadowPane'   // render below markers
+      }).addTo(map);
+    }
+  }
+
   function onGpsPosition(pos) {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
@@ -1169,6 +1189,9 @@
     // Update live position
     gpsLatLng = [lat, lng];
 
+    // Draw / update blue accuracy ring
+    updateAccuracyCircle(lat, lng, acc);
+
     if (!meMarker) {
       // No server location yet — bootstrap marker directly from GPS
       myLatLng = [lat, lng];
@@ -1178,7 +1201,7 @@
         .bindPopup(`<div style="padding:10px;font-weight:700;font-size:14px">📍 ${L_.you}</div>`);
       map.setView(myLatLng, defaultZoom);
     } else if (!joystickRoaming) {
-      // Follow GPS if not joystick-roaming
+      // Follow GPS if not joystick-roaming — always trust live GPS over server
       myLatLng = [lat, lng];
       meMarker.setLatLng(myLatLng);
       map.panTo(myLatLng, { animate: true, duration: 0.5 });
