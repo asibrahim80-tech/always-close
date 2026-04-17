@@ -2869,12 +2869,9 @@ def api_object_create():
         if (existing.count or 0) >= 5:
             return jsonify({"ok": False, "error": "limit_reached"})
 
-        # Accept lat/lng from client as fallback (sent by create_object page)
+        # Prefer live GPS from client (more accurate) → fallback to server-stored location
         req_lat = data.get("lat")
         req_lng = data.get("lng")
-
-        loc = supabase.table("user_locations_v1").select("latitude,longitude") \
-            .eq("user_id", creator_id).limit(1).execute()
 
         expires_map = {"1d": timedelta(days=1), "3d": timedelta(days=3),
                        "1w": timedelta(weeks=1), "1m": timedelta(days=30)}
@@ -2884,12 +2881,18 @@ def api_object_create():
 
         record = {"name": name, "created_by": creator_id,
                   "purpose": purpose, "object_type": object_type, "is_mobile": is_mobile}
-        if loc.data:
-            record["latitude"]  = loc.data[0]["latitude"]
-            record["longitude"] = loc.data[0]["longitude"]
-        elif req_lat is not None and req_lng is not None:
+
+        if req_lat is not None and req_lng is not None:
+            # Use precise live GPS sent from the browser
             record["latitude"]  = float(req_lat)
             record["longitude"] = float(req_lng)
+        else:
+            # Fallback: last server-stored location
+            loc = supabase.table("user_locations_v1").select("latitude,longitude") \
+                .eq("user_id", creator_id).limit(1).execute()
+            if loc.data:
+                record["latitude"]  = loc.data[0]["latitude"]
+                record["longitude"] = loc.data[0]["longitude"]
         if expires_at:
             record["expires_at"] = expires_at
 
@@ -3235,21 +3238,44 @@ def api_objects_mine(tg_id):
         out = []
         for o in (objs.data or []):
             mem_cnt = supabase.table("object_members_v1") \
-                .select("id", count="exact").eq("object_id", o["id"]).eq("status", "active").execute()
-            pending = supabase.table("object_members_v1") \
-                .select("id", count="exact").eq("object_id", o["id"]).eq("status", "pending").execute()
+                .select("id", count="exact").eq("object_id", o["id"]).execute()
             rat = supabase.table("object_ratings_v1") \
                 .select("rating").eq("object_id", o["id"]).execute()
             vals = [r["rating"] for r in (rat.data or [])]
             avg  = round(sum(vals) / len(vals), 1) if vals else 0
             out.append({**o,
                 "members_count": mem_cnt.count or 0,
-                "pending_count": pending.count or 0,
+                "pending_count": 0,
                 "avg_rating":    avg,
             })
         return jsonify({"ok": True, "objects": out})
     except Exception as e:
         return jsonify({"ok": False, "objects": [], "error": str(e)})
+
+
+@app.route('/api/object/update_location', methods=['POST'])
+def api_object_update_location():
+    try:
+        from database import supabase
+        data      = request.get_json(force=True)
+        uid       = int(data.get("uid", 0))
+        object_id = int(data.get("object_id", 0))
+        lat       = data.get("lat")
+        lng       = data.get("lng")
+        if lat is None or lng is None:
+            return jsonify({"ok": False, "error": "missing_coords"})
+        me = supabase.table("users_v1").select("id").eq("telegram_id", uid).execute()
+        if not me.data:
+            return jsonify({"ok": False, "error": "not_found"})
+        my_id = me.data[0]["id"]
+        obj = supabase.table("objects_v1").select("created_by").eq("id", object_id).execute()
+        if not obj.data or obj.data[0]["created_by"] != my_id:
+            return jsonify({"ok": False, "error": "not_creator"})
+        supabase.table("objects_v1").update({"latitude": float(lat), "longitude": float(lng)}) \
+            .eq("id", object_id).execute()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 
 @app.route('/api/object/update', methods=['POST'])

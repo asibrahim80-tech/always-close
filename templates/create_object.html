@@ -488,6 +488,24 @@
   }
 
   /* Submit */
+  async function getLiveGps() {
+    return new Promise(resolve => {
+      if (!navigator.geolocation) return resolve({lat: null, lng: null});
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({lat: pos.coords.latitude, lng: pos.coords.longitude}),
+        () => {
+          // Fall back to localStorage cache
+          try {
+            const gc = JSON.parse(localStorage.getItem('ac_last_gps_' + uid) || 'null');
+            if (gc && gc.lat != null) return resolve({lat: gc.lat, lng: gc.lng});
+          } catch(e) {}
+          resolve({lat: null, lng: null});
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    });
+  }
+
   document.getElementById('submit-btn').addEventListener('click', async () => {
     const name = nameInput.value.trim();
     if (!name) return showToast(T.name_req);
@@ -499,12 +517,8 @@
     try {
       const catalog = catalogItems.filter(i => i && i.trim());
 
-      // Read cached GPS so entity gets coordinates even before server-save
-      let gpsLat = null, gpsLng = null;
-      try {
-        const gc = JSON.parse(localStorage.getItem('ac_last_gps_' + uid) || 'null');
-        if (gc && gc.lat != null && gc.lng != null) { gpsLat = gc.lat; gpsLng = gc.lng; }
-      } catch(e) {}
+      // Get accurate live GPS (fallback: cached)
+      const { lat: gpsLat, lng: gpsLng } = await getLiveGps();
 
       const res = await fetch('/api/object/create', {
         method: 'POST',

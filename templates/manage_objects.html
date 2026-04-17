@@ -136,7 +136,8 @@
       hdr_title:'كياناتي', lbl_create:'إنشاء',
       empty_title:'لا توجد كيانات بعد', empty_sub:'أنشئ كيانك الأول',
       create_first:'✨ إنشاء كيان',
-      btn_edit:'✏️ تعديل', btn_members:'👥 الأعضاء', btn_chat:'💬 المحادثة', btn_delete:'🗑️ حذف',
+      btn_edit:'✏️ تعديل', btn_members:'👥 الأعضاء', btn_chat:'💬 المحادثة', btn_delete:'🗑️ حذف', btn_loc:'📍 تحديث الموقع',
+      loc_updating:'⏳ جاري تحديد موقعك...', loc_ok:'✅ تم تحديث الموقع', loc_err:'❌ تعذّر تحديد الموقع',
       pending:'⏳ طلبات انضمام معلّقة',
       members_title:'أعضاء الكيان',
       edit_title:'تعديل الكيان',
@@ -157,7 +158,8 @@
       hdr_title:'My Entities', lbl_create:'Create',
       empty_title:'No entities yet', empty_sub:'Create your first entity',
       create_first:'✨ Create Entity',
-      btn_edit:'✏️ Edit', btn_members:'👥 Members', btn_chat:'💬 Chat', btn_delete:'🗑️ Delete',
+      btn_edit:'✏️ Edit', btn_members:'👥 Members', btn_chat:'💬 Chat', btn_delete:'🗑️ Delete', btn_loc:'📍 Update Location',
+      loc_updating:'⏳ Getting your location...', loc_ok:'✅ Location updated', loc_err:'❌ Could not get location',
       pending:'⏳ Pending join requests',
       members_title:'Entity Members',
       edit_title:'Edit Entity',
@@ -263,6 +265,7 @@
         <button class="act-btn btn-edit"    onclick="openEdit(${o.id})">${T.btn_edit}</button>
         <button class="act-btn btn-members" onclick="openMembers(${o.id})">${T.btn_members}</button>
         <button class="act-btn btn-chat"    onclick="openChat(${o.id})">${T.btn_chat}</button>
+        ${!o.is_mobile ? `<button class="act-btn" style="background:#e0f2fe;color:#0369a1;border-color:#7dd3fc" onclick="updateLocation(${o.id})">${T.btn_loc}</button>` : ''}
         <button class="act-btn btn-delete"  onclick="deleteObj(${o.id})">${T.btn_delete}</button>
       </div>
     </div>`;
@@ -397,6 +400,27 @@
       if (data.ok) { showToast(T.deleted); load(); }
       else showToast(T.err);
     } catch(e) { showToast(T.err); }
+  }
+
+  /* ─── Update Location ─── */
+  async function updateLocation(objId) {
+    showToast(T.loc_updating);
+    if (!navigator.geolocation) { showToast(T.loc_err); return; }
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        try {
+          const res  = await fetch('/api/object/update_location', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ uid: parseInt(uid), object_id: objId, lat: pos.coords.latitude, lng: pos.coords.longitude })
+          });
+          const data = await res.json();
+          showToast(data.ok ? T.loc_ok : T.loc_err);
+        } catch(e) { showToast(T.loc_err); }
+      },
+      () => showToast(T.loc_err),
+      { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
+    );
   }
 
   /* ─── Overlay ─── */
